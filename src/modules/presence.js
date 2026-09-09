@@ -106,6 +106,24 @@ export function createPresence({
 
   let lastPosition = { x: 9.68, y: 1.45, z: -2.5, yaw: 0 };
   let reconnectDelay = 2500;
+  /** When set, we only dial this host (no Netlify `/presence` fallback spam). */
+  let forcedWsUrl = '';
+
+  /**
+   * Render's GMC presence listens on `/presence`. A bare `wss://host` or `wss://host/`
+   * upgrade fails, so empty paths are rewritten to `/presence`.
+   */
+  function normalizePresenceUrl(raw) {
+    const s = String(raw || '').trim();
+    if (!s) return '';
+    try {
+      const u = new URL(s);
+      if (!u.pathname || u.pathname === '/') u.pathname = '/presence';
+      return u.toString().replace(/\/$/, '');
+    } catch {
+      return s.replace(/\/$/, '');
+    }
+  }
 
   function scheduleReconnect() {
     if (reconnectTimer) return;
@@ -121,9 +139,8 @@ export function createPresence({
    * Candidate endpoints, tried round-robin on every reconnect:
    *  1. an explicit override (`?presence=wss://…`, `window.PRESENCE_WS_URL`, or
    *     build-time `VITE_WS_URL` / `VITE_PRESENCE_WS_URL` — set on Netlify for Render)
-   *  2. same-origin `/presence` (Vite dev/preview proxy → server/presence.js)
-   *  3. the presence server's own port on this host (works when no proxy is in front,
-   *     e.g. a static production build on the LAN)
+   *  2. same-origin `/presence` (Vite dev/preview proxy → server/presence.js) — skipped when (1) is set
+   *  3. the presence server's own port on this host (LAN / local static preview)
    */
   function getWsCandidates() {
     const loc = window.location;
@@ -132,15 +149,23 @@ export function createPresence({
     try {
       const envUrl = (typeof import.meta !== 'undefined' && import.meta.env
         && (import.meta.env.VITE_WS_URL || import.meta.env.VITE_PRESENCE_WS_URL)) || '';
-      const override = new URLSearchParams(loc.search).get('presence')
+      const override = normalizePresenceUrl(
+        new URLSearchParams(loc.search).get('presence')
         || window.PRESENCE_WS_URL
-        || envUrl;
-      if (override) list.push(String(override).trim());
+        || envUrl
+      );
+      if (override) {
+        forcedWsUrl = override;
+        list.push(override);
+        return list;
+      }
     } catch (e) {}
+    forcedWsUrl = '';
     list.push(`${proto}//${loc.host}/presence`);
     const directPort = typeof __PRESENCE_PORT__ !== 'undefined' ? __PRESENCE_PORT__ : '8787';
     if (loc.protocol !== 'https:' && String(loc.port) !== String(directPort)) {
       list.push(`ws://${loc.hostname}:${directPort}`);
+      list.push(`ws://${loc.hostname}:${directPort}/presence`);
     }
     return list;
   }
@@ -157,9 +182,11 @@ export function createPresence({
         reconnectDelay = 2500;
         attempt = 0;
         setStatus(true, 'connected');
+        // Send both `id` (3D hall) and `clientId` (legacy 2D GMC presence on Render).
         ws.send(JSON.stringify({
           type: 'join',
           id: visitor.id,
+          clientId: visitor.id,
           name: visitor.name,
           color: visitor.color,
           x: lastPosition.x,
@@ -173,21 +200,35 @@ export function createPresence({
         try {
           const msg = JSON.parse(event.data);
           if (msg.type === 'welcome') {
-            onWelcome?.(msg);
+            // Normalize legacy 2D welcome ({ selfId, players, count }) → 3D shape.
+            const normalized = {
+              ...msg,
+              id: msg.id || msg.selfId,
+              visitors: Array.isArray(msg.visitors)
+                ? msg.visitors
+                : (Array.isArray(msg.players) ? msg.players : []),
+              count: msg.count ?? msg.n,
+              screen: msg.screen || msg.screenState,
+            };
+            onWelcome?.(normalized);
+            if (normalized.count != null) onCount?.(normalized.count);
           } else if (msg.type === 'joined') {
-            onJoined?.(msg.visitor);
+            onJoined?.(msg.visitor || msg);
           } else if (msg.type === 'moved') {
             onMoved?.(msg);
           } else if (msg.type === 'left') {
             onLeft?.(msg.id);
           } else if (msg.type === 'count') {
-            onCount?.(msg.count);
+            onCount?.(msg.count ?? msg.n);
           } else if (msg.type === 'screen_state') {
-            onScreen?.(msg.screen);
+            onScreen?.(msg.screen || msg);
           } else if (msg.type === 'pledge') {
             onPledge?.(msg.pledge);
           } else if (msg.type === 'heart') {
             onHeart?.(msg.heart);
+          } else if (msg.type === 'error') {
+            // Legacy servers reject unknown join shapes; stay quiet in the console.
+            setStatus(false, msg.reason || 'error');
           }
         } catch (err) {}
       };

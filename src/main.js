@@ -1334,11 +1334,14 @@ function connectPresenceServer() {
     },
     onMoved: (data) => {
       const rp = remotePlayers.get(data.id);
+      // Legacy 2D presence only sends x/y — keep the avatar's current z/yaw when missing.
+      const z = Number.isFinite(Number(data.z)) ? Number(data.z) : (rp ? rp.targetPos.z : -2.5);
+      const yaw = Number.isFinite(Number(data.yaw)) ? Number(data.yaw) : (rp ? rp.targetYaw : 0);
       if (rp) {
-        rp.targetPos.set(data.x, 0, data.z);
-        rp.targetYaw = data.yaw;
+        rp.targetPos.set(Number(data.x) || rp.targetPos.x, 0, z);
+        rp.targetYaw = yaw;
       } else {
-        spawnRemoteAvatar(data);
+        spawnRemoteAvatar({ ...data, z, yaw });
       }
     },
     onLeft: removeRemoteAvatar,

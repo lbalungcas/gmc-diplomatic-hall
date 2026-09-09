@@ -1,0 +1,15 @@
+# Optional Render Blueprint — point the existing gmc-presence service at this repo
+# and use Start Command: npm install && node server/presence.js
+# (Free web services sleep; first WebSocket after idle can take ~30–60s.)
+
+services:
+  - type: web
+    name: gmc-presence
+    runtime: node
+    plan: free
+    buildCommand: npm install
+    startCommand: node server/presence.js
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_VERSION
+        value: "22"

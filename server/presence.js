@@ -62,9 +62,17 @@ let screenState = {
 };
 
 const server = createServer((req, res) => {
-  if (req.url === '/health') {
+  if (req.url === '/health' || req.url?.startsWith('/health?')) {
     res.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
-    res.end(JSON.stringify({ status: 'ok', visitors: visitors.size, pledges: pledges.length, screenState }));
+    // Both shapes: this 3D hall (`status`/`visitors`) and the legacy 2D GMC probe (`ok`/`players`).
+    res.end(JSON.stringify({
+      status: 'ok',
+      ok: true,
+      visitors: visitors.size,
+      players: visitors.size,
+      pledges: pledges.length,
+      screenState,
+    }));
     return;
   }
   if (req.url === '/pledges') {
@@ -88,7 +96,7 @@ function broadcast(msg, excludeWs = null) {
 }
 
 function broadcastHeadcount() {
-  broadcast({ type: 'count', count: visitors.size });
+  broadcast({ type: 'count', count: visitors.size, n: visitors.size });
 }
 
 wss.on('connection', (ws) => {
@@ -99,7 +107,7 @@ wss.on('connection', (ws) => {
       const msg = JSON.parse(raw.toString());
 
       if (msg.type === 'join') {
-        visitorId = msg.id || `v-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+        visitorId = msg.id || msg.clientId || `v-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
         const visitorData = {
           id: visitorId,
           name: (msg.name || 'Delegate').slice(0, 24),
