@@ -10,19 +10,45 @@
     "radius": 0.55,
     "bubbleRange": 4.5,
     "interactRange": 2.2,
+    "roam": true,
+    "walkSpeed": 1.05,
+    "pauseSec": [2.2, 4.5],
+    "waypoints": [
+      { "x": 24.4, "z": -4.55 },
+      { "x": 22.2, "z": -7.8 },
+      { "x": 18.2, "z": -7.8 },
+      { "x": 14.5, "z": -7.8 },
+      { "x": 9.68, "z": -6.0 },
+      { "x": 9.68, "z": -10.5 },
+      { "x": 9.68, "z": -14.5 },
+      { "x": 4.6, "z": -12.5 },
+      { "x": 4.6, "z": -7.0 },
+      { "x": 9.68, "z": -5.5 },
+      { "x": 14.5, "z": -7.8 },
+      { "x": 18.2, "z": -12.2 },
+      { "x": 22.0, "z": -12.2 },
+      { "x": 24.2, "z": -9.5 },
+      { "x": 24.4, "z": -6.5 }
+    ],
     "lines": {
-      "enter": ["Hi there!", "Welcome!", "I'm Tutu!"],
-      "idle": ["Explore the booths", "20 youth teams", "Nov 17–18", "Say hello!"]
+      "enter": ["Hi there!", "Welcome!", "I'm Tutu!", "Ask me anything!"],
+      "idle": [
+        "What is the Marketplace?",
+        "Ask me about safeguarding",
+        "Explore the booths",
+        "17 Nov · Marriott Manila",
+        "Press E to ask me"
+      ]
     },
     "modal": {
-      "kicker": "TDH MASCOT",
+      "kicker": "ASK TUTU",
       "title": "Tutu the Elephant",
-      "subtitle": "Terre des hommes",
-      "overview": "Tutu is the Terre des hommes mascot, here to welcome you to the Youth Innovations Marketplace. Walk the hall, visit all 20 satellite booths, and learn what youth teams have been building across the region.",
+      "subtitle": "Event FAQ & safeguarding",
+      "overview": "Tutu welcomes you to the Youth Innovations Marketplace. Ask about the event overview, what to expect on 17 November, or safeguarding — Tutu is here to help.",
       "stats": [
         { "value": "20", "label": "Satellite booths" },
         { "value": "Nov 17", "label": "Marriott Manila" },
-        { "value": "Nov 18", "label": "GMC main event" }
+        { "value": "Safe", "label": "Safeguarding first" }
       ]
     }
   },

@@ -24,3 +24,8 @@ Thumbs.db
 *.blend1
 __pycache__/
 *.pyc
+
+# Internal briefing docs (not for public deploy)
+*.docx
+(Draft)*.docx
+Youth Innovations Marketplace - SGMC*.docx

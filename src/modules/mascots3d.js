@@ -3,8 +3,8 @@
  * primitives so they need no extra downloads. Each mascot is tinted with its organizer's brand
  * palette (organizers.json: color / accent / ink); copy follows the 2D GMC hall's mascots.json.
  *
- * Each mascot idles in place, turns to face nearby visitors (elephant), shows a speech bubble
- * when someone walks up, and can be "talked to" (E / tap) to open an info modal.
+ * Tutu can roam on a waypoint loop through the foyer and hall aisles, pauses when a visitor is
+ * nearby, and can be "talked to" (E / tap) to open an Ask Tutu FAQ. The lighthouse stays put.
  */
 import * as THREE from 'three';
 
@@ -55,10 +55,12 @@ export function createElephant({ theme = {} } = {}) {
   // Legs
   const legGeo = new THREE.CylinderGeometry(0.11, 0.135, 0.42, 14);
   const nailGeo = new THREE.SphereGeometry(0.035, 8, 6);
+  const legs = [];
   for (const [sx, sz] of [[-1, 1], [1, 1], [-1, -1], [1, -1]]) {
     const leg = new THREE.Mesh(legGeo, bodyMat);
     leg.position.set(sx * 0.22, 0.21, sz * 0.2);
     root.add(leg);
+    legs.push({ mesh: leg, baseY: 0.21, sx, sz });
     for (let i = -1; i <= 1; i++) {
       const nail = new THREE.Mesh(nailGeo, std(0xf1f0ec));
       nail.position.set(sx * 0.22 + i * 0.07, 0.04, sz * 0.2 + (sz > 0 ? 0.12 : -0.12));
@@ -172,14 +174,27 @@ export function createElephant({ theme = {} } = {}) {
   return {
     root,
     height: 1.55,
-    animate(t, facingDelta) {
-      body.position.y = 0.72 + Math.sin(t * 2.1) * 0.012;
-      head.position.y = 1.12 + Math.sin(t * 2.1 + 0.4) * 0.015;
+    animate(t, facingDelta = 0, walkPhase = 0) {
+      const walking = walkPhase > 0.02;
+      const bob = walking ? Math.sin(walkPhase * 2) * 0.035 : Math.sin(t * 2.1) * 0.012;
+      body.position.y = 0.72 + bob;
+      head.position.y = 1.12 + (walking ? Math.sin(walkPhase * 2 + 0.4) * 0.02 : Math.sin(t * 2.1 + 0.4) * 0.015);
       head.rotation.y += (facingDelta - head.rotation.y) * 0.08;
       head.rotation.z = Math.sin(t * 0.9) * 0.04;
       for (const e of ears) e.pivot.rotation.y = e.side * (Math.sin(t * 2.6 + e.side) * 0.16);
       trunkPivot.rotation.x = Math.sin(t * 1.4) * 0.16;
       trunkPivot.rotation.y = Math.sin(t * 0.7) * 0.12;
+      // Diagonal gait: FL+BR / FR+BL
+      for (const leg of legs) {
+        if (!walking) {
+          leg.mesh.rotation.x = 0;
+          leg.mesh.position.y = leg.baseY;
+          continue;
+        }
+        const phase = walkPhase + ((leg.sx * leg.sz > 0) ? 0 : Math.PI);
+        leg.mesh.rotation.x = Math.sin(phase) * 0.45;
+        leg.mesh.position.y = leg.baseY + Math.max(0, Math.sin(phase)) * 0.04;
+      }
     },
   };
 }
@@ -395,7 +410,7 @@ function drawBubble(ctx, text) {
 
 // ---------------------------------------------------------------- Controller
 /**
- * @param {Array} defs mascots.json entries (with world x/z)
+ * @param {Array} defs mascots.json entries (with world x/z; optional roam + waypoints)
  * @returns {{ list, update(t, dt, playerPos, frozen), obstacles, nearest(playerPos) }}
  */
 export function createMascots(scene, defs, { lowPower = false, colorFor = () => '#F4B400', themeFor = () => ({}) } = {}) {
@@ -419,6 +434,10 @@ export function createMascots(scene, defs, { lowPower = false, colorFor = () => 
     bubble.visible = false;
     scene.add(bubble);
 
+    const waypoints = Array.isArray(cfg.waypoints) && cfg.waypoints.length >= 2
+      ? cfg.waypoints.map((w) => ({ x: Number(w.x), z: Number(w.z) }))
+      : null;
+
     return {
       cfg,
       built,
@@ -429,6 +448,14 @@ export function createMascots(scene, defs, { lowPower = false, colorFor = () => 
       idleTimer: 0,
       baseYaw: cfg.yaw || 0,
       facingDelta: 0,
+      pos: { x: cfg.x, z: cfg.z },
+      roam: !!(cfg.roam && waypoints),
+      waypoints,
+      waypointIdx: 0,
+      pauseLeft: 0,
+      walkPhase: 0,
+      walkSpeed: Number(cfg.walkSpeed) || 1.0,
+      pauseRange: Array.isArray(cfg.pauseSec) ? cfg.pauseSec : [2, 4],
     };
   });
 
@@ -444,36 +471,97 @@ export function createMascots(scene, defs, { lowPower = false, colorFor = () => 
     m.bubble.visible = false;
   }
 
+  function syncTransforms(m) {
+    const { x, z } = m.pos;
+    m.cfg.x = x;
+    m.cfg.z = z;
+    m.built.root.position.set(x, 0, z);
+    m.plate.position.set(x, m.built.height + 0.32, z);
+    m.bubble.position.x = x;
+    m.bubble.position.z = z;
+  }
+
+  function shortestAngle(from, to) {
+    let d = to - from;
+    while (d > Math.PI) d -= Math.PI * 2;
+    while (d < -Math.PI) d += Math.PI * 2;
+    return d;
+  }
+
+  function updateRoam(m, dt, playerPos, frozen) {
+    if (!m.roam || !m.waypoints) return;
+    const dx = playerPos.x - m.pos.x;
+    const dz = playerPos.z - m.pos.z;
+    const dist = Math.hypot(dx, dz);
+    const nearVisitor = !frozen && dist < (m.cfg.bubbleRange || 4.5);
+
+    if (nearVisitor) {
+      m.walkPhase *= Math.max(0, 1 - dt * 6);
+      const face = Math.atan2(dx, dz);
+      m.built.root.rotation.y += shortestAngle(m.built.root.rotation.y, face) * Math.min(1, dt * 4);
+      return;
+    }
+
+    if (m.pauseLeft > 0) {
+      m.pauseLeft -= dt;
+      m.walkPhase *= Math.max(0, 1 - dt * 6);
+      return;
+    }
+
+    const target = m.waypoints[m.waypointIdx % m.waypoints.length];
+    const tx = target.x - m.pos.x;
+    const tz = target.z - m.pos.z;
+    const rem = Math.hypot(tx, tz);
+    if (rem < 0.12) {
+      m.pos.x = target.x;
+      m.pos.z = target.z;
+      m.waypointIdx = (m.waypointIdx + 1) % m.waypoints.length;
+      const [lo, hi] = m.pauseRange;
+      m.pauseLeft = lo + Math.random() * Math.max(0, hi - lo);
+      m.walkPhase = 0;
+      syncTransforms(m);
+      return;
+    }
+
+    const step = Math.min(rem, m.walkSpeed * dt);
+    m.pos.x += (tx / rem) * step;
+    m.pos.z += (tz / rem) * step;
+    const face = Math.atan2(tx, tz);
+    m.built.root.rotation.y += shortestAngle(m.built.root.rotation.y, face) * Math.min(1, dt * 5);
+    m.walkPhase += dt * 7.5;
+    syncTransforms(m);
+  }
+
   return {
     list,
-    obstacles: list.map((m) => ({ x: m.cfg.x, z: m.cfg.z, r: m.cfg.radius || 0.55 })),
+    get obstacles() {
+      return list.map((m) => ({ x: m.pos.x, z: m.pos.z, r: m.cfg.radius || 0.55 }));
+    },
 
     update(t, dt, playerPos, frozen = false) {
       let nearestIdx = -1;
       let nearestDist = Infinity;
       list.forEach((m, i) => {
-        const dx = playerPos.x - m.cfg.x;
-        const dz = playerPos.z - m.cfg.z;
+        updateRoam(m, dt, playerPos, frozen);
+
+        const dx = playerPos.x - m.pos.x;
+        const dz = playerPos.z - m.pos.z;
         const d = Math.hypot(dx, dz);
         if (d < (m.cfg.bubbleRange || 4.5) && d < nearestDist) { nearestDist = d; nearestIdx = i; }
 
-        // Elephant turns its head toward the visitor when they're close.
         if (m.cfg.kind === 'elephant') {
           if (d < 6) {
             const targetYaw = Math.atan2(dx, dz);
-            let rel = targetYaw - m.built.root.rotation.y;
-            while (rel > Math.PI) rel -= Math.PI * 2;
-            while (rel < -Math.PI) rel += Math.PI * 2;
+            let rel = shortestAngle(m.built.root.rotation.y, targetYaw);
             m.facingDelta = Math.max(-0.9, Math.min(0.9, rel));
           } else {
             m.facingDelta = 0;
           }
-          m.built.animate(t, m.facingDelta);
+          m.built.animate(t, m.facingDelta, m.walkPhase || 0);
         } else {
           m.built.animate(t);
         }
 
-        // Bubble pop-in
         if (m.bubble.visible) {
           m.bubblePop = Math.min(1, (m.bubblePop || 0) + dt * 5);
           const s = 0.85 + 0.15 * Math.sin(m.bubblePop * Math.PI / 2);
@@ -504,7 +592,7 @@ export function createMascots(scene, defs, { lowPower = false, colorFor = () => 
       let best = null;
       let bestDist = Infinity;
       for (const m of list) {
-        const d = Math.hypot(playerPos.x - m.cfg.x, playerPos.z - m.cfg.z);
+        const d = Math.hypot(playerPos.x - m.pos.x, playerPos.z - m.pos.z);
         if (d < (m.cfg.interactRange || 2.2) && d < bestDist) { best = m; bestDist = d; }
       }
       return best ? { mascot: best, dist: bestDist } : null;

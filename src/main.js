@@ -5,7 +5,9 @@ import { CSS3DRenderer, CSS3DObject } from 'three/examples/jsm/renderers/CSS3DRe
 import boothsData from './data/booths.json';
 import organizersData from './data/organizers.json';
 import mascotsData from './data/mascots.json';
+import tutuFaqs from './data/tutuFaqs.json';
 import { createPresence, getVisitorInfo, colorFromId } from './modules/presence.js';
+import { track } from './modules/analytics.js';
 import { buildOrganizerBooth, organizerObstacles, TV_W, TV_H } from './modules/organizers.js';
 import { createMascots } from './modules/mascots3d.js';
 import { buildWelcomeDesk } from './modules/welcomeDesk.js';
@@ -62,10 +64,8 @@ const player = {
   yaw: 0, // facing -Z down central aisle toward Stage
   roll: 0,
   maxSpeed: 4.6,
-  sprintMultiplier: 1.65,
   eyeHeight: 1.45,
   radius: 0.38,
-  isGrounded: true,
   headBobTimer: 0,
   isSitting: false,
   sittingChairId: null,
@@ -77,20 +77,16 @@ const keys = {
   backward: false,
   left: false,
   right: false,
-  sprint: false,
-  jump: false,
 };
 
 function resetMovementKeys() {
-  keys.forward = keys.backward = keys.left = keys.right = keys.jump = false;
-  if (!sprintLatched) keys.sprint = false;
+  keys.forward = keys.backward = keys.left = keys.right = false;
 }
 
 // Mobile Touch Controls
 let joystickTouchId = null;
 let lookTouchId = null;
 let touchLookLastX = 0, touchLookLastY = 0;
-let sprintLatched = false; // Mobile sprint toggle
 const joystickVec = { x: 0, y: 0 };
 
 // 10 Audience Chairs (5 Left, 5 Right facing Stage)
@@ -151,7 +147,31 @@ const STAIRS_BOX = { minX: 11.45, maxX: 19.4, minZ: -1.9, maxZ: 0.2, label: 'sta
 // The welcome desk box is refined from the procedural desk's real bounds in createWelcomeDesk().
 const WELCOME_DESK_BOX = { minX: 21.6, maxX: 22.7, minZ: -18.9, maxZ: -15.75, label: 'welcome desk' };
 const COMMITMENT_WALL_BOX = { minX: 19.4, maxX: 20.05, minZ: -17.3, maxZ: -13.3, label: 'commitment wall' };
-staticBoxes.push(STAIRS_BOX, WELCOME_DESK_BOX, COMMITMENT_WALL_BOX);
+// Hall↔foyer divider is a thick wall with two doorways — solid segments (not a zero-thickness plane)
+// so jamb corners and long frames can't tunnel through.
+const DIV_X = 19.35;
+const DIV_HALF = 0.28;
+const DIVIDER_SEGMENTS = [
+  { minX: DIV_X - DIV_HALF, maxX: DIV_X + DIV_HALF, minZ: -7.0, maxZ: 0.25, label: 'divider-n' },
+  { minX: DIV_X - DIV_HALF, maxX: DIV_X + DIV_HALF, minZ: -11.4, maxZ: -8.8, label: 'divider-m' },
+  { minX: DIV_X - DIV_HALF, maxX: DIV_X + DIV_HALF, minZ: -20.95, maxZ: -13.2, label: 'divider-s' },
+];
+// Foyer L-cutout: block walking into the south exterior corner mesh (x>19.35, z<-20.8).
+const FOYER_NOTCH_BOX = { minX: 19.2, maxX: 27.4, minZ: -25.4, maxZ: -20.55, label: 'foyer-notch' };
+// Stage apron — solid so you cannot slide onto the platform from the sides.
+const STAGE_BOX = { minX: 4.55, maxX: 14.8, minZ: -25.2, maxZ: -21.7, label: 'stage' };
+
+staticBoxes.push(
+  STAIRS_BOX,
+  WELCOME_DESK_BOX,
+  COMMITMENT_WALL_BOX,
+  FOYER_NOTCH_BOX,
+  STAGE_BOX,
+  ...DIVIDER_SEGMENTS,
+);
+
+/** Inner playable bounds (kept slightly inside the GLB wall faces so the camera never sits in mesh). */
+const WORLD_BOUNDS = { minX: 1.05, maxX: 26.55, minZ: -24.55, maxZ: -1.05 };
 
 // Interactive Venue Hotspots
 const HOTSPOTS = {
@@ -254,22 +274,40 @@ function showBlocker(mode) {
   const title = $('blocker-title');
   const label = $('start-btn-label');
   const note = $('blocker-note');
+  const noteTouch = $('blocker-note-touch');
+  const lead = $('blocker-lead');
 
   if (mode === 'paused') {
     badge.textContent = 'PAUSED';
     title.textContent = 'Walk Paused';
     label.textContent = 'RESUME WALK';
-    if (note) note.textContent = 'Click anywhere or press Enter to resume.';
+    if (lead) {
+      lead.textContent = isTouchDevice
+        ? 'Take a breath — your place in the hall is saved. Resume when you are ready to keep exploring booths and stamps.'
+        : 'Your place in the hall is saved. Resume walking whenever you are ready to keep exploring booths and stamps.';
+    }
+    if (note) note.textContent = 'Click the button, click anywhere, or press Enter to resume.';
+    if (noteTouch) noteTouch.textContent = 'Tap Resume Walk to continue. Landscape + fullscreen works best on kiosk tablets.';
   } else if (mode === 'help') {
     badge.textContent = 'CONTROLS & HELP';
-    title.textContent = 'Youth Innovations Marketplace';
+    title.textContent = 'How to explore';
     label.textContent = 'BACK TO THE HALL';
+    if (lead) {
+      lead.textContent = isTouchDevice
+        ? 'Use the on-screen joystick and HUD buttons. Approach a booth or Tutu, then tap the prompt (or 🎯) to open it.'
+        : 'Use the keys below to walk, look, and open exhibits. Press E near a booth or Tutu — or click a booth TV for sound.';
+    }
     if (note) note.textContent = 'Click anywhere to return to the hall.';
+    if (noteTouch) noteTouch.textContent = 'Tap Back to the Hall when you are ready.';
   } else {
     badge.textContent = 'FIRST-PERSON 3D EXPO';
     title.textContent = 'Youth Innovations Marketplace';
     label.textContent = venueLoaded ? 'ENTER THE HALL' : 'LOADING VENUE';
-    if (note) note.textContent = 'Click anywhere to lock the cursor and start walking.';
+    if (lead) {
+      lead.textContent = 'Walk the digital companion hall: visit 20 youth innovation booths, collect passport stamps, ask Tutu about the event & safeguarding, and leave a pledge on the Commitment Wall.';
+    }
+    if (note) note.textContent = 'Click the button or press Enter to lock the cursor and start walking.';
+    if (noteTouch) noteTouch.textContent = 'Tip: rotate to landscape and use fullscreen for the best kiosk experience.';
   }
   blocker.style.display = 'flex';
   resetMovementKeys();
@@ -1323,11 +1361,23 @@ function updateRemoteAvatars(delta) {
 function connectPresenceServer() {
   presence = createPresence({
     onWelcome: (data) => {
-      if (data.visitors) data.visitors.forEach(spawnRemoteAvatar);
+      const list = Array.isArray(data.visitors) ? data.visitors : [];
+      const seen = new Set();
+      for (const v of list) {
+        if (!v || !v.id) continue;
+        seen.add(v.id);
+        spawnRemoteAvatar(v);
+      }
+      // Soft reconnect: keep matching avatars; drop anyone no longer in the snapshot.
+      for (const id of Array.from(remotePlayers.keys())) {
+        if (!seen.has(id)) removeRemoteAvatar(id);
+      }
       if (data.count) updateOnlineCount(data.count);
       if (data.screen && data.screen.src) currentVideoId = extractYouTubeId(data.screen.src);
       // Shared wall: the server keeps every pledge posted while it has been running.
       if (Array.isArray(data.pledges) && data.pledges.length) addPledges(data.pledges);
+      if (data.engagement) applyEngagementMap(data.engagement);
+      maybeEmitPageView();
     },
     onJoined: (visitor) => {
       spawnRemoteAvatar(visitor);
@@ -1365,28 +1415,41 @@ function connectPresenceServer() {
       }
     },
     onHeart: (heart) => {
+      // Legacy delta broadcasts — prefer booth_engagement when available.
       if (!heart || !BOOTH_POSITIONS[heart.boothId]) return;
+      if (boothEngagement.has(heart.boothId)) return;
       const next = Math.max(0, getHeartCount(heart.boothId) + (heart.delta > 0 ? 1 : -1));
       setHeartCount(heart.boothId, next);
       if (currentBoothId === heart.boothId) $('modal-heart-count').textContent = next;
+    },
+    onEngagement: applyBoothEngagement,
+    onCommentRejected: (msg) => {
+      const hint = $('booth-comment-hint');
+      if (!hint) return;
+      hint.textContent = msg && msg.reason === 'too_fast'
+        ? 'Give it a few seconds between comments.'
+        : 'Could not post that note — try a shorter message.';
     },
     onStatus: updatePresenceStatus,
   });
 }
 
 let presenceWasConnected = false;
+let presenceOfflineTimer = null;
 function updatePresenceStatus({ connected, everConnected, attempt }) {
   const badge = $('multiplayer-badge');
   const label = badge ? badge.querySelector('.pill-label') : null;
-  if (badge) {
-    badge.classList.toggle('offline', !connected);
-    badge.title = connected
-      ? 'Live delegates in the hall'
-      : 'Multiplayer server not reachable — exploring solo. Start it with `npm run dev` (or `npm run server`).';
-  }
-  if (label) label.textContent = connected ? 'Online' : 'Solo';
 
   if (connected) {
+    if (presenceOfflineTimer) {
+      clearTimeout(presenceOfflineTimer);
+      presenceOfflineTimer = null;
+    }
+    if (badge) {
+      badge.classList.remove('offline');
+      badge.title = 'Live delegates in the hall';
+    }
+    if (label) label.textContent = 'Online';
     if (!presenceWasConnected && everConnected && presenceOfflineToastShown) {
       showToast('Connected to the live hall — other delegates are now visible.', { icon: '🌐', type: 'success' });
     }
@@ -1394,15 +1457,33 @@ function updatePresenceStatus({ connected, everConnected, attempt }) {
     return;
   }
 
-  if (presenceWasConnected) {
-    presenceWasConnected = false;
-    updateOnlineCount(1);
-    for (const id of Array.from(remotePlayers.keys())) removeRemoteAvatar(id);
-    showToast('Lost the multiplayer connection — retrying in the background.', { icon: '📡', type: 'danger' });
-    presenceOfflineToastShown = true;
-  } else if (!everConnected && attempt >= 2 && !presenceOfflineToastShown) {
+  // Brief blips (Render hiccups / tab sleep): keep Online until ~3s of sustained disconnect.
+  if (presenceWasConnected && !presenceOfflineTimer) {
+    presenceOfflineTimer = setTimeout(() => {
+      presenceOfflineTimer = null;
+      if (presence && presence.isConnected()) return;
+      presenceWasConnected = false;
+      if (badge) {
+        badge.classList.add('offline');
+        badge.title = 'Multiplayer server not reachable — exploring solo. Start it with `npm run dev` (or `npm run server`).';
+      }
+      if (label) label.textContent = 'Solo';
+      updateOnlineCount(1);
+      // Keep remotes until welcome/left syncs — avoids flicker on soft reconnect.
+      showToast('Lost the multiplayer connection — retrying in the background.', { icon: '📡', type: 'danger' });
+      presenceOfflineToastShown = true;
+    }, 3000);
+    return;
+  }
+
+  if (!presenceWasConnected && !everConnected && attempt >= 2 && !presenceOfflineToastShown) {
     // Tried the proxy and the direct port: the server isn't running. Say so once, then stay quiet.
     presenceOfflineToastShown = true;
+    if (badge) {
+      badge.classList.add('offline');
+      badge.title = 'Multiplayer server not reachable — exploring solo. Start it with `npm run dev` (or `npm run server`).';
+    }
+    if (label) label.textContent = 'Solo';
     showToast('Multiplayer server offline — exploring solo. Run "npm run dev" to bring the hall online.', { icon: '📡', duration: 5000 });
   }
 }
@@ -1535,8 +1616,6 @@ function setupControls() {
       case 'KeyS': case 'ArrowDown': keys.backward = true; e.preventDefault(); break;
       case 'KeyA': case 'ArrowLeft': keys.left = true; e.preventDefault(); break;
       case 'KeyD': case 'ArrowRight': keys.right = true; e.preventDefault(); break;
-      case 'ShiftLeft': case 'ShiftRight': keys.sprint = true; break;
-      case 'Space': keys.jump = true; e.preventDefault(); break;
       case 'KeyE': handleInteract(); break;
       case 'KeyP': togglePassportModal(); break;
       case 'KeyT': toggleTeleportModal(); break;
@@ -1558,8 +1637,6 @@ function setupControls() {
       case 'KeyS': case 'ArrowDown': keys.backward = false; break;
       case 'KeyA': case 'ArrowLeft': keys.left = false; break;
       case 'KeyD': case 'ArrowRight': keys.right = false; break;
-      case 'ShiftLeft': case 'ShiftRight': keys.sprint = sprintLatched; break;
-      case 'Space': keys.jump = false; break;
     }
   });
 
@@ -1700,27 +1777,6 @@ function setupMobileControls() {
     window.addEventListener('touchcancel', resetLook);
   }
 
-  const mobileJump = $('mobile-jump-btn');
-  if (mobileJump) {
-    mobileJump.addEventListener('touchstart', (e) => {
-      e.preventDefault();
-      if (player.isSitting) { standUp(); return; }
-      keys.jump = true;
-      setTimeout(() => { keys.jump = false; }, 180);
-    }, { passive: false });
-  }
-
-  const mobileSprint = $('mobile-sprint-btn');
-  if (mobileSprint) {
-    mobileSprint.addEventListener('click', (e) => {
-      e.preventDefault();
-      sprintLatched = !sprintLatched;
-      keys.sprint = sprintLatched;
-      mobileSprint.classList.toggle('on', sprintLatched);
-      mobileSprint.setAttribute('aria-pressed', String(sprintLatched));
-    });
-  }
-
   const mobileInteract = $('mobile-interact-btn');
   if (mobileInteract) {
     mobileInteract.addEventListener('click', (e) => {
@@ -1739,16 +1795,43 @@ function setupMobileControls() {
 }
 
 // --- Collision System with Smooth Wall Sliding & Chair Collision ---
-/** Push a point out of an axis-aligned box (expanded by the player radius) along the shortest axis. */
+/** Clamp the player center inside the hall/foyer inner wall faces. */
+function clampWorld(p, r) {
+  if (p.x < WORLD_BOUNDS.minX + r) p.x = WORLD_BOUNDS.minX + r;
+  if (p.x > WORLD_BOUNDS.maxX - r) p.x = WORLD_BOUNDS.maxX - r;
+  if (p.z < WORLD_BOUNDS.minZ + r) p.z = WORLD_BOUNDS.minZ + r;
+  if (p.z > WORLD_BOUNDS.maxZ - r) p.z = WORLD_BOUNDS.maxZ - r;
+}
+
+/**
+ * Push a circular player out of an AABB. Uses closest-point depenetration so
+ * corners (not just flat faces) keep a full radius of clearance.
+ */
 function pushOutOfBox(p, box, r) {
-  const minX = box.minX - r, maxX = box.maxX + r, minZ = box.minZ - r, maxZ = box.maxZ + r;
-  if (p.x <= minX || p.x >= maxX || p.z <= minZ || p.z >= maxZ) return false;
-  const dxMin = p.x - minX, dxMax = maxX - p.x, dzMin = p.z - minZ, dzMax = maxZ - p.z;
-  const m = Math.min(dxMin, dxMax, dzMin, dzMax);
-  if (m === dxMin) p.x = minX;
-  else if (m === dxMax) p.x = maxX;
-  else if (m === dzMin) p.z = minZ;
-  else p.z = maxZ;
+  const cx = Math.max(box.minX, Math.min(p.x, box.maxX));
+  const cz = Math.max(box.minZ, Math.min(p.z, box.maxZ));
+  let dx = p.x - cx;
+  let dz = p.z - cz;
+
+  if (dx === 0 && dz === 0) {
+    // Center is inside the box — exit along the shortest face.
+    const dxMin = p.x - box.minX;
+    const dxMax = box.maxX - p.x;
+    const dzMin = p.z - box.minZ;
+    const dzMax = box.maxZ - p.z;
+    const m = Math.min(dxMin, dxMax, dzMin, dzMax);
+    if (m === dxMin) p.x = box.minX - r;
+    else if (m === dxMax) p.x = box.maxX + r;
+    else if (m === dzMin) p.z = box.minZ - r;
+    else p.z = box.maxZ + r;
+    return true;
+  }
+
+  const dist = Math.sqrt(dx * dx + dz * dz);
+  if (dist >= r || dist < 1e-8) return false;
+  const s = r / dist;
+  p.x = cx + dx * s;
+  p.z = cz + dz * s;
   return true;
 }
 
@@ -1757,68 +1840,43 @@ function pushOutOfCircle(p, cx, cz, radius, r) {
   const dz = p.z - cz;
   const dist = Math.sqrt(dx * dx + dz * dz);
   const minDist = radius + r;
-  if (dist < minDist && dist > 0.001) {
-    p.x = cx + (dx / dist) * minDist;
-    p.z = cz + (dz / dist) * minDist;
+  if (dist < minDist) {
+    if (dist > 0.001) {
+      p.x = cx + (dx / dist) * minDist;
+      p.z = cz + (dz / dist) * minDist;
+    } else {
+      p.x = cx + minDist;
+    }
     return true;
   }
   return false;
 }
 
-function checkCollision(nextPos) {
-  const r = player.radius;
-
-  if (nextPos.x < 0.8 + r) nextPos.x = 0.8 + r;
-  if (nextPos.x > 26.8 - r) nextPos.x = 26.8 - r;
-  if (nextPos.z < -24.8 + r) nextPos.z = -24.8 + r;
-  if (nextPos.z > -0.8 - r) nextPos.z = -0.8 - r;
-
-  if (nextPos.x > 19.35 && nextPos.z < -20.8 + r) nextPos.z = -20.8 + r;
-
-  const divX = 19.35;
-  const inDoorway = (nextPos.z >= -8.8 && nextPos.z <= -7.0) || (nextPos.z >= -13.2 && nextPos.z <= -11.4);
-  if (!inDoorway && Math.abs(nextPos.x - divX) < r + 0.15) {
-    nextPos.x = player.pos.x < divX ? divX - (r + 0.15) : divX + (r + 0.15);
-  }
-
-  // Solid furniture: staircase along the south wall, welcome desk, organizer stands.
-  for (const box of staticBoxes) pushOutOfBox(nextPos, box, r);
-
-  // Mascots
+function resolveSolids(p, r) {
+  clampWorld(p, r);
+  for (const box of staticBoxes) pushOutOfBox(p, box, r);
   if (mascots) {
-    for (const o of mascots.obstacles) pushOutOfCircle(nextPos, o.x, o.z, o.r, r);
+    for (const o of mascots.obstacles) pushOutOfCircle(p, o.x, o.z, o.r, r);
   }
-
-  if (nextPos.x > 4.68 - r && nextPos.x < 14.68 + r && nextPos.z < -21.75 + r) {
-    if (player.pos.z >= -21.75 + r) nextPos.z = -21.75 + r;
-  }
-
-  // Booth stands (both sides of a double-sided booth share one obstacle)
   const boothRadius = 0.95;
   for (const b of Object.values(BOOTH_POSITIONS)) {
-    const dx = nextPos.x - b.x;
-    const dz = nextPos.z - b.z;
-    const dist = Math.sqrt(dx * dx + dz * dz);
-    const minDist = boothRadius + r;
-    if (dist < minDist && dist > 0.001) {
-      nextPos.x = b.x + (dx / dist) * minDist;
-      nextPos.z = b.z + (dz / dist) * minDist;
-    }
+    pushOutOfCircle(p, b.x, b.z, boothRadius, r);
   }
-
   const chairRadius = 0.32;
   for (const c of CHAIR_LOCATIONS) {
     if (player.isSitting && player.sittingChairId === c.id) continue;
-    const dx = nextPos.x - c.x;
-    const dz = nextPos.z - c.z;
-    const dist = Math.sqrt(dx * dx + dz * dz);
-    const minDist = chairRadius + r;
-    if (dist < minDist && dist > 0.001) {
-      nextPos.x = c.x + (dx / dist) * minDist;
-      nextPos.z = c.z + (dz / dist) * minDist;
-    }
+    pushOutOfCircle(p, c.x, c.z, chairRadius, r);
   }
+  // Circles can shove the player back into a wall — re-apply walls + world clamp.
+  clampWorld(p, r);
+  for (const box of staticBoxes) pushOutOfBox(p, box, r);
+  clampWorld(p, r);
+}
 
+function checkCollision(nextPos) {
+  const r = player.radius;
+  // A few passes so overlapping solids / corner contacts settle cleanly.
+  for (let i = 0; i < 3; i++) resolveSolids(nextPos, r);
   return nextPos;
 }
 
@@ -1839,7 +1897,7 @@ function updatePlayer(delta) {
     return;
   }
 
-  const targetSpeed = keys.sprint ? player.maxSpeed * player.sprintMultiplier : player.maxSpeed;
+  const targetSpeed = player.maxSpeed;
 
   _forward.set(-Math.sin(player.yaw), 0, -Math.cos(player.yaw));
   _right.set(Math.cos(player.yaw), 0, -Math.sin(player.yaw));
@@ -1874,36 +1932,27 @@ function updatePlayer(delta) {
   const targetRoll = -Math.max(-1, Math.min(1, strafeVal)) * 0.015;
   player.roll += (targetRoll - player.roll) * Math.min(1.0, 10.0 * delta);
 
-  const nextPos = player.pos.clone().addScaledVector(player.vel, delta);
-  const resolvedPos = checkCollision(nextPos);
-  player.pos.x = resolvedPos.x;
-  player.pos.z = resolvedPos.z;
+  // Resolve X then Z so you slide along walls instead of tunneling into corners.
+  const resolved = player.pos.clone();
+  resolved.x += player.vel.x * delta;
+  checkCollision(resolved);
+  resolved.z = player.pos.z + player.vel.z * delta;
+  checkCollision(resolved);
+  player.pos.x = resolved.x;
+  player.pos.z = resolved.z;
 
   if (presence && (isMoving || player.vel.lengthSq() > 0.01)) {
     presence.sendMove(player.pos.x, player.pos.y, player.pos.z, player.yaw);
   }
 
   if (isMoving && player.vel.length() > 0.5) {
-    const bobFreq = keys.sprint ? 13 : 9.0;
-    player.headBobTimer += delta * bobFreq;
+    player.headBobTimer += delta * 9.0;
   } else {
     player.headBobTimer = 0;
   }
 
-  if (canMove && keys.jump && player.isGrounded) {
-    player.vel.y = 4.0;
-    player.isGrounded = false;
-  }
-
-  if (!player.isGrounded) {
-    player.vel.y -= 9.8 * delta;
-    player.pos.y += player.vel.y * delta;
-    if (player.pos.y <= player.eyeHeight) {
-      player.pos.y = player.eyeHeight;
-      player.vel.y = 0;
-      player.isGrounded = true;
-    }
-  }
+  player.pos.y = player.eyeHeight;
+  player.vel.y = 0;
 
   const bobY = isMoving ? Math.sin(player.headBobTimer) * 0.03 : 0;
   const bobX = isMoving ? Math.cos(player.headBobTimer * 0.5) * 0.015 : 0;
@@ -1968,16 +2017,21 @@ function checkProximity() {
     }
   }
 
-  // Mascots
+  // Mascots (Tutu may be roaming — nearest uses live cfg.x/z)
   if (mascots && !player.isSitting) {
     const near = mascots.nearest(player.pos);
     if (near && near.dist < closestDist) {
       closestDist = near.dist;
       const m = near.mascot;
+      const isTutu = m.cfg.id === 'tutu';
       activeTarget = {
         type: 'mascot', key: `mascot-${m.cfg.id}`, mascot: m,
-        title: `${m.cfg.name} • ${m.cfg.org} mascot`,
-        sub: `${actionVerb()} say hello`,
+        title: isTutu
+          ? `${m.cfg.name} • Ask Tutu`
+          : `${m.cfg.name} • ${m.cfg.org} mascot`,
+        sub: isTutu
+          ? `${actionVerb()} Event FAQ & safeguarding`
+          : `${actionVerb()} say hello`,
       };
     }
   }
@@ -2201,15 +2255,102 @@ function openStageTheater() {
 }
 
 // --- Booth Modal ---
+/** Server-authoritative hearts/comments keyed by booth id. */
+const boothEngagement = new Map();
+let pageViewSent = false;
+
+function applyBoothEngagement(payload) {
+  if (!payload || !Number.isFinite(Number(payload.boothId))) return;
+  const boothId = Number(payload.boothId);
+  const hearts = Math.max(0, Number(payload.hearts) || 0);
+  const liked = !!payload.liked;
+  const comments = Array.isArray(payload.comments) ? payload.comments : [];
+  boothEngagement.set(boothId, { hearts, liked, comments });
+  if (liked) heartedBooths.add(boothId);
+  else heartedBooths.delete(boothId);
+  try { saveSet('gmc_hearted_booths', heartedBooths); } catch (e) {}
+  setHeartCount(boothId, hearts);
+  if (currentBoothId === boothId && isModalOpen('booth-modal')) {
+    refreshBoothEngagementUI(boothId);
+  }
+}
+
+function applyEngagementMap(map) {
+  if (!map || typeof map !== 'object') return;
+  for (const [key, value] of Object.entries(map)) {
+    applyBoothEngagement({ boothId: Number(key), ...value });
+  }
+}
+
 function getHeartCount(boothId) {
+  if (boothEngagement.has(boothId)) return boothEngagement.get(boothId).hearts;
   const key = `gmc_hearts_${boothId}`;
   const stored = localStorage.getItem(key);
   if (stored !== null && !Number.isNaN(parseInt(stored))) return parseInt(stored);
-  return 10 + (boothId * 3) % 17;
+  return 0;
 }
 
 function setHeartCount(boothId, count) {
   try { localStorage.setItem(`gmc_hearts_${boothId}`, String(count)); } catch (e) {}
+}
+
+function refreshBoothEngagementUI(boothId) {
+  const eng = boothEngagement.get(boothId) || { hearts: getHeartCount(boothId), liked: heartedBooths.has(boothId), comments: [] };
+  const heartBtn = $('modal-heart-btn');
+  if (heartBtn) {
+    heartBtn.classList.toggle('hearted', !!eng.liked);
+    heartBtn.setAttribute('aria-pressed', String(!!eng.liked));
+  }
+  const countEl = $('modal-heart-count');
+  if (countEl) countEl.textContent = eng.hearts;
+
+  const list = $('booth-comments-list');
+  if (!list) return;
+  list.innerHTML = '';
+  if (!eng.comments.length) {
+    list.innerHTML = '<p class="booth-comment-empty">No visitor notes yet — be the first.</p>';
+  } else {
+    eng.comments.slice(0, 12).forEach((c) => {
+      const row = document.createElement('div');
+      row.className = 'booth-comment-card';
+      const meta = document.createElement('div');
+      meta.className = 'booth-comment-meta';
+      meta.textContent = c.name || 'Delegate';
+      const text = document.createElement('p');
+      text.className = 'booth-comment-text';
+      text.textContent = c.text || '';
+      row.appendChild(meta);
+      row.appendChild(text);
+      list.appendChild(row);
+    });
+  }
+}
+
+function emitAnalytics(type, payload = {}) {
+  track(type, payload);
+  if (presence) presence.sendAnalytics(type, payload);
+}
+
+function maybeEmitPageView() {
+  if (pageViewSent) return;
+  try {
+    if (sessionStorage.getItem('yim_page_view_sent')) {
+      pageViewSent = true;
+      return;
+    }
+    sessionStorage.setItem('yim_page_view_sent', '1');
+  } catch (e) {}
+  pageViewSent = true;
+  emitAnalytics('page_view', {});
+}
+
+function maybeEmitPassportComplete() {
+  if (visitedBooths.size < TOTAL_BOOTHS) return;
+  try {
+    if (localStorage.getItem('yim_passport_complete_sent')) return;
+    localStorage.setItem('yim_passport_complete_sent', '1');
+  } catch (e) {}
+  emitAnalytics('passport_complete', {});
 }
 
 // --- Pop-up video (the only place TV audio plays) ---
@@ -2384,29 +2525,28 @@ function openBoothModal(boothId, { tab = 'tab-overview', playWithSound = false }
   videoWrapper.classList.add('hidden');
   stopPopupVideo($('modal-tv-video'));
 
-  const heartBtn = $('modal-heart-btn');
-  heartBtn.classList.toggle('hearted', heartedBooths.has(boothId));
-  heartBtn.setAttribute('aria-pressed', String(heartedBooths.has(boothId)));
-  $('modal-heart-count').textContent = getHeartCount(boothId);
-
   renderStats(boothInfo.stats);
   renderLinksAndSocials(boothInfo);
   renderQuiz(boothInfo.quiz, boothId);
+  refreshBoothEngagementUI(boothId);
   activateTab(tab);
 
   if (playWithSound) {
     const tvVideo = $('modal-tv-video');
     loadPopupVideo(tvVideo, boothScreenVideoSrc(boothId), { play: true, poster: `/textures/booth_${pad2(boothId)}_screen.png` });
+    emitAnalytics('intro_play', { boothId });
   }
 
   $('modal-next-booth-btn').classList.toggle('hidden', nearestUnvisitedBooth() === null);
 
   openModal('booth-modal');
+  emitAnalytics('booth_open', { boothId });
 
   if (firstVisit) {
     const count = visitedBooths.size;
     if (count === TOTAL_BOOTHS) {
       showToast('🏆 Passport complete — all 20 booths visited!', { icon: '🌟', type: 'gold', duration: 4500 });
+      maybeEmitPassportComplete();
     } else {
       showToast(`Stamp collected! ${count}/${TOTAL_BOOTHS} booths visited.`, { icon: '⭐', type: 'success' });
     }
@@ -2416,28 +2556,104 @@ function openBoothModal(boothId, { tab = 'tab-overview', playWithSound = false }
 function toggleHeart() {
   if (!currentBoothId) return;
   const id = currentBoothId;
-  const hearted = heartedBooths.has(id);
-  const delta = hearted ? -1 : 1;
-  if (hearted) heartedBooths.delete(id); else heartedBooths.add(id);
+  // Optimistic UI; server ownership arrives via booth_engagement.
+  const liked = heartedBooths.has(id);
+  if (liked) heartedBooths.delete(id); else heartedBooths.add(id);
   saveSet('gmc_hearted_booths', heartedBooths);
-
-  const next = Math.max(0, getHeartCount(id) + delta);
+  const next = Math.max(0, getHeartCount(id) + (liked ? -1 : 1));
   setHeartCount(id, next);
-  $('modal-heart-count').textContent = next;
-
+  const prev = boothEngagement.get(id) || { comments: [] };
+  boothEngagement.set(id, { hearts: next, liked: !liked, comments: prev.comments || [] });
+  refreshBoothEngagementUI(id);
   const btn = $('modal-heart-btn');
-  btn.classList.toggle('hearted', !hearted);
-  btn.setAttribute('aria-pressed', String(!hearted));
-  btn.classList.remove('pop');
-  void btn.offsetWidth;
-  btn.classList.add('pop');
+  if (btn) {
+    btn.classList.remove('pop');
+    void btn.offsetWidth;
+    btn.classList.add('pop');
+  }
+  if (presence) presence.sendHeart(id);
+  track('booth_heart', { boothId: id });
+  if (!liked) showToast('Thanks for the love! The team will see your heart.', { icon: '❤️', type: 'danger' });
+}
 
-  if (presence) presence.sendHeart({ boothId: id, delta });
-  if (!hearted) showToast('Thanks for the love! The team will see your heart.', { icon: '❤️', type: 'danger' });
+function submitBoothComment(e) {
+  if (e) e.preventDefault();
+  if (!currentBoothId || !presence) return;
+  const input = $('booth-comment-input');
+  const hint = $('booth-comment-hint');
+  const text = input ? input.value.trim() : '';
+  if (!text) return;
+  const sent = presence.sendComment(currentBoothId, text);
+  if (!sent) {
+    if (hint) hint.textContent = 'Connect to the live hall to post a note.';
+    return;
+  }
+  if (input) input.value = '';
+  if (hint) hint.textContent = '';
+  track('booth_comment', { boothId: currentBoothId });
 }
 
 // --- Organizer booth & mascot info modal ---
-function openInfoModal({ badge, badgeColor, kicker, title, subtitle, heading, overview, stats, links, video }) {
+function renderTutuFaq(tabId) {
+  const tabsEl = $('tutu-faq-tabs');
+  const listEl = $('tutu-faq-list');
+  if (!tabsEl || !listEl || !tutuFaqs || !Array.isArray(tutuFaqs.tabs)) return;
+  const tabs = tutuFaqs.tabs;
+  const activeId = tabId || (tabs[0] && tabs[0].id) || 'overview';
+  const active = tabs.find((t) => t.id === activeId) || tabs[0];
+
+  tabsEl.innerHTML = '';
+  tabs.forEach((tab) => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = `tutu-faq-tab${tab.id === active.id ? ' active' : ''}`;
+    btn.setAttribute('role', 'tab');
+    btn.setAttribute('aria-selected', tab.id === active.id ? 'true' : 'false');
+    btn.textContent = tab.label;
+    btn.addEventListener('click', () => renderTutuFaq(tab.id));
+    tabsEl.appendChild(btn);
+  });
+
+  listEl.innerHTML = '';
+  (active.items || []).forEach((item, idx) => {
+    const row = document.createElement('div');
+    row.className = 'tutu-faq-item';
+    const qBtn = document.createElement('button');
+    qBtn.type = 'button';
+    qBtn.className = 'tutu-faq-q';
+    const qLabel = document.createElement('span');
+    qLabel.textContent = item.q;
+    const chevron = document.createElement('span');
+    chevron.className = 'tutu-faq-chevron';
+    chevron.setAttribute('aria-hidden', 'true');
+    chevron.textContent = '▸';
+    qBtn.appendChild(qLabel);
+    qBtn.appendChild(chevron);
+    const a = document.createElement('div');
+    a.className = 'tutu-faq-a';
+    a.textContent = item.a;
+    qBtn.addEventListener('click', () => {
+      const open = row.classList.contains('open');
+      listEl.querySelectorAll('.tutu-faq-item.open').forEach((el) => el.classList.remove('open'));
+      if (!open) row.classList.add('open');
+    });
+    row.appendChild(qBtn);
+    row.appendChild(a);
+    if (idx === 0) row.classList.add('open');
+    listEl.appendChild(row);
+  });
+}
+
+function setTutuFaqVisible(show) {
+  const faq = $('tutu-faq');
+  const textEl = $('org-modal-text');
+  const overviewBox = textEl && textEl.closest('.overview-box');
+  if (faq) faq.classList.toggle('hidden', !show);
+  if (overviewBox) overviewBox.classList.toggle('hidden', !!show);
+  if (show) renderTutuFaq();
+}
+
+function openInfoModal({ badge, badgeColor, kicker, title, subtitle, heading, overview, stats, links, video, tutuFaq }) {
   $('org-modal-badge').textContent = badge || 'ℹ️';
   $('org-modal-badge').style.background = badgeColor || '';
   $('org-modal-kicker').textContent = kicker || '';
@@ -2447,6 +2663,7 @@ function openInfoModal({ badge, badgeColor, kicker, title, subtitle, heading, ov
   sub.classList.toggle('hidden', !subtitle);
   $('org-modal-heading').textContent = heading || 'About';
   $('org-modal-text').textContent = overview || '';
+  setTutuFaqVisible(!!tutuFaq);
   renderStats(stats, $('org-modal-stats'));
 
   const linksBox = $('org-modal-links');
@@ -2501,16 +2718,18 @@ function openMascotModal(m) {
   const cfg = m.cfg;
   const org = organizersData.find(o => o.mascot === cfg.id);
   const md = cfg.modal || {};
+  const isTutu = cfg.id === 'tutu';
   openInfoModal({
     badge: cfg.kind === 'lighthouse' ? '🗼' : '🐘',
     badgeColor: (org && org.color) || '#F4B400',
     kicker: md.kicker || 'MASCOT',
     title: md.title || cfg.name,
     subtitle: md.subtitle || cfg.org,
-    heading: `Meet ${cfg.name}`,
+    heading: isTutu ? 'Ask Tutu' : `Meet ${cfg.name}`,
     overview: md.overview || '',
-    stats: md.stats,
-    links: (org && org.links) || [],
+    stats: isTutu ? null : md.stats,
+    links: isTutu ? [] : ((org && org.links) || []),
+    tutuFaq: isTutu,
   });
 }
 
@@ -2603,6 +2822,9 @@ function renderQuiz(quiz, boothId) {
       $('modal-quiz-pill').classList.remove('hidden');
       $('quiz-tab-dot').classList.remove('on');
       showToast(`Gold stamp earned for ${BOOTH_POSITIONS[boothId].title}!`, { icon: '🏅', type: 'gold' });
+      emitAnalytics('quiz_complete', { boothId, passed: true });
+    } else {
+      emitAnalytics('quiz_complete', { boothId, passed: !!passed });
     }
   }
 }
@@ -2827,6 +3049,8 @@ function setupHUD() {
 
   $('waypoint-clear').addEventListener('click', clearWaypoint);
   $('modal-heart-btn').addEventListener('click', toggleHeart);
+  const commentForm = $('booth-comment-form');
+  if (commentForm) commentForm.addEventListener('submit', submitBoothComment);
   $('modal-next-booth-btn').addEventListener('click', () => {
     if (trackNearestUnvisited()) closeModal('booth-modal');
   });

@@ -42,6 +42,8 @@ export function createPresence({
   onScreen,
   onPledge,
   onHeart,
+  onEngagement,
+  onCommentRejected,
   onStatus,
 } = {}) {
   const visitor = getVisitorInfo();
@@ -97,6 +99,10 @@ export function createPresence({
           onPledge?.(msg.pledge);
         } else if (msg.type === 'bc_heart') {
           onHeart?.(msg.heart);
+        } else if (msg.type === 'bc_engagement') {
+          onEngagement?.(msg.engagement);
+        } else if (msg.type === 'bc_comment') {
+          // Local multi-tab: treat as engagement refresh via analytics path only.
         }
       };
     }
@@ -108,6 +114,30 @@ export function createPresence({
   let reconnectDelay = 2500;
   /** When set, we only dial this host (no Netlify `/presence` fallback spam). */
   let forcedWsUrl = '';
+  let heartbeatTimer = null;
+  let lastPongAt = 0;
+  let closingForReconnect = false;
+
+  function clearHeartbeat() {
+    if (heartbeatTimer) {
+      clearInterval(heartbeatTimer);
+      heartbeatTimer = null;
+    }
+  }
+
+  function startHeartbeat() {
+    clearHeartbeat();
+    lastPongAt = Date.now();
+    heartbeatTimer = setInterval(() => {
+      if (!ws || ws.readyState !== WebSocket.OPEN) return;
+      if (Date.now() - lastPongAt > 25000) {
+        closingForReconnect = true;
+        try { ws.close(); } catch (e) {}
+        return;
+      }
+      try { ws.send(JSON.stringify({ type: 'ping' })); } catch (e) {}
+    }, 9000);
+  }
 
   /**
    * Render's GMC presence listens on `/presence`. A bare `wss://host` or `wss://host/`
@@ -179,9 +209,12 @@ export function createPresence({
       ws = new WebSocket(url);
 
       ws.onopen = () => {
-        reconnectDelay = 2500;
+        reconnectDelay = 1800;
         attempt = 0;
+        closingForReconnect = false;
+        const softRejoin = everConnected;
         setStatus(true, 'connected');
+        startHeartbeat();
         // Send both `id` (3D hall) and `clientId` (legacy 2D GMC presence on Render).
         ws.send(JSON.stringify({
           type: 'join',
@@ -189,6 +222,7 @@ export function createPresence({
           clientId: visitor.id,
           name: visitor.name,
           color: visitor.color,
+          soft: softRejoin,
           x: lastPosition.x,
           y: lastPosition.y,
           z: lastPosition.z,
@@ -199,11 +233,15 @@ export function createPresence({
       ws.onmessage = (event) => {
         try {
           const msg = JSON.parse(event.data);
-          if (msg.type === 'welcome') {
+          if (msg.type === 'pong') {
+            lastPongAt = Date.now();
+          } else if (msg.type === 'welcome') {
+            lastPongAt = Date.now();
             // Normalize legacy 2D welcome ({ selfId, players, count }) → 3D shape.
             const normalized = {
               ...msg,
               id: msg.id || msg.selfId,
+              soft: !!msg.soft,
               visitors: Array.isArray(msg.visitors)
                 ? msg.visitors
                 : (Array.isArray(msg.players) ? msg.players : []),
@@ -225,7 +263,11 @@ export function createPresence({
           } else if (msg.type === 'pledge') {
             onPledge?.(msg.pledge);
           } else if (msg.type === 'heart') {
-            onHeart?.(msg.heart);
+            onHeart?.(msg.heart || msg);
+          } else if (msg.type === 'booth_engagement') {
+            onEngagement?.(msg);
+          } else if (msg.type === 'comment_rejected') {
+            onCommentRejected?.(msg);
           } else if (msg.type === 'error') {
             // Legacy servers reject unknown join shapes; stay quiet in the console.
             setStatus(false, msg.reason || 'error');
@@ -234,14 +276,15 @@ export function createPresence({
       };
 
       ws.onclose = () => {
-        setStatus(false, 'closed');
+        clearHeartbeat();
+        setStatus(false, closingForReconnect ? 'watchdog' : 'closed');
+        closingForReconnect = false;
         ws = null;
         scheduleReconnect();
       };
 
       ws.onerror = () => {
-        // onclose always follows onerror; the reconnect is scheduled there.
-        setStatus(false, 'error');
+        // onclose always follows onerror; reconnect is scheduled there only.
       };
     } catch (e) {
       ws = null;
@@ -296,7 +339,7 @@ export function createPresence({
             });
           }
         }
-      }, 75); // ~13 updates/sec
+      }, 85); // ~12 updates/sec max
     }
   }
 
@@ -318,13 +361,35 @@ export function createPresence({
     }
   }
 
-  function sendHeart(heart) {
+  function sendHeart(boothIdOrPayload) {
+    const boothId = typeof boothIdOrPayload === 'object'
+      ? Number(boothIdOrPayload.boothId)
+      : Number(boothIdOrPayload);
+    if (!Number.isFinite(boothId)) return;
     if (isConnected && ws && ws.readyState === WebSocket.OPEN) {
-      ws.send(JSON.stringify({ type: 'heart', heart }));
+      ws.send(JSON.stringify({ type: 'heart', boothId }));
     }
     if (bc) {
-      bc.postMessage({ type: 'bc_heart', senderId: visitor.id, heart });
+      bc.postMessage({ type: 'bc_heart', senderId: visitor.id, heart: { boothId } });
     }
+  }
+
+  function sendComment(boothId, text) {
+    const id = Number(boothId);
+    const body = String(text || '').trim().slice(0, 200);
+    if (!Number.isFinite(id) || !body) return false;
+    if (isConnected && ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({ type: 'comment', boothId: id, text: body }));
+      return true;
+    }
+    return false;
+  }
+
+  function sendAnalytics(type, payload = {}) {
+    if (!isConnected || !ws || ws.readyState !== WebSocket.OPEN) return;
+    try {
+      ws.send(JSON.stringify({ type, clientId: visitor.id, ...payload }));
+    } catch (e) {}
   }
 
   // Handle unload to gracefully disconnect
@@ -349,6 +414,8 @@ export function createPresence({
     sendScreen,
     sendPledge,
     sendHeart,
+    sendComment,
+    sendAnalytics,
     reconnect: () => { reconnectDelay = 2500; if (!isConnected) connect(); },
     isConnected: () => isConnected,
   };

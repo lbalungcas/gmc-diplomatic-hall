@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex">
+<title>Marketplace analytics — Staff</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%2316223D'/%3E%3Ccircle cx='16' cy='16' r='7' fill='%23F4B400'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/src/analytics-dashboard.css">
+</head>
+<body>
+  <main class="dash">
+    <header class="dash-head">
+      <div class="dash-head-left">
+        <p class="eyebrow">Youth Innovations Marketplace</p>
+        <h1>Marketplace analytics</h1>
+        <p class="dash-sub">Overview · last 30 days · refreshes ~10 s</p>
+      </div>
+      <div class="dash-actions">
+        <label class="token-field">
+          <span>Token</span>
+          <input id="tokenInput" type="password" autocomplete="off" spellcheck="false" placeholder="gmc-dev">
+          <button type="button" id="tokenSave">Save</button>
+        </label>
+        <button type="button" id="refreshBtn">Refresh</button>
+        <button type="button" id="exportPdf" class="btn-export" hidden>Export PDF</button>
+        <button type="button" id="exportJson" class="btn-export" hidden>Export JSON</button>
+      </div>
+    </header>
+
+    <p class="dash-status" id="status">
+      <span class="live-dot" id="liveDot" hidden></span>
+      <span id="statusText">Enter the analytics token to load live stats.</span>
+    </p>
+
+    <section class="panel trend-panel" id="trendPanel" hidden>
+      <h2>Audience overview</h2>
+      <p class="panel-note" id="trendNote">Daily counts (UTC). Requires Neon <code>DATABASE_URL</code>.</p>
+      <div class="trend-pills" id="trendPills" role="tablist" aria-label="Trend metric"></div>
+      <div class="trend-chart" id="trendChart"></div>
+    </section>
+
+    <div id="cards" hidden>
+      <section class="metric-group">
+        <h2 class="metric-group-title">Hall traffic</h2>
+        <div class="cards">
+          <article class="card card--traffic"><span>Online now</span><strong id="onlineNow">0</strong></article>
+          <article class="card card--traffic"><span>Peak concurrent</span><strong id="peak">0</strong></article>
+          <article class="card card--traffic">
+            <span>Hall page loads</span>
+            <strong id="pageViews">0</strong>
+            <div class="card-spark" id="sparkPageViews"></div>
+          </article>
+          <article class="card card--traffic"><span>Hall visits</span><strong id="uniques">0</strong></article>
+          <article class="card card--traffic">
+            <span>Booth impressions</span>
+            <strong id="opens">0</strong>
+            <div class="card-spark" id="sparkOpens"></div>
+          </article>
+        </div>
+      </section>
+    </div>
+
+    <section class="panel countries-panel" id="countriesPanel" hidden>
+      <h2>Visitor countries</h2>
+      <p class="panel-note" id="countriesNote">Distinct hall visitors by country (from IP, approximate).</p>
+      <div class="countries-split">
+        <div class="countries-pie" id="countriesPie"></div>
+        <div class="countries-chart" id="countriesChart"></div>
+      </div>
+    </section>
+
+    <section class="panel" id="boothPanel" hidden>
+      <div class="panel-head">
+        <div>
+          <h2>Per booth</h2>
+          <p class="panel-note">Sorted by impressions (highest first). Top 3 highlighted.</p>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Booth</th>
+              <th>Name</th>
+              <th>Impressions</th>
+              <th>Intros</th>
+              <th>Quizzes</th>
+              <th>Passes</th>
+              <th>Pass %</th>
+              <th>Hearts</th>
+              <th>Comments</th>
+            </tr>
+          </thead>
+          <tbody id="boothRows"></tbody>
+        </table>
+      </div>
+      <p class="empty-state" id="boothEmpty" hidden>No booth opens yet.</p>
+    </section>
+
+    <section class="panel" id="commentPanel" hidden>
+      <h2>Recent comments</h2>
+      <div class="comment-feed" id="recentComments"></div>
+    </section>
+  </main>
+  <script type="module" src="/src/analytics-dashboard.js"></script>
+</body>
+</html>

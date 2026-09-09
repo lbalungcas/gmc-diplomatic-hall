@@ -37,6 +37,23 @@ const presenceProxy = {
       proxy.on('error', () => {});
     },
   },
+  '/analytics': {
+    target: `http://127.0.0.1:${presencePort}`,
+    // `/analytics` is the API; `/analytics.html` is the staff page — don't proxy the page.
+    bypass(req) {
+      const path = (req.url || '').split('?')[0];
+      if (path === '/analytics.html' || path.startsWith('/src/')) return req.url;
+    },
+    configure: (proxy) => {
+      proxy.on('error', () => {});
+    },
+  },
+  '/health': {
+    target: `http://127.0.0.1:${presencePort}`,
+    configure: (proxy) => {
+      proxy.on('error', () => {});
+    },
+  },
 };
 
 export default defineConfig({
@@ -45,6 +62,14 @@ export default defineConfig({
     // Lets the client fall back to a direct connection when the dev proxy isn't in front of it
     // (e.g. `vite preview`, or a phone opening the LAN URL while the proxy target is down).
     __PRESENCE_PORT__: JSON.stringify(presencePort),
+  },
+  build: {
+    rollupOptions: {
+      input: {
+        main: resolve(rootDir, 'index.html'),
+        analytics: resolve(rootDir, 'analytics.html'),
+      },
+    },
   },
   server: {
     port: 5173,

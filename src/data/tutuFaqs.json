@@ -1,0 +1,98 @@
+{
+  "tabs": [
+    {
+      "id": "overview",
+      "label": "Event overview",
+      "items": [
+        {
+          "q": "What is the Youth Innovations Marketplace?",
+          "a": "It is an interactive satellite event of the Second Global Ministerial Conference on Ending Violence Against Children (EVAC) in Manila. Young people showcase solutions, innovations and perspectives, and engage with partners and decision-makers working to prevent and end violence against children."
+        },
+        {
+          "q": "What are the key aims of the event?",
+          "a": "Showcase youth-led innovations addressing ending violence against children; create pathways for scale, incubation and partnerships; enable safe engagement between youth innovators and ministers, officials, donors and the private sector; and strengthen children and young people as strategic actors in EVAC commitments."
+        },
+        {
+          "q": "When and where is the Marketplace?",
+          "a": "17 November 2026, 9:00 AM–5:00 PM, at the Diplomatic Hall, The Marriott Hotel Manila."
+        },
+        {
+          "q": "Who organises it?",
+          "a": "Terre des hommes Netherlands (Philippine Country Team), Kindernothilfe (KNH), and the Global Youth-Led Movement on Ending Violence Against Children (GYM / VEWU partners), together with supporting organisations."
+        },
+        {
+          "q": "Who takes part?",
+          "a": "Roughly 200–230 people: child and youth representatives (about 13–20 years old), civil society partners, and ministry and industry representatives."
+        }
+      ]
+    },
+    {
+      "id": "expect",
+      "label": "What to expect",
+      "items": [
+        {
+          "q": "What happens on 17 November?",
+          "a": "The Youth Marketplace Innovation Satellite Event is a full day for youth delegates to present solutions and innovations, join discussions and networking, and contribute to the broader Ministerial Conference dialogue. Separate programme guidance is circulated to participants closer to the day."
+        },
+        {
+          "q": "Why are there preparation days before the Marketplace?",
+          "a": "Dedicated preparation sessions (14 and 16 November) help young people refine pitches, articulate solutions, finalise presentations, clarify roles, practise with feedback, build confidence, and connect with other youth before the main day on 17 November."
+        },
+        {
+          "q": "What should youth participants prepare?",
+          "a": "Bring your proposed solution or innovation, pitch or presentation drafts, supporting stories or visuals, a laptop or tablet with chargers, and any materials for your Marketplace role. Materials are refined during preparation so you are ready to present on 17 November."
+        },
+        {
+          "q": "What is the expected output of preparation?",
+          "a": "A clear pitch, a clearly articulated solution, a final or near-final presentation, agreed speaking roles and key messages, and enough practice and feedback before the Marketplace."
+        },
+        {
+          "q": "How does this digital hall help?",
+          "a": "This 3D Diplomatic Hall is a companion space: explore all 20 innovation booths, watch booth TVs, collect passport stamps, try quizzes, visit organizer stands, and leave a pledge on the Commitment Wall."
+        }
+      ]
+    },
+    {
+      "id": "safeguarding",
+      "label": "Safeguarding",
+      "items": [
+        {
+          "q": "What safeguarding framework applies?",
+          "a": "The event follows the safeguarding policies of Terre des hommes Netherlands, Kindernothilfe (KNH) and the Global Youth-Led Movement. The goal is to protect all young people from harm, exploitation and abuse before, during and after the Marketplace."
+        },
+        {
+          "q": "Is consent required to take part?",
+          "a": "Yes. Child and youth participants need completed consent forms with parent or guardian signatures before they join. Organising teams and partners are oriented on safeguarding and event details in advance."
+        },
+        {
+          "q": "Who stays with children and young people?",
+          "a": "Adult companions support children and young people at all times. A buddy system is expected. Adult marshals help monitor entrances, exits and key points so participants stay in designated event zones."
+        },
+        {
+          "q": "What is the Safeguarding Booth?",
+          "a": "A clearly marked, staffed space inside the venue where children and young people can rest if they feel uncomfortable, tired or overwhelmed. Adult companions and safeguarding staff are designated to support this space throughout the programme."
+        },
+        {
+          "q": "How do I report a concern?",
+          "a": "Ask staff at the Safeguarding Booth or the Welcome Desk. Information on where and how to report — including organising team and safeguarding focals — is provided to participants. Support is available if someone wishes to report to local authorities."
+        },
+        {
+          "q": "Can photos or videos of children be shared?",
+          "a": "Only with the child or young person’s consent and approval from the organising team and/or their participating organisation, following communication and ethical content guidelines. Inappropriate content is removed and reviewed before any re-sharing."
+        },
+        {
+          "q": "What if someone needs medical help?",
+          "a": "A first-aid kit is available and an emergency medical team is present at the venue. Staff can coordinate with the hotel for nearby medical facilities if further care is needed."
+        },
+        {
+          "q": "Where am I allowed to go in the venue?",
+          "a": "Stay within designated Diplomatic Hall event zones (including agreed rooms and lounge areas). Do not wander alone into public hotel grounds or the wider Newport complex. Adult support should accompany any movement outside the main activity space."
+        },
+        {
+          "q": "How is accessibility and wellbeing supported?",
+          "a": "The programme includes mental-health breaks and interactive moments. Reasonable accommodations are planned for participants with disabilities, including accessible materials and ground-floor options where stairs are a barrier. A prayer room is available on the same floor as the activity venue."
+        }
+      ]
+    }
+  ]
+}

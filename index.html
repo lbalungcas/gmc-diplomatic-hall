@@ -115,59 +115,83 @@
       <div class="welcome-card">
         <div class="welcome-badge" id="blocker-badge">FIRST-PERSON 3D EXPO</div>
         <h2 id="blocker-title">Youth Innovations Marketplace</h2>
-        <p class="venue-subtitle">Diplomatic Main Hall • Marriott Hotel Manila</p>
+        <p class="venue-subtitle">Diplomatic Main Hall · Marriott Hotel Manila · 17 Nov 2026</p>
+        <p class="welcome-lead" id="blocker-lead">
+          Walk the digital companion hall: visit 20 youth innovation booths, collect passport stamps, ask Tutu about the event &amp; safeguarding, and leave a pledge on the Commitment Wall.
+        </p>
 
-        <div class="instructions-grid desktop-only">
+        <div class="welcome-highlights" aria-label="What you can do">
+          <div class="welcome-chip"><span class="welcome-chip-ico" aria-hidden="true">🎪</span><span>20 booths</span></div>
+          <div class="welcome-chip"><span class="welcome-chip-ico" aria-hidden="true">🐘</span><span>Ask Tutu</span></div>
+          <div class="welcome-chip"><span class="welcome-chip-ico" aria-hidden="true">🛂</span><span>Passport</span></div>
+          <div class="welcome-chip"><span class="welcome-chip-ico" aria-hidden="true">🛡️</span><span>Safeguarding</span></div>
+        </div>
+
+        <p class="welcome-section-label desktop-only">Desktop controls</p>
+        <div class="instructions-grid desktop-only" aria-label="Desktop controls">
           <div class="inst-item">
+            <span class="inst-ico" aria-hidden="true">🚶</span>
             <span class="inst-key">W A S D</span>
-            <span class="inst-desc">Walk</span>
+            <span class="inst-desc">Walk the hall</span>
           </div>
           <div class="inst-item">
+            <span class="inst-ico" aria-hidden="true">👀</span>
             <span class="inst-key">MOUSE</span>
             <span class="inst-desc">Look around</span>
           </div>
           <div class="inst-item">
-            <span class="inst-key">SHIFT</span>
-            <span class="inst-desc">Sprint</span>
-          </div>
-          <div class="inst-item">
+            <span class="inst-ico" aria-hidden="true">🤝</span>
             <span class="inst-key">E</span>
-            <span class="inst-desc">Interact</span>
+            <span class="inst-desc">Interact / Ask Tutu</span>
           </div>
           <div class="inst-item">
-            <span class="inst-key">CLICK</span>
-            <span class="inst-desc">Booth TV with sound</span>
+            <span class="inst-ico" aria-hidden="true">📺</span>
+            <span class="inst-key">CLICK TV</span>
+            <span class="inst-desc">Watch with sound</span>
           </div>
           <div class="inst-item">
-            <span class="inst-key">P / T / M</span>
-            <span class="inst-desc">Passport / Jump / Mute</span>
+            <span class="inst-ico" aria-hidden="true">🛂</span>
+            <span class="inst-key">P · T · M</span>
+            <span class="inst-desc">Passport · Teleport · Mute</span>
           </div>
           <div class="inst-item">
-            <span class="inst-key">R / F</span>
-            <span class="inst-desc">Entrance / Fullscreen</span>
-          </div>
-          <div class="inst-item">
-            <span class="inst-key">ESC</span>
-            <span class="inst-desc">Pause / Close</span>
+            <span class="inst-ico" aria-hidden="true">⏸️</span>
+            <span class="inst-key">ESC · R · F</span>
+            <span class="inst-desc">Pause · Entrance · Fullscreen</span>
           </div>
         </div>
 
-        <div class="instructions-grid touch-only">
+        <p class="welcome-section-label touch-only">Tablet &amp; kiosk controls</p>
+        <div class="instructions-grid touch-only" aria-label="Touch controls">
           <div class="inst-item">
-            <span class="inst-key">🕹️</span>
-            <span class="inst-desc">Left joystick to walk</span>
+            <span class="inst-ico" aria-hidden="true">🕹️</span>
+            <span class="inst-key">JOYSTICK</span>
+            <span class="inst-desc">Walk with left stick</span>
           </div>
           <div class="inst-item">
-            <span class="inst-key">👆</span>
-            <span class="inst-desc">Drag anywhere to look</span>
+            <span class="inst-ico" aria-hidden="true">👆</span>
+            <span class="inst-key">DRAG</span>
+            <span class="inst-desc">Look around the hall</span>
           </div>
           <div class="inst-item">
-            <span class="inst-key">🎯</span>
-            <span class="inst-desc">Tap prompt to interact</span>
+            <span class="inst-ico" aria-hidden="true">🎯</span>
+            <span class="inst-key">TAP</span>
+            <span class="inst-desc">Prompt or 🎯 to interact</span>
           </div>
           <div class="inst-item">
-            <span class="inst-key">📺</span>
-            <span class="inst-desc">Tap a booth TV for sound</span>
+            <span class="inst-ico" aria-hidden="true">📺</span>
+            <span class="inst-key">TV</span>
+            <span class="inst-desc">Tap booth TV for sound</span>
+          </div>
+          <div class="inst-item">
+            <span class="inst-ico" aria-hidden="true">🛂</span>
+            <span class="inst-key">HUD</span>
+            <span class="inst-desc">Passport · Teleport · Mute</span>
+          </div>
+          <div class="inst-item">
+            <span class="inst-ico" aria-hidden="true">🪑</span>
+            <span class="inst-key">SEAT</span>
+            <span class="inst-desc">Sit near stage · Stand to leave</span>
           </div>
         </div>
 
@@ -180,8 +204,8 @@
           <span id="start-btn-label">LOADING VENUE</span>
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
         </button>
-        <p class="click-note desktop-only" id="blocker-note">Click anywhere to lock the cursor and start walking.</p>
-        <p class="click-note touch-only">Best experienced in landscape with fullscreen on.</p>
+        <p class="click-note desktop-only" id="blocker-note">Click the button or press Enter to lock the cursor and start walking.</p>
+        <p class="click-note touch-only" id="blocker-note-touch">Tip: rotate to landscape and use fullscreen for the best kiosk experience.</p>
       </div>
     </div>
   </div>
@@ -224,6 +248,16 @@
         <div class="stats-grid" id="modal-stats-grid"></div>
         <div class="links-box" id="modal-links-box"></div>
         <div class="socials-box" id="modal-socials-box"></div>
+        <div class="booth-comments" id="booth-comments">
+          <h3 class="booth-comments-title">Visitor notes</h3>
+          <div class="booth-comments-list" id="booth-comments-list"></div>
+          <form class="booth-comment-form" id="booth-comment-form">
+            <label class="sr-only" for="booth-comment-input">Leave a short note</label>
+            <input id="booth-comment-input" type="text" maxlength="200" placeholder="Leave a short note for the team…" autocomplete="off" />
+            <button type="submit" class="secondary-btn btn-xs" id="booth-comment-submit">Post</button>
+          </form>
+          <p class="booth-comment-hint" id="booth-comment-hint"></p>
+        </div>
       </div>
 
       <div class="tab-content hidden" id="tab-media">
@@ -285,6 +319,10 @@
       <div class="overview-box">
         <h3 id="org-modal-heading">About</h3>
         <p id="org-modal-text"></p>
+      </div>
+      <div id="tutu-faq" class="tutu-faq hidden">
+        <div class="tutu-faq-tabs" id="tutu-faq-tabs" role="tablist" aria-label="Ask Tutu topics"></div>
+        <div class="tutu-faq-list" id="tutu-faq-list"></div>
       </div>
       <div class="stats-grid" id="org-modal-stats"></div>
       <div class="links-box" id="org-modal-links"></div>
@@ -514,8 +552,6 @@
     <div id="mobile-actions">
       <div class="touch-row">
         <button id="mobile-stand-btn" class="touch-btn touch-btn-stand hidden" title="Stand Up">🚶</button>
-        <button id="mobile-sprint-btn" class="touch-btn" title="Toggle Sprint" aria-pressed="false">🏃</button>
-        <button id="mobile-jump-btn" class="touch-btn" title="Jump">⬆️</button>
       </div>
       <button id="mobile-interact-btn" class="touch-btn touch-btn-primary" title="Interact">🎯</button>
     </div>
