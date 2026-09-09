@@ -1,0 +1,56 @@
+[
+  {
+    "id": "tutu",
+    "name": "Tutu",
+    "org": "Terre des hommes",
+    "kind": "elephant",
+    "x": 24.4,
+    "z": -4.55,
+    "yaw": 2.4,
+    "radius": 0.55,
+    "bubbleRange": 4.5,
+    "interactRange": 2.2,
+    "lines": {
+      "enter": ["Hi there!", "Welcome!", "I'm Tutu!"],
+      "idle": ["Explore the booths", "20 youth teams", "Nov 17–18", "Say hello!"]
+    },
+    "modal": {
+      "kicker": "TDH MASCOT",
+      "title": "Tutu the Elephant",
+      "subtitle": "Terre des hommes",
+      "overview": "Tutu is the Terre des hommes mascot, here to welcome you to the Youth Innovations Marketplace. Walk the hall, visit all 20 satellite booths, and learn what youth teams have been building across the region.",
+      "stats": [
+        { "value": "20", "label": "Satellite booths" },
+        { "value": "Nov 17", "label": "Marriott Manila" },
+        { "value": "Nov 18", "label": "GMC main event" }
+      ]
+    }
+  },
+  {
+    "id": "vewu-lighthouse",
+    "name": "The Lighthouse",
+    "org": "Violence Ends With Us",
+    "kind": "lighthouse",
+    "x": 24.6,
+    "z": -15.5,
+    "yaw": 0,
+    "radius": 0.6,
+    "bubbleRange": 4.5,
+    "interactRange": 2.2,
+    "lines": {
+      "enter": ["I am the LIGHT", "Welcome, Lightkeeper!", "Over here!"],
+      "idle": ["Violence ends with us", "Be a Lightkeeper", "Join the movement", "It's time to shine", "Follow the light"]
+    },
+    "modal": {
+      "kicker": "VEWU MASCOT",
+      "title": "The VEWU Lighthouse",
+      "subtitle": "Violence Ends With Us",
+      "overview": "The Lighthouse is the guiding light of Violence Ends With Us — a youth-led movement across the Asia-Pacific whose members call themselves Lightkeepers. It stands beside the VEWU booth to guide you through the Marketplace: collect passport stamps, watch the booth TVs, try the quizzes, and leave a pledge on the Commitment Wall. I am the LIGHT — it's time for you to shine.",
+      "stats": [
+        { "value": "20+", "label": "Countries" },
+        { "value": "500+", "label": "Lightkeepers" },
+        { "value": "Passport", "label": "Collect stamps" }
+      ]
+    }
+  }
+]

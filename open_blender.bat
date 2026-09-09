@@ -1,0 +1,3 @@
+@echo off
+echo Opening Diplomatic Hall in Blender...
+start "" "D:\Lancee_File\blender-launcher.exe" "%~dp0diplomatic_hall_v10_refined.blend"

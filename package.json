@@ -1,0 +1,20 @@
+{
+  "name": "diplomatic-hall-first-person",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "node scripts/dev.mjs",
+    "dev:client": "vite",
+    "server": "node server/presence.js",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "three": "^0.174.0",
+    "ws": "^8.21.3"
+  },
+  "devDependencies": {
+    "vite": "^6.2.0"
+  }
+}

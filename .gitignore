@@ -1,0 +1,26 @@
+# Dependencies & build
+node_modules/
+dist/
+.vite/
+*.local
+
+# Env (keep secrets out of git; set VITE_WS_URL on Netlify / Render)
+.env
+.env.*
+!.env.example
+
+# Presence server runtime data
+server/data/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+*.swp
+.idea/
+.vscode/
+*.log
+
+# Blender / temp
+*.blend1
+__pycache__/
+*.pyc
