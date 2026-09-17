@@ -2,6 +2,11 @@ import * as THREE from 'three';
 window.THREE = THREE;
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { CSS3DRenderer, CSS3DObject } from 'three/examples/jsm/renderers/CSS3DRenderer.js';
+import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
+import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js';
+import { FXAAShader } from 'three/examples/jsm/shaders/FXAAShader.js';
+import { RectAreaLightUniformsLib } from 'three/examples/jsm/lights/RectAreaLightUniformsLib.js';
 import boothsData from './data/booths.json';
 import organizersData from './data/organizers.json';
 import mascotsData from './data/mascots.json';
@@ -26,6 +31,21 @@ let hasStarted = false;      // User has entered the hall at least once
 let venueLoaded = false;     // GLB finished loading (or failed and we let them in anyway)
 let currentBoothId = null;   // Booth currently shown in the modal
 const openModals = new Set();
+
+// Post-processing (desktop only)
+let composer = null;
+
+// Ambient dust mote particles (desktop only)
+let dustParticles = null;
+
+// Environment cubemap for reflections (generated procedurally)
+let envMap = null;
+
+// Camera smoothing: mouse input accumulator for sub-frame interpolation
+let mouseDeltaX = 0, mouseDeltaY = 0;
+
+// Teleport settle animation
+let teleportSettleTimer = 0;
 
 // Dynamic 3D Policy & Commitment Wall
 let policyBoardMesh = null, policyCanvas = null, policyCtx = null, policyTexture = null;
@@ -399,6 +419,9 @@ function init() {
   scene = new THREE.Scene();
   scene.background = null;
 
+  // Atmospheric depth fog — warm navy, subtle enough to not obscure booths
+  scene.fog = new THREE.FogExp2(0x08101e, isLowPowerDevice ? 0.012 : 0.016);
+
   camera = new THREE.PerspectiveCamera(65, window.innerWidth / window.innerHeight, 0.1, 100);
   camera.position.copy(player.pos);
   applyResponsiveFov();
@@ -421,6 +444,51 @@ function init() {
   container.appendChild(cssRenderer.domElement);
   container.appendChild(renderer.domElement);
 
+  // Post-processing (desktop only): subtle vignette + FXAA for cleaner edges
+  if (!isLowPowerDevice) {
+    composer = new EffectComposer(renderer);
+    composer.addPass(new RenderPass(scene, camera));
+
+    // FXAA pass — catches sub-pixel shimmer on thin geometry & booth panel edges
+    const fxaaPass = new ShaderPass(FXAAShader);
+    const pixelRatio = renderer.getPixelRatio();
+    fxaaPass.material.uniforms['resolution'].value.set(
+      1 / (window.innerWidth * pixelRatio),
+      1 / (window.innerHeight * pixelRatio)
+    );
+    composer.addPass(fxaaPass);
+
+    // Subtle vignette pass — darkens edges ~8–10% for cinematic depth focus
+    const VignetteShader = {
+      uniforms: {
+        tDiffuse: { value: null },
+        offset: { value: 1.0 },
+        darkness: { value: 1.1 },
+      },
+      vertexShader: `varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
+      fragmentShader: `
+        uniform sampler2D tDiffuse;
+        uniform float offset;
+        uniform float darkness;
+        varying vec2 vUv;
+        void main() {
+          vec4 texel = texture2D(tDiffuse, vUv);
+          vec2 uv = (vUv - vec2(0.5)) * vec2(offset);
+          float vignette = 1.0 - dot(uv, uv);
+          texel.rgb *= mix(1.0, smoothstep(0.0, 1.0, vignette), darkness);
+          gl_FragColor = texel;
+        }
+      `,
+    };
+    const vignettePass = new ShaderPass(VignetteShader);
+    vignettePass.material.uniforms['offset'].value = 0.95;
+    vignettePass.material.uniforms['darkness'].value = 1.15;
+    composer.addPass(vignettePass);
+  }
+
+  // Procedural environment cubemap for realistic tile/metal reflections
+  generateEnvMap();
+
   addVenueLighting();
   loadHallModel();
   createHolographicMarkers();
@@ -431,6 +499,9 @@ function init() {
   setupStageYouTubeScreen();
   setupPolicyWall();
   initMultiplayer();
+
+  // Floating dust motes near ceiling lights (desktop only)
+  if (!isLowPowerDevice) createDustParticles();
 
   window.addEventListener('resize', onWindowResize);
   window.addEventListener('orientationchange', () => setTimeout(onWindowResize, 150));
@@ -445,6 +516,81 @@ function init() {
   animate();
 }
 
+/** Generates a simple procedural environment cubemap for specular reflections. */
+function generateEnvMap() {
+  const size = 64;
+  const data = new Uint8Array(size * size * 4);
+  // Warm interior gradient: darker below, lighter above with soft warm tint
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+      const i = (y * size + x) * 4;
+      const ny = y / size;
+      const r = Math.round(20 + ny * 40);
+      const g = Math.round(18 + ny * 35);
+      const b = Math.round(30 + ny * 55);
+      data[i] = r; data[i + 1] = g; data[i + 2] = b; data[i + 3] = 255;
+    }
+  }
+  const cubeTextures = [];
+  for (let face = 0; face < 6; face++) {
+    const tex = new THREE.DataTexture(data.slice(), size, size, THREE.RGBAFormat);
+    tex.needsUpdate = true;
+    cubeTextures.push(tex);
+  }
+  const cubeRT = new THREE.WebGLCubeRenderTarget(size);
+  // Build a cube texture from the 6 faces
+  const cubeTexture = new THREE.CubeTexture(cubeTextures.map(t => {
+    const canvas = document.createElement('canvas');
+    canvas.width = canvas.height = size;
+    const ctx = canvas.getContext('2d');
+    const imgData = ctx.createImageData(size, size);
+    imgData.data.set(data);
+    ctx.putImageData(imgData, 0, 0);
+    return canvas;
+  }));
+  cubeTexture.needsUpdate = true;
+  envMap = cubeTexture;
+}
+
+/** Floating translucent dust motes drifting near the ceiling. */
+function createDustParticles() {
+  const count = 100;
+  const geo = new THREE.BufferGeometry();
+  const positions = new Float32Array(count * 3);
+  const sizes = new Float32Array(count);
+  const opacities = new Float32Array(count);
+  const speeds = new Float32Array(count);
+
+  for (let i = 0; i < count; i++) {
+    positions[i * 3] = 1.5 + Math.random() * 24;      // x: spread across hall + foyer
+    positions[i * 3 + 1] = 1.8 + Math.random() * 1.8;  // y: upper half of the room
+    positions[i * 3 + 2] = -1.5 - Math.random() * 22;  // z: full depth
+    sizes[i] = 0.015 + Math.random() * 0.025;
+    opacities[i] = 0.15 + Math.random() * 0.25;
+    speeds[i] = 0.2 + Math.random() * 0.4;
+  }
+
+  geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+  geo.setAttribute('aSize', new THREE.BufferAttribute(sizes, 1));
+  geo.setAttribute('aOpacity', new THREE.BufferAttribute(opacities, 1));
+
+  const mat = new THREE.PointsMaterial({
+    color: 0xffe8c8,
+    size: 0.03,
+    transparent: true,
+    opacity: 0.25,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending,
+    sizeAttenuation: true,
+  });
+
+  dustParticles = new THREE.Points(geo, mat);
+  dustParticles.userData.speeds = speeds;
+  dustParticles.userData.basePositions = new Float32Array(positions);
+  dustParticles.frustumCulled = false;
+  scene.add(dustParticles);
+}
+
 // Vertical FOV widens on portrait screens so the hall doesn't feel like a keyhole.
 function applyResponsiveFov() {
   const aspect = window.innerWidth / window.innerHeight;
@@ -455,10 +601,11 @@ function applyResponsiveFov() {
 
 // --- Enhanced Venue Lighting & Ceiling Illumination ---
 function addVenueLighting() {
-  const ambientLight = new THREE.AmbientLight(0xf8f2e6, isLowPowerDevice ? 0.55 : 0.40);
+  const ambientLight = new THREE.AmbientLight(0xf8f2e6, isLowPowerDevice ? 0.85 : 0.80);
   scene.add(ambientLight);
 
-  const hemiLight = new THREE.HemisphereLight(0xfff6ea, 0x2b3147, isLowPowerDevice ? 0.65 : 0.52);
+  // Warmer ground color for softer indirect bounce light
+  const hemiLight = new THREE.HemisphereLight(0xfff6ea, 0x3a3648, isLowPowerDevice ? 0.95 : 0.90);
   scene.add(hemiLight);
 
   const ceilingFixtures = [
@@ -469,10 +616,10 @@ function addVenueLighting() {
     [9.68, 3.4, -22.5],
   ];
 
-  // On low-power devices thin out the point lights (every other fixture) — fewer per-fragment lights.
+  // On low-power devices thin out the point lights (every other fixture) - fewer per-fragment lights.
   ceilingFixtures.forEach(([x, y, z], idx) => {
     if (isLowPowerDevice && idx % 2 === 1) return;
-    const light = new THREE.PointLight(0xffedd5, isLowPowerDevice ? 1.1 : 0.85, isLowPowerDevice ? 14 : 12, 1.2);
+    const light = new THREE.PointLight(0xffedd5, isLowPowerDevice ? 1.4 : 1.25, isLowPowerDevice ? 14 : 12, 1.2);
     light.position.set(x, y, z);
     scene.add(light);
   });
@@ -499,22 +646,68 @@ function addVenueLighting() {
   entranceLight.position.set(9.68, 3.35, -1.2);
   entranceLight.target.position.set(9.68, 0, -2.5);
   scene.add(entranceLight); scene.add(entranceLight.target);
+
+  // Soft rectangular backlight wash behind the stage screen (desktop only)
+  if (!isLowPowerDevice) {
+    try {
+      RectAreaLightUniformsLib.init();
+      const stageGlow = new THREE.RectAreaLight(0x8090ff, 1.2, 7.0, 3.5);
+      stageGlow.position.set(9.68, 2.3, -24.8);
+      stageGlow.lookAt(9.68, 2.3, -20.0);
+      scene.add(stageGlow);
+    } catch (e) { /* RectAreaLight not critical */ }
+  }
 }
 
 // --- Load GLB with PBR Material Enhancement ---
 function loadHallModel() {
   const textureLoader = new THREE.TextureLoader();
+  
+  // Normal maps
   const carpetNormal = textureLoader.load('/textures/carpet_normal.png');
   carpetNormal.wrapS = carpetNormal.wrapT = THREE.RepeatWrapping;
   carpetNormal.repeat.set(8, 10);
+  carpetNormal.anisotropy = 4;
 
   const tileNormal = textureLoader.load('/textures/tile_normal.png');
   tileNormal.wrapS = tileNormal.wrapT = THREE.RepeatWrapping;
   tileNormal.repeat.set(4, 10);
+  tileNormal.anisotropy = 4;
 
   const wallNormal = textureLoader.load('/textures/wall_normal.png');
   wallNormal.wrapS = wallNormal.wrapT = THREE.RepeatWrapping;
   wallNormal.repeat.set(6, 2);
+  wallNormal.anisotropy = 4;
+
+  const ceilingNormal = textureLoader.load('/textures/ceiling_normal.png');
+  ceilingNormal.wrapS = ceilingNormal.wrapT = THREE.RepeatWrapping;
+  ceilingNormal.repeat.set(16, 16);
+  ceilingNormal.anisotropy = 4;
+
+  const woodNormal = textureLoader.load('/textures/wood_stage_normal.png');
+  woodNormal.wrapS = woodNormal.wrapT = THREE.RepeatWrapping;
+  woodNormal.repeat.set(4, 4);
+
+  // Roughness maps
+  const carpetRoughness = textureLoader.load('/textures/carpet_roughness.png');
+  carpetRoughness.wrapS = carpetRoughness.wrapT = THREE.RepeatWrapping;
+  carpetRoughness.repeat.set(8, 10);
+
+  const tileRoughness = textureLoader.load('/textures/tile_roughness.png');
+  tileRoughness.wrapS = tileRoughness.wrapT = THREE.RepeatWrapping;
+  tileRoughness.repeat.set(4, 10);
+
+  const wallRoughness = textureLoader.load('/textures/wall_roughness.png');
+  wallRoughness.wrapS = wallRoughness.wrapT = THREE.RepeatWrapping;
+  wallRoughness.repeat.set(6, 2);
+
+  const ceilingRoughness = textureLoader.load('/textures/ceiling_roughness.png');
+  ceilingRoughness.wrapS = ceilingRoughness.wrapT = THREE.RepeatWrapping;
+  ceilingRoughness.repeat.set(16, 16);
+
+  const woodRoughness = textureLoader.load('/textures/wood_stage_roughness.png');
+  woodRoughness.wrapS = woodRoughness.wrapT = THREE.RepeatWrapping;
+  woodRoughness.repeat.set(4, 4);
 
   setLoadProgress(null, 'Downloading venue model…');
 
@@ -528,12 +721,7 @@ function loadHallModel() {
     });
     lightsToRemove.forEach(l => l.parent && l.parent.remove(l));
 
-    // Foyer furniture that is replaced at runtime:
-    //  - Table_C_Dressed.* (8 snack standing tables) + T_Desk.001 (its floor label) → organizer booths
-    //  - Welcome_Desk (a scaled cube with one stretched texture) + T_Desk (floor label) → buildWelcomeDesk()
-    //  - Commitment_Wall (stretched sticker texture) → framed canvas board in setupPolicyWall()
-    //  - Mat_Booth_XX_Screen (small 0.6m screen boxes) → bigger video TVs (see createBoothTVs)
-    // GLTFLoader strips dots from node names, so match both spellings.
+    // Foyer furniture that is replaced at runtime
     const HIDE_NODE_RE = /^(Table_C_Dressed|T_Desk(\.?001)?$|Welcome_Desk$|Commitment_Wall$)/;
     const SCREEN_MAT_RE = /^Mat_Booth_\d+_Screen$/;
     let hiddenTables = 0;
@@ -563,18 +751,36 @@ function loadHallModel() {
           if (matName.includes('carpet')) {
             mat.normalMap = carpetNormal;
             mat.normalScale.set(0.6, 0.6);
-            mat.roughness = Math.max(mat.roughness, 0.88);
+            mat.roughnessMap = carpetRoughness;
+            mat.roughness = Math.max(mat.roughness || 0, 0.88);
           } else if (matName.includes('tile') || matName.includes('corridor')) {
             mat.normalMap = tileNormal;
             mat.normalScale.set(0.8, 0.8);
+            mat.roughnessMap = tileRoughness;
             mat.roughness = 0.22;
+            mat.envMap = envMap;
+            mat.envMapIntensity = 1.2;
+            mat.metalness = 0.1;
           } else if (matName.includes('wall') && !matName.includes('stage')) {
             mat.normalMap = wallNormal;
             mat.normalScale.set(0.7, 0.7);
+            mat.roughnessMap = wallRoughness;
+            mat.roughness = Math.max(mat.roughness || 0, 0.6);
+          } else if (matName.includes('stage') && matName.includes('wood')) {
+            mat.normalMap = woodNormal;
+            mat.normalScale.set(0.8, 0.8);
+            mat.roughnessMap = woodRoughness;
+            mat.roughness = 0.4;
+            mat.envMap = envMap;
+            mat.envMapIntensity = 0.5;
+            mat.metalness = 0.05;
           }
 
           if (nodeName.includes('ceil') || matName.includes('ceil')) {
             mat.side = THREE.DoubleSide;
+            mat.normalMap = ceilingNormal;
+            mat.normalScale.set(1.0, 1.0);
+            mat.roughnessMap = ceilingRoughness;
             mat.roughness = 0.82;
             mat.emissive = new THREE.Color(0x35312b);
             mat.emissiveIntensity = 0.32;
@@ -659,7 +865,9 @@ function refreshBoothVisual(id) {
   const state = boothState(id);
   const marker = boothMarkers.find(m => m.userData.boothId === id);
   if (marker) {
-    marker.material.color.setHex(MARKER_COLORS[state]);
+    if (marker.userData.core) marker.userData.core.material.color.setHex(MARKER_COLORS[state]);
+    if (marker.userData.wire) marker.userData.wire.material.color.setHex(MARKER_COLORS[state]);
+    if (marker.userData.glow) marker.userData.glow.material.color.setHex(MARKER_COLORS[state]);
     marker.userData.state = state;
   }
   const label = boothLabels.get(id);
@@ -671,6 +879,20 @@ function refreshBoothVisual(id) {
   }
 }
 
+function createGlowTexture() {
+  const canvas = document.createElement('canvas');
+  canvas.width = 128;
+  canvas.height = 128;
+  const ctx = canvas.getContext('2d');
+  const grad = ctx.createRadialGradient(64, 64, 0, 64, 64, 64);
+  grad.addColorStop(0, 'rgba(255,255,255,1)');
+  grad.addColorStop(1, 'rgba(255,255,255,0)');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, 128, 128);
+  return new THREE.CanvasTexture(canvas);
+}
+const markerGlowTex = createGlowTexture();
+
 function createHolographicMarkers() {
   const markerGeo = new THREE.ConeGeometry(0.22, 0.42, 4);
   markerGeo.rotateX(Math.PI);
@@ -678,12 +900,29 @@ function createHolographicMarkers() {
   for (const [idStr, b] of Object.entries(BOOTH_POSITIONS)) {
     const id = parseInt(idStr);
     const state = boothState(id);
-    const mat = new THREE.MeshBasicMaterial({ color: MARKER_COLORS[state], wireframe: true });
-    const marker = new THREE.Mesh(markerGeo, mat);
-    // Hover in front of the booth face so both sides of a double-sided stand get their own marker
+    
+    const marker = new THREE.Group();
+    
+    // Core glowing mesh
+    const coreMat = new THREE.MeshBasicMaterial({ color: MARKER_COLORS[state], transparent: true, opacity: 0.85 });
+    const core = new THREE.Mesh(markerGeo, coreMat);
+    core.scale.set(0.65, 0.9, 0.65);
+    
+    // Outer wireframe
+    const wireMat = new THREE.MeshBasicMaterial({ color: MARKER_COLORS[state], wireframe: true, transparent: true, opacity: 0.5 });
+    const wire = new THREE.Mesh(markerGeo, wireMat);
+    
+    // Floor glow
+    const glowMat = new THREE.MeshBasicMaterial({ map: markerGlowTex, color: MARKER_COLORS[state], transparent: true, opacity: 0.6, blending: THREE.AdditiveBlending, depthWrite: false });
+    const glow = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 1.5), glowMat);
+    glow.rotation.x = -Math.PI / 2;
+    glow.position.y = -2.44; // drop to the floor
+    
+    marker.add(core, wire, glow);
+    
     const mx = b.x + b.facing * 0.55;
     marker.position.set(mx, 2.45, b.z);
-    marker.userData = { boothId: id, initialY: 2.45, state, facing: b.facing, panelX: b.x };
+    marker.userData = { boothId: id, initialY: 2.45, state, facing: b.facing, panelX: b.x, core, wire, glow };
     scene.add(marker);
     boothMarkers.push(marker);
 
@@ -745,7 +984,7 @@ function attachTV(parent, localPos, meta) {
 
   const bezel = new THREE.Mesh(
     new THREE.BoxGeometry(TV_W + 0.09, TV_H + 0.09, 0.06),
-    new THREE.MeshStandardMaterial({ color: 0x0b0f1a, roughness: 0.35, metalness: 0.6 })
+    new THREE.MeshStandardMaterial({ color: 0x05070a, roughness: 0.15, metalness: 0.8 })
   );
   bezel.castShadow = false;
   bezel.receiveShadow = true;
@@ -1563,11 +1802,8 @@ function setupControls() {
 
   document.addEventListener('mousemove', (e) => {
     if (!isPointerLocked) return;
-    const sensitivity = 0.0022;
-    player.yaw -= e.movementX * sensitivity;
-    player.pitch -= e.movementY * sensitivity;
-    const maxPitch = Math.PI / 2 - 0.08;
-    player.pitch = Math.max(-maxPitch, Math.min(maxPitch, player.pitch));
+    mouseDeltaX += e.movementX;
+    mouseDeltaY += e.movementY;
   });
 
   // While the cursor is locked, a left click on a TV opens its pop-up (with sound).
@@ -1669,8 +1905,12 @@ function setupMobileControls() {
       const knobY = Math.sin(angle) * clampedDist;
       joystickKnob.style.transform = `translate(${knobX}px, ${knobY}px)`;
 
-      joystickVec.x = knobX / maxDist;
-      joystickVec.y = knobY / maxDist;
+      const rawX = knobX / maxDist;
+      const rawY = knobY / maxDist;
+      
+      // Exponential curve for finer control at low speeds
+      joystickVec.x = Math.sign(rawX) * Math.pow(Math.abs(rawX), 1.5);
+      joystickVec.y = Math.sign(rawY) * Math.pow(Math.abs(rawY), 1.5);
     };
 
     joystickZone.addEventListener('touchstart', (e) => {
@@ -1741,11 +1981,11 @@ function setupMobileControls() {
           touchLookLastX = t.clientX;
           touchLookLastY = t.clientY;
 
-          const lookSpeed = 0.0038;
-          player.yaw -= dx * lookSpeed;
-          player.pitch -= dy * lookSpeed;
-          const maxPitch = Math.PI / 2 - 0.08;
-          player.pitch = Math.max(-maxPitch, Math.min(maxPitch, player.pitch));
+          // Deadzone to prevent micro-jitter when thumb is resting
+          if (Math.abs(dx) > 0.5 || Math.abs(dy) > 0.5) {
+            mouseDeltaX += dx;
+            mouseDeltaY += dy;
+          }
           break;
         }
       }
@@ -1897,6 +2137,27 @@ function updatePlayer(delta) {
     return;
   }
 
+  // Apply smoothed camera rotation (sub-frame interpolation)
+  if (Math.abs(mouseDeltaX) > 0.001 || Math.abs(mouseDeltaY) > 0.001) {
+    const lookSpeed = isTouchDevice ? 0.0038 : 0.0022;
+    // Consume a portion of the delta per frame for a fast but silky lerp
+    const consume = Math.min(1.0, 45.0 * delta);
+    const stepX = mouseDeltaX * consume;
+    const stepY = mouseDeltaY * consume;
+    
+    player.yaw -= stepX * lookSpeed;
+    player.pitch -= stepY * lookSpeed;
+    
+    mouseDeltaX -= stepX;
+    mouseDeltaY -= stepY;
+    
+    const maxPitch = Math.PI / 2 - 0.08;
+    player.pitch = Math.max(-maxPitch, Math.min(maxPitch, player.pitch));
+  } else {
+    mouseDeltaX = 0;
+    mouseDeltaY = 0;
+  }
+
   const targetSpeed = player.maxSpeed;
 
   _forward.set(-Math.sin(player.yaw), 0, -Math.cos(player.yaw));
@@ -1924,12 +2185,14 @@ function updatePlayer(delta) {
     player.desiredVel.set(0, 0, 0);
   }
 
-  const accel = isMoving ? 14.0 : 18.0;
+  // Touch devices have gentler stopping inertia so it feels more natural
+  const accel = isMoving ? 14.0 : (isTouchDevice ? 7.0 : 18.0);
   player.vel.x += (player.desiredVel.x - player.vel.x) * Math.min(1.0, accel * delta);
   player.vel.z += (player.desiredVel.z - player.vel.z) * Math.min(1.0, accel * delta);
 
+  // Camera sway (roll) while walking
   const strafeVal = canMove ? (keys.right ? 1 : 0) - (keys.left ? 1 : 0) + joystickVec.x : 0;
-  const targetRoll = -Math.max(-1, Math.min(1, strafeVal)) * 0.015;
+  const targetRoll = isMoving ? -Math.max(-1, Math.min(1, strafeVal)) * 0.015 - (Math.sin(clock.getElapsedTime() * 8.0) * 0.004) : 0;
   player.roll += (targetRoll - player.roll) * Math.min(1.0, 10.0 * delta);
 
   // Resolve X then Z so you slide along walls instead of tunneling into corners.
@@ -1945,19 +2208,33 @@ function updatePlayer(delta) {
     presence.sendMove(player.pos.x, player.pos.y, player.pos.z, player.yaw);
   }
 
+  // Composite head bob for more natural footstep feel
   if (isMoving && player.vel.length() > 0.5) {
     player.headBobTimer += delta * 9.0;
   } else {
-    player.headBobTimer = 0;
+    // Smoothly return to 0
+    player.headBobTimer += (0 - player.headBobTimer) * Math.min(1.0, 8.0 * delta);
   }
 
   player.pos.y = player.eyeHeight;
   player.vel.y = 0;
 
-  const bobY = isMoving ? Math.sin(player.headBobTimer) * 0.03 : 0;
-  const bobX = isMoving ? Math.cos(player.headBobTimer * 0.5) * 0.015 : 0;
+  const curSpeed = player.vel.length();
+  const bobScale = Math.min(1.0, curSpeed / targetSpeed);
+  
+  // Two-frequency composite: primary step cycle + slower lateral drift
+  const bobY = Math.sin(player.headBobTimer) * 0.025 * bobScale;
+  const bobX = Math.cos(player.headBobTimer * 0.5) * 0.015 * bobScale;
 
-  camera.position.set(player.pos.x + bobX, player.pos.y + bobY, player.pos.z);
+  // Teleport landing micro-settle
+  let landingY = 0;
+  if (teleportSettleTimer > 0) {
+    teleportSettleTimer -= delta;
+    if (teleportSettleTimer < 0) teleportSettleTimer = 0;
+    landingY = -Math.sin(teleportSettleTimer / 0.2 * Math.PI) * 0.04;
+  }
+
+  camera.position.set(player.pos.x + bobX, player.pos.y + bobY + landingY, player.pos.z);
   _euler.set(player.pitch, player.yaw, player.roll);
   camera.quaternion.setFromEuler(_euler);
 
@@ -3008,6 +3285,7 @@ function teleportPlayer(x, y, z, yaw) {
   player.yaw = yaw;
   player.pitch = 0;
   closeAllModals();
+  teleportSettleTimer = 0.2; // Start a 200ms landing settle ease
 }
 
 // --- HUD Setup & Click Handlers ---
@@ -3370,14 +3648,38 @@ function animate() {
     const onFacingSide = (camX - m.userData.panelX) * m.userData.facing > -0.35;
     m.visible = isTarget || onFacingSide;
     if (!m.visible) return;
+    
     m.rotation.y = t * (isTarget ? 3.0 : 1.5);
     m.position.y = m.userData.initialY + Math.sin(t * 3.0 + m.userData.boothId) * (isTarget ? 0.16 : 0.08);
+    
+    if (m.userData.wire) {
+      m.userData.wire.rotation.y = t * -1.0;
+    }
+    
     const s = isTarget ? 1.35 + Math.sin(t * 6) * 0.12 : 1;
     m.scale.set(s, s, s);
+    
+    if (m.userData.glow) {
+      m.userData.glow.position.y = (-m.position.y + 0.01) / s;
+    }
   });
   for (const label of boothLabels.values()) {
     const isTarget = activeWaypointId === label.userData.boothId;
     label.visible = isTarget || (camX - label.userData.panelX) * label.userData.facing > -0.35;
+  }
+
+  if (dustParticles) {
+    const positions = dustParticles.geometry.attributes.position.array;
+    const basePositions = dustParticles.userData.basePositions;
+    const speeds = dustParticles.userData.speeds;
+    for (let i = 0; i < positions.length / 3; i++) {
+      positions[i * 3] = basePositions[i * 3] + Math.sin(t * speeds[i] * 0.5) * 0.3;
+      positions[i * 3 + 2] = basePositions[i * 3 + 2] + Math.cos(t * speeds[i] * 0.4) * 0.3;
+      let y = positions[i * 3 + 1] + delta * speeds[i] * 0.1;
+      if (y > 4.5) y = 1.8;
+      positions[i * 3 + 1] = y;
+    }
+    dustParticles.geometry.attributes.position.needsUpdate = true;
   }
 
   // Render CSS3D stage screen only when it could be visible
@@ -3392,7 +3694,11 @@ function animate() {
     cssRenderer.domElement.style.display = 'none';
   }
 
-  renderer.render(scene, camera);
+  if (composer && !isLowPowerDevice) {
+    composer.render();
+  } else {
+    renderer.render(scene, camera);
+  }
 }
 
 // Global debug & test hooks

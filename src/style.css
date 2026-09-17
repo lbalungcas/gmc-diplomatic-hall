@@ -90,8 +90,10 @@ body:not(.touch-device) .touch-only { display: none !important; }
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 24px;
-  height: 24px;
+  width: 32px;
+  height: 32px;
+  /* Radial glow behind crosshair for visibility on bright surfaces */
+  background: radial-gradient(circle, rgba(0,0,0,0.3) 0%, rgba(0,0,0,0) 60%);
 }
 
 .cross-dot {
@@ -100,13 +102,25 @@ body:not(.touch-device) .touch-only { display: none !important; }
   background-color: rgba(255, 255, 255, 0.9);
   border-radius: 50%;
   box-shadow: 0 0 8px rgba(0, 212, 255, 0.8);
-  transition: transform 0.15s ease, background-color 0.15s ease;
+  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), background-color 0.2s ease, border-radius 0.2s ease;
+}
+
+@keyframes crosshair-pulse {
+  0% { transform: scale(2.4); box-shadow: 0 0 14px var(--primary); }
+  50% { transform: scale(2.2); box-shadow: 0 0 8px var(--primary); }
+  100% { transform: scale(2.4); box-shadow: 0 0 14px var(--primary); }
 }
 
 #crosshair.active .cross-dot {
-  transform: scale(2.4);
   background-color: var(--primary);
-  box-shadow: 0 0 14px var(--primary);
+  animation: crosshair-pulse 1.5s infinite ease-in-out;
+  transform: scale(2.4);
+}
+
+@keyframes tv-pulse {
+  0% { box-shadow: 0 0 14px var(--primary), inset 0 0 6px rgba(0, 212, 255, 0.5); border-color: var(--primary); }
+  50% { box-shadow: 0 0 8px var(--primary), inset 0 0 3px rgba(0, 212, 255, 0.3); border-color: rgba(0, 212, 255, 0.6); }
+  100% { box-shadow: 0 0 14px var(--primary), inset 0 0 6px rgba(0, 212, 255, 0.5); border-color: var(--primary); }
 }
 
 /* Aiming at a booth TV: ring + play glyph so "click for sound" is discoverable. */
@@ -116,7 +130,7 @@ body:not(.touch-device) .touch-only { display: none !important; }
   height: 18px;
   background-color: transparent;
   border: 2px solid var(--primary);
-  box-shadow: 0 0 14px var(--primary), inset 0 0 6px rgba(0, 212, 255, 0.5);
+  animation: tv-pulse 1.5s infinite ease-in-out;
 }
 
 #proximity-prompt.is-tv .key-badge {
@@ -1169,17 +1183,38 @@ body.touch-device #proximity-prompt:active { transform: translateX(-50%) scale(0
 .tutu-faq-list {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
   max-height: min(42vh, 360px);
   overflow-y: auto;
-  padding-right: 2px;
+  padding-right: 6px;
 }
 
+/* Custom Scrollbar for FAQ list */
+.tutu-faq-list::-webkit-scrollbar { width: 6px; }
+.tutu-faq-list::-webkit-scrollbar-track { background: rgba(255, 255, 255, 0.02); border-radius: 4px; }
+.tutu-faq-list::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.15); border-radius: 4px; }
+.tutu-faq-list::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.25); }
+
 .tutu-faq-item {
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 12px;
   overflow: hidden;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  transition: background-color 0.2s ease, border-left 0.2s ease;
+  border-left: 3px solid transparent;
+  flex-shrink: 0;
+}
+
+.tutu-faq-item:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-left: 3px solid var(--primary);
+}
+
+.tutu-faq-item.open {
+  background: rgba(255, 255, 255, 0.08);
+  border-left: 3px solid var(--primary);
 }
 
 .tutu-faq-q {
@@ -1187,40 +1222,48 @@ body.touch-device #proximity-prompt:active { transform: translateX(-50%) scale(0
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 10px;
+  gap: 12px;
   background: transparent;
   border: none;
-  color: #e2e8f0;
+  color: #f8fafc;
   font-family: var(--font-sans);
-  font-size: 13px;
-  font-weight: 600;
+  font-size: 14px;
+  font-weight: 700;
   text-align: left;
-  line-height: 1.4;
-  padding: 12px 14px;
+  line-height: 1.5;
+  padding: 16px 18px;
   cursor: pointer;
+  transition: color 0.2s ease;
 }
 
-.tutu-faq-q:hover { background: rgba(255, 255, 255, 0.04); }
+.tutu-faq-q:hover { color: var(--primary); }
 
 .tutu-faq-chevron {
   flex-shrink: 0;
-  color: #64748b;
-  font-size: 11px;
+  color: #94a3b8;
+  font-size: 13px;
   margin-top: 2px;
-  transition: transform 0.15s ease;
+  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), color 0.2s ease;
 }
 
-.tutu-faq-item.open .tutu-faq-chevron { transform: rotate(90deg); color: var(--primary); }
+.tutu-faq-item.open .tutu-faq-chevron { transform: rotate(180deg); color: var(--primary); }
 
 .tutu-faq-a {
-  display: none;
-  padding: 0 14px 12px;
-  font-size: 13px;
-  line-height: 1.55;
-  color: #94a3b8;
+  max-height: 0;
+  overflow: hidden;
+  padding: 0 18px;
+  font-size: 14px;
+  line-height: 1.65;
+  color: #cbd5e1;
+  transition: max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1), padding 0.4s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease;
+  opacity: 0;
 }
 
-.tutu-faq-item.open .tutu-faq-a { display: block; }
+.tutu-faq-item.open .tutu-faq-a { 
+  max-height: 500px;
+  padding: 0 18px 16px;
+  opacity: 1;
+}
 
 .stats-grid {
   display: grid;
