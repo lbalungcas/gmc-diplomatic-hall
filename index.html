@@ -166,19 +166,6 @@
         font-size: 0.85rem;
       }
     }
-
-    /* Announcement meta registration link */
-    a.badge-pill {
-      text-decoration: none;
-      cursor: pointer;
-      transition: background-color 0.2s ease, color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
-    }
-    a.badge-pill:hover {
-      background: rgba(255, 255, 255, 0.22);
-      color: #fff;
-      transform: translateY(-1px);
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-    }
   </style>
 </head>
 
@@ -194,11 +181,6 @@
         <strong>2nd Global Ministerial Conference on Ending Violence Against Children (EVAC)</strong> &bull; 17 November
         2026 &bull; Marriott Hotel Manila, Philippines
       </p>
-      <div class="announcement-meta">
-        <a href="#" class="badge-pill" id="publicRegBtn" title="Registration for General Public">
-          <i class="fa-solid fa-id-card"></i> Registration for General Public
-        </a>
-      </div>
     </div>
   </div>
 
@@ -226,6 +208,9 @@
 
       <!-- Action Buttons -->
       <div class="header-actions">
+        <a href="#" class="btn btn-secondary btn-sm" id="headerRegBtn" title="Pre-Registration to the General Public">
+          <i class="fa-solid fa-id-card"></i> Pre-Registration to the General Public
+        </a>
         <a href="/game/" class="btn btn-primary btn-sm">
           🎮 Explore Virtual Marketplace
         </a>
@@ -255,6 +240,9 @@
         <li><a href="#contact" class="mobile-nav-link"><i class="fa-solid fa-envelope"></i> Contact</a></li>
       </ul>
       <div class="mobile-drawer-actions">
+        <a href="#" class="btn btn-secondary btn-block" id="mobileRegBtn" title="Pre-Registration to the General Public" style="margin-bottom: 8px;">
+          <i class="fa-solid fa-id-card"></i> Pre-Registration to the General Public
+        </a>
         <a href="/game/" class="btn btn-primary btn-block">
           🎮 Explore Virtual Marketplace
         </a>
