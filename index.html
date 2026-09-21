@@ -31,24 +31,26 @@
     .btn-game-entry {
       display: inline-flex;
       align-items: center;
-      gap: 10px;
+      gap: 8px;
       background: linear-gradient(135deg, #00d4ff 0%, #7c3aed 50%, #f59e0b 100%);
       background-size: 200% 200%;
       animation: yim-gradient-shift 3s ease infinite;
       color: #fff;
       font-family: var(--font-display, 'Outfit', sans-serif);
-      font-weight: 800;
-      font-size: 1.05rem;
-      padding: 14px 32px;
-      border-radius: 14px;
+      font-weight: 700;
+      font-size: 0.84rem;
+      padding: 0.46rem 1.15rem;
+      border-radius: var(--radius-full, 9999px);
       border: none;
       cursor: pointer;
-      box-shadow: 0 8px 32px rgba(0, 212, 255, 0.3);
-      transition: transform 0.3s cubic-bezier(0.34,1.56,0.64,1), box-shadow 0.3s;
+      box-shadow: 0 4px 16px rgba(0, 212, 255, 0.3);
+      transition: transform 0.25s cubic-bezier(0.34,1.56,0.64,1), box-shadow 0.25s;
       text-decoration: none;
       letter-spacing: 0.02em;
       position: relative;
       overflow: hidden;
+      white-space: nowrap;
+      flex-shrink: 0;
     }
     .btn-game-entry::before {
       content: '';
@@ -58,42 +60,18 @@
       pointer-events: none;
     }
     .btn-game-entry:hover {
-      transform: translateY(-3px) scale(1.03);
-      box-shadow: 0 14px 44px rgba(0, 212, 255, 0.45);
+      transform: translateY(-2px);
+      box-shadow: 0 8px 24px rgba(0, 212, 255, 0.45);
       color: #fff;
     }
     .btn-game-entry .game-icon {
-      font-size: 1.3em;
+      font-size: 1.05em;
       filter: drop-shadow(0 2px 4px rgba(0,0,0,0.2));
     }
     @keyframes yim-gradient-shift {
       0% { background-position: 0% 50%; }
       50% { background-position: 100% 50%; }
       100% { background-position: 0% 50%; }
-    }
-
-    /* Navbar game pill */
-    .nav-game-pill {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      background: linear-gradient(135deg, #00d4ff, #7c3aed);
-      background-size: 200% 200%;
-      animation: yim-gradient-shift 3s ease infinite;
-      color: #fff !important;
-      font-weight: 700;
-      font-size: 0.82rem;
-      padding: 8px 18px;
-      border-radius: 999px;
-      text-decoration: none;
-      box-shadow: 0 4px 18px rgba(0, 212, 255, 0.25);
-      transition: transform 0.25s, box-shadow 0.25s;
-      letter-spacing: 0.03em;
-    }
-    .nav-game-pill:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 8px 28px rgba(0, 212, 255, 0.4);
-      color: #fff !important;
     }
 
     /* Floating sticky CTA */
@@ -197,18 +175,12 @@
           <li><a href="#partners-bar" class="nav-link">Partners</a></li>
           <li><a href="#contact" class="nav-link">Contact</a></li>
         </ul>
-        <a href="/game/" class="nav-game-pill" title="Enter the 3D Virtual Marketplace">
-          🎮 Virtual Hall
-        </a>
       </nav>
 
       <!-- Action Buttons -->
       <div class="header-actions">
-        <a href="/game/" class="btn btn-primary btn-sm" style="background:linear-gradient(135deg,#00d4ff,#7c3aed);border:none;">
-          🎮 Enter 3D Hall
-        </a>
-        <a href="#contact" class="btn btn-primary btn-sm">
-          <i class="fa-solid fa-paper-plane"></i> Get in Touch
+        <a href="/game/" class="btn btn-primary btn-sm">
+          🎮 Explore Virtual Marketplace
         </a>
         <button class="mobile-toggle" id="mobileMenuBtn" aria-label="Toggle Navigation Menu">
           <i class="fa-solid fa-bars-staggered"></i>
@@ -235,11 +207,8 @@
         <li><a href="#contact" class="mobile-nav-link"><i class="fa-solid fa-envelope"></i> Contact</a></li>
       </ul>
       <div class="mobile-drawer-actions">
-        <a href="/game/" class="mobile-game-entry">
-          🎮 Explore the Virtual Marketplace
-        </a>
-        <a href="#contact" class="btn btn-primary btn-block">
-          <i class="fa-solid fa-paper-plane"></i> Get in Touch
+        <a href="/game/" class="btn btn-primary btn-block">
+          🎮 Explore Virtual Marketplace
         </a>
       </div>
     </div>
@@ -310,10 +279,7 @@
             <!-- Single Horizontal Line Hero CTAs -->
             <div class="hero-cta-group">
               <a href="/game/" class="btn-game-entry">
-                <span class="game-icon">🎮</span> Explore the Virtual Marketplace
-              </a>
-              <a href="#spaces" class="btn btn-primary">
-                <i class="fa-solid fa-compass"></i> Marketplace Spaces
+                <span class="game-icon">🎮</span> Explore Virtual Marketplace
               </a>
               <a href="#agenda" class="btn btn-secondary">
                 <i class="fa-solid fa-clock"></i> View Agenda
@@ -1300,9 +1266,9 @@
   </a>
 
   <!-- Floating Virtual Marketplace CTA -->
-  <a href="/game/" class="floating-game-cta" id="floatingGameCta" aria-label="Enter the Virtual 3D Marketplace">
+  <a href="/game/" class="floating-game-cta" id="floatingGameCta" aria-label="Explore Virtual Marketplace">
     <span class="pulse-ring"></span>
-    🎮 Enter 3D Hall
+    🎮 Explore Virtual Marketplace
   </a>
 
   <!-- Custom JavaScript -->
