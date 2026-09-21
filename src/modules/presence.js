@@ -1,9 +1,18 @@
 /**
  * Multiplayer presence client for 3D Diplomatic Hall.
- * Mirrors GMC 2D hall architecture with WebSocket server sync + BroadcastChannel multi-tab fallback.
+ * Triple-redundancy presence:
+ *  1. WebSocket server sync (local dev proxy on :8787 or cloud Render service)
+ *  2. Supabase Realtime Channel fallback (serverless, always online on Netlify / static hosts)
+ *  3. BroadcastChannel multi-tab instant sync (offline / local testing)
  */
+import { createClient } from '@supabase/supabase-js';
 
 const PALETTE = ['#F4B400', '#4FA69C', '#7BA3D4', '#E8A87C', '#C4A4D8', '#6EC4B8'];
+
+const SUPABASE_URL = (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_SUPABASE_URL)
+  || 'https://ecddxmoakjqfjlxpmkzn.supabase.co';
+const SUPABASE_KEY = (typeof import.meta !== 'undefined' && import.meta.env && (import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || import.meta.env.VITE_SUPABASE_ANON_KEY))
+  || 'sb_publishable_r7U4Xc51-_FIXY5qpqTDZg_ixetP-GT';
 
 export function colorFromId(id) {
   const s = String(id ?? '');
@@ -33,6 +42,18 @@ export function getVisitorInfo() {
   return { id, name, color };
 }
 
+function isLocalHost(hostname) {
+  return (
+    hostname === 'localhost' ||
+    hostname === '127.0.0.1' ||
+    hostname === '0.0.0.0' ||
+    hostname.endsWith('.local') ||
+    /^192\.168\./.test(hostname) ||
+    /^10\./.test(hostname) ||
+    /^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(hostname)
+  );
+}
+
 export function createPresence({
   onWelcome,
   onJoined,
@@ -49,12 +70,19 @@ export function createPresence({
   const visitor = getVisitorInfo();
   let ws = null;
   let isConnected = false;
+  let connectionMode = null; // 'ws' | 'supabase' | 'bc' | null
   let moveThrottleTimer = null;
   let pendingMove = null;
   let bc = null;
   let attempt = 0;
   let reconnectTimer = null;
   let everConnected = false;
+  let fallbackTimer = null;
+
+  // Supabase Realtime client & channel state
+  let sbClient = null;
+  let sbChannel = null;
+  let sbSubscribed = false;
 
   function setStatus(connected, detail) {
     const changed = connected !== isConnected;
@@ -73,6 +101,10 @@ export function createPresence({
 
         if (msg.type === 'bc_join') {
           onJoined?.(msg.visitor);
+          if (!isConnected) {
+            connectionMode = 'bc';
+            setStatus(true, 'broadcast_channel');
+          }
           // Respond so the new tab knows about us
           bc.postMessage({
             type: 'bc_announce',
@@ -89,6 +121,10 @@ export function createPresence({
           });
         } else if (msg.type === 'bc_announce') {
           onJoined?.(msg.visitor);
+          if (!isConnected) {
+            connectionMode = 'bc';
+            setStatus(true, 'broadcast_channel');
+          }
         } else if (msg.type === 'bc_move') {
           onMoved?.(msg);
         } else if (msg.type === 'bc_leave') {
@@ -101,8 +137,6 @@ export function createPresence({
           onHeart?.(msg.heart);
         } else if (msg.type === 'bc_engagement') {
           onEngagement?.(msg.engagement);
-        } else if (msg.type === 'bc_comment') {
-          // Local multi-tab: treat as engagement refresh via analytics path only.
         }
       };
     }
@@ -112,8 +146,6 @@ export function createPresence({
 
   let lastPosition = { x: 9.68, y: 1.45, z: -2.5, yaw: 0 };
   let reconnectDelay = 2500;
-  /** When set, we only dial this host (no Netlify `/presence` fallback spam). */
-  let forcedWsUrl = '';
   let heartbeatTimer = null;
   let lastPongAt = 0;
   let closingForReconnect = false;
@@ -139,10 +171,6 @@ export function createPresence({
     }, 9000);
   }
 
-  /**
-   * Render's GMC presence listens on `/presence`. A bare `wss://host` or `wss://host/`
-   * upgrade fails, so empty paths are rewritten to `/presence`.
-   */
   function normalizePresenceUrl(raw) {
     const s = String(raw || '').trim();
     if (!s) return '';
@@ -161,43 +189,161 @@ export function createPresence({
       reconnectTimer = null;
       connect();
     }, reconnectDelay);
-    // Back off up to 30s so a missing server doesn't get hammered (and the console stays quiet).
+    // Back off up to 30s so a missing server doesn't get hammered.
     reconnectDelay = Math.min(30000, Math.round(reconnectDelay * 1.7));
   }
 
   /**
-   * Candidate endpoints, tried round-robin on every reconnect:
-   *  1. an explicit override (`?presence=wss://…`, `window.PRESENCE_WS_URL`, or
-   *     build-time `VITE_WS_URL` / `VITE_PRESENCE_WS_URL` — set on Netlify for Render)
-   *  2. same-origin `/presence` (Vite dev/preview proxy → server/presence.js) — skipped when (1) is set
-   *  3. the presence server's own port on this host (LAN / local static preview)
+   * Candidate endpoints, intelligently prioritized:
+   *  1. An explicit override in the query string (`?presence=wss://…`)
+   *  2. If running locally (localhost/LAN): same-origin `/presence` & direct port 8787
+   *  3. Build-time / environment override (`VITE_WS_URL` / `window.PRESENCE_WS_URL`)
+   *  4. Same-origin `/presence`
    */
   function getWsCandidates() {
     const loc = window.location;
     const proto = loc.protocol === 'https:' ? 'wss:' : 'ws:';
     const list = [];
+    const directPort = typeof __PRESENCE_PORT__ !== 'undefined' ? __PRESENCE_PORT__ : '8787';
+
+    // 1. Explicit query parameter override
+    try {
+      const explicitParam = new URLSearchParams(loc.search).get('presence');
+      if (explicitParam) {
+        const override = normalizePresenceUrl(explicitParam);
+        if (override) {
+          list.push(override);
+          return list;
+        }
+      }
+    } catch (e) {}
+
+    // 2. Local development: always prioritize local dev server & direct presence port
+    if (isLocalHost(loc.hostname)) {
+      list.push(`${proto}//${loc.host}/presence`);
+      if (String(loc.port) !== String(directPort)) {
+        list.push(`ws://${loc.hostname}:${directPort}`);
+        list.push(`ws://${loc.hostname}:${directPort}/presence`);
+      }
+    }
+
+    // 3. Environment variable override if configured
     try {
       const envUrl = (typeof import.meta !== 'undefined' && import.meta.env
         && (import.meta.env.VITE_WS_URL || import.meta.env.VITE_PRESENCE_WS_URL)) || '';
-      const override = normalizePresenceUrl(
-        new URLSearchParams(loc.search).get('presence')
-        || window.PRESENCE_WS_URL
-        || envUrl
-      );
-      if (override) {
-        forcedWsUrl = override;
-        list.push(override);
-        return list;
+      const normalizedEnv = normalizePresenceUrl(window.PRESENCE_WS_URL || envUrl);
+      if (normalizedEnv && !list.includes(normalizedEnv)) {
+        list.push(normalizedEnv);
       }
     } catch (e) {}
-    forcedWsUrl = '';
-    list.push(`${proto}//${loc.host}/presence`);
-    const directPort = typeof __PRESENCE_PORT__ !== 'undefined' ? __PRESENCE_PORT__ : '8787';
-    if (loc.protocol !== 'https:' && String(loc.port) !== String(directPort)) {
-      list.push(`ws://${loc.hostname}:${directPort}`);
-      list.push(`ws://${loc.hostname}:${directPort}/presence`);
+
+    // 4. Same-origin fallback
+    const sameOrigin = `${proto}//${loc.host}/presence`;
+    if (!list.includes(sameOrigin)) {
+      list.push(sameOrigin);
     }
+
     return list;
+  }
+
+  /**
+   * Fallback to Supabase Realtime Channel:
+   * Enables zero-server multiplayer when deployed to static hosts (like Netlify)
+   * or when the dedicated WebSocket server is sleeping/offline.
+   */
+  function connectSupabaseFallback() {
+    if (connectionMode === 'ws' || sbSubscribed || sbChannel) return;
+    if (!SUPABASE_URL || !SUPABASE_KEY) return;
+
+    try {
+      if (!sbClient) {
+        sbClient = createClient(SUPABASE_URL, SUPABASE_KEY, {
+          auth: { persistSession: false, autoRefreshToken: false },
+        });
+      }
+
+      sbChannel = sbClient.channel('diplomatic-hall-multiplayer', {
+        config: { presence: { key: visitor.id } },
+      });
+
+      sbChannel
+        .on('presence', { event: 'sync' }, () => {
+          if (connectionMode === 'ws') return;
+          const state = sbChannel.presenceState();
+          const list = [];
+          for (const key in state) {
+            const arr = state[key];
+            if (Array.isArray(arr) && arr.length > 0) {
+              const p = arr[0];
+              if (p && p.id) list.push(p);
+            }
+          }
+          if (list.length > 0) {
+            onWelcome?.({
+              id: visitor.id,
+              visitors: list,
+              count: list.length,
+            });
+            onCount?.(list.length);
+          }
+        })
+        .on('presence', { event: 'join' }, ({ newPresences }) => {
+          if (connectionMode === 'ws') return;
+          if (Array.isArray(newPresences)) {
+            for (const p of newPresences) {
+              if (p && p.id && p.id !== visitor.id) onJoined?.(p);
+            }
+          }
+        })
+        .on('presence', { event: 'leave' }, ({ key }) => {
+          if (connectionMode === 'ws') return;
+          if (key && key !== visitor.id) onLeft?.(key);
+        })
+        .on('broadcast', { event: 'move' }, ({ payload }) => {
+          if (connectionMode === 'ws') return;
+          if (payload && payload.id && payload.id !== visitor.id) {
+            onMoved?.(payload);
+          }
+        })
+        .on('broadcast', { event: 'screen' }, ({ payload }) => {
+          if (connectionMode === 'ws') return;
+          if (payload) onScreen?.(payload);
+        })
+        .on('broadcast', { event: 'pledge' }, ({ payload }) => {
+          if (connectionMode === 'ws') return;
+          if (payload) onPledge?.(payload);
+        })
+        .on('broadcast', { event: 'heart' }, ({ payload }) => {
+          if (connectionMode === 'ws') return;
+          if (payload) onHeart?.(payload);
+        })
+        .subscribe(async (status) => {
+          if (status === 'SUBSCRIBED') {
+            sbSubscribed = true;
+            if (connectionMode !== 'ws') {
+              connectionMode = 'supabase';
+              setStatus(true, 'supabase_realtime');
+              await sbChannel.track({
+                id: visitor.id,
+                name: visitor.name,
+                color: visitor.color,
+                x: lastPosition.x,
+                y: lastPosition.y,
+                z: lastPosition.z,
+                yaw: lastPosition.yaw,
+              });
+            }
+          } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+            sbSubscribed = false;
+            if (connectionMode === 'supabase') {
+              connectionMode = null;
+              setStatus(false, 'supabase_closed');
+            }
+          }
+        });
+    } catch (err) {
+      console.warn('[presence] Supabase fallback initialization warning:', err);
+    }
   }
 
   function connect() {
@@ -205,6 +351,17 @@ export function createPresence({
     const candidates = getWsCandidates();
     const url = candidates[attempt % candidates.length];
     attempt++;
+
+    // If WebSocket hasn't connected in 2.5s, trigger Supabase fallback in parallel
+    if (!fallbackTimer && !sbSubscribed) {
+      fallbackTimer = setTimeout(() => {
+        fallbackTimer = null;
+        if (!isConnected) {
+          connectSupabaseFallback();
+        }
+      }, 2500);
+    }
+
     try {
       ws = new WebSocket(url);
 
@@ -212,9 +369,16 @@ export function createPresence({
         reconnectDelay = 1800;
         attempt = 0;
         closingForReconnect = false;
+        connectionMode = 'ws';
         const softRejoin = everConnected;
-        setStatus(true, 'connected');
+        setStatus(true, 'websocket');
         startHeartbeat();
+
+        // If Supabase was tracking presence, untrack to avoid duplicate count
+        if (sbChannel && sbSubscribed) {
+          try { sbChannel.untrack(); } catch (e) {}
+        }
+
         // Send both `id` (3D hall) and `clientId` (legacy 2D GMC presence on Render).
         ws.send(JSON.stringify({
           type: 'join',
@@ -237,7 +401,6 @@ export function createPresence({
             lastPongAt = Date.now();
           } else if (msg.type === 'welcome') {
             lastPongAt = Date.now();
-            // Normalize legacy 2D welcome ({ selfId, players, count }) → 3D shape.
             const normalized = {
               ...msg,
               id: msg.id || msg.selfId,
@@ -269,7 +432,6 @@ export function createPresence({
           } else if (msg.type === 'comment_rejected') {
             onCommentRejected?.(msg);
           } else if (msg.type === 'error') {
-            // Legacy servers reject unknown join shapes; stay quiet in the console.
             setStatus(false, msg.reason || 'error');
           }
         } catch (err) {}
@@ -277,22 +439,33 @@ export function createPresence({
 
       ws.onclose = () => {
         clearHeartbeat();
-        setStatus(false, closingForReconnect ? 'watchdog' : 'closed');
-        closingForReconnect = false;
+        const wasWs = connectionMode === 'ws';
+        if (wasWs) connectionMode = null;
         ws = null;
+
+        // Try Supabase fallback if WebSocket closed
+        connectSupabaseFallback();
+
+        if (!sbSubscribed) {
+          setStatus(false, closingForReconnect ? 'watchdog' : 'closed');
+        }
+        closingForReconnect = false;
         scheduleReconnect();
       };
 
       ws.onerror = () => {
-        // onclose always follows onerror; reconnect is scheduled there only.
+        connectSupabaseFallback();
       };
     } catch (e) {
       ws = null;
-      setStatus(false, 'error');
+      connectSupabaseFallback();
+      if (!sbSubscribed) {
+        setStatus(false, 'error');
+      }
       scheduleReconnect();
     }
 
-    // Announce to other tabs via BroadcastChannel (only once — reconnects shouldn't re-announce)
+    // Announce to other tabs via BroadcastChannel
     if (bc && attempt === 1) {
       bc.postMessage({
         type: 'bc_join',
@@ -318,7 +491,8 @@ export function createPresence({
       moveThrottleTimer = setTimeout(() => {
         moveThrottleTimer = null;
         if (pendingMove) {
-          if (isConnected && ws && ws.readyState === WebSocket.OPEN) {
+          // 1. WebSocket
+          if (connectionMode === 'ws' && ws && ws.readyState === WebSocket.OPEN) {
             ws.send(JSON.stringify({
               type: 'move',
               x: Number(pendingMove.x.toFixed(2)),
@@ -327,6 +501,23 @@ export function createPresence({
               yaw: Number(pendingMove.yaw.toFixed(3)),
             }));
           }
+          // 2. Supabase Realtime Broadcast
+          else if (connectionMode === 'supabase' && sbChannel && sbSubscribed) {
+            sbChannel.send({
+              type: 'broadcast',
+              event: 'move',
+              payload: {
+                id: visitor.id,
+                name: visitor.name,
+                color: visitor.color,
+                x: Number(pendingMove.x.toFixed(2)),
+                y: Number(pendingMove.y.toFixed(2)),
+                z: Number(pendingMove.z.toFixed(2)),
+                yaw: Number(pendingMove.yaw.toFixed(3)),
+              },
+            });
+          }
+          // 3. Local BroadcastChannel
           if (bc) {
             bc.postMessage({
               type: 'bc_move',
@@ -344,8 +535,10 @@ export function createPresence({
   }
 
   function sendScreen(screen) {
-    if (isConnected && ws && ws.readyState === WebSocket.OPEN) {
+    if (connectionMode === 'ws' && ws && ws.readyState === WebSocket.OPEN) {
       ws.send(JSON.stringify({ type: 'screen_state', screen }));
+    } else if (connectionMode === 'supabase' && sbChannel && sbSubscribed) {
+      sbChannel.send({ type: 'broadcast', event: 'screen', payload: screen });
     }
     if (bc) {
       bc.postMessage({ type: 'bc_screen', senderId: visitor.id, screen });
@@ -353,8 +546,10 @@ export function createPresence({
   }
 
   function sendPledge(pledge) {
-    if (isConnected && ws && ws.readyState === WebSocket.OPEN) {
+    if (connectionMode === 'ws' && ws && ws.readyState === WebSocket.OPEN) {
       ws.send(JSON.stringify({ type: 'pledge', pledge }));
+    } else if (connectionMode === 'supabase' && sbChannel && sbSubscribed) {
+      sbChannel.send({ type: 'broadcast', event: 'pledge', payload: pledge });
     }
     if (bc) {
       bc.postMessage({ type: 'bc_pledge', senderId: visitor.id, pledge });
@@ -366,8 +561,10 @@ export function createPresence({
       ? Number(boothIdOrPayload.boothId)
       : Number(boothIdOrPayload);
     if (!Number.isFinite(boothId)) return;
-    if (isConnected && ws && ws.readyState === WebSocket.OPEN) {
+    if (connectionMode === 'ws' && ws && ws.readyState === WebSocket.OPEN) {
       ws.send(JSON.stringify({ type: 'heart', boothId }));
+    } else if (connectionMode === 'supabase' && sbChannel && sbSubscribed) {
+      sbChannel.send({ type: 'broadcast', event: 'heart', payload: { boothId } });
     }
     if (bc) {
       bc.postMessage({ type: 'bc_heart', senderId: visitor.id, heart: { boothId } });
@@ -378,18 +575,35 @@ export function createPresence({
     const id = Number(boothId);
     const body = String(text || '').trim().slice(0, 200);
     if (!Number.isFinite(id) || !body) return false;
-    if (isConnected && ws && ws.readyState === WebSocket.OPEN) {
+    if (connectionMode === 'ws' && ws && ws.readyState === WebSocket.OPEN) {
       ws.send(JSON.stringify({ type: 'comment', boothId: id, text: body }));
+      return true;
+    } else if (sbClient) {
+      // In Supabase mode, record comment directly
+      sbClient.from('booth_comments').insert({
+        id: `c-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`,
+        booth_id: id,
+        visitor_id: visitor.id,
+        name: visitor.name,
+        body,
+      }).then(() => {}).catch(() => {});
       return true;
     }
     return false;
   }
 
   function sendAnalytics(type, payload = {}) {
-    if (!isConnected || !ws || ws.readyState !== WebSocket.OPEN) return;
-    try {
-      ws.send(JSON.stringify({ type, clientId: visitor.id, ...payload }));
-    } catch (e) {}
+    if (connectionMode === 'ws' && ws && ws.readyState === WebSocket.OPEN) {
+      try {
+        ws.send(JSON.stringify({ type, clientId: visitor.id, ...payload }));
+      } catch (e) {}
+    } else if (sbClient) {
+      sbClient.from('analytics_events').insert({
+        type,
+        visitor_id: visitor.id,
+        booth_id: payload.boothId || null,
+      }).then(() => {}).catch(() => {});
+    }
   }
 
   // Handle unload to gracefully disconnect
@@ -397,13 +611,25 @@ export function createPresence({
     if (bc) {
       bc.postMessage({ type: 'bc_leave', senderId: visitor.id, id: visitor.id });
     }
+    if (sbChannel) {
+      try {
+        sbChannel.untrack();
+        sbChannel.unsubscribe();
+      } catch (e) {}
+    }
     try { if (ws) ws.close(); } catch (e) {}
   });
 
-  // Coming back online / back to the tab: retry immediately instead of waiting out the back-off.
-  window.addEventListener('online', () => { reconnectDelay = 2500; if (!isConnected) connect(); });
+  // Coming back online / back to the tab: retry immediately
+  window.addEventListener('online', () => {
+    reconnectDelay = 2500;
+    if (!isConnected) connect();
+  });
   document.addEventListener('visibilitychange', () => {
-    if (!document.hidden && !isConnected) { reconnectDelay = 2500; connect(); }
+    if (!document.hidden && !isConnected) {
+      reconnectDelay = 2500;
+      connect();
+    }
   });
 
   connect();
@@ -418,5 +644,6 @@ export function createPresence({
     sendAnalytics,
     reconnect: () => { reconnectDelay = 2500; if (!isConnected) connect(); },
     isConnected: () => isConnected,
+    getMode: () => connectionMode,
   };
 }
