@@ -1,27 +1,32 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Youth Innovations Marketplace | 2nd GMC EVAC (Manila 2026)</title>
-  <meta name="description" content="Official website for the Youth Innovations Marketplace: Scalable Solutions to End Violence against Children. Satellite Event of the 2nd Global Ministerial Conference on Ending Violence Against Children in Manila, Philippines.">
-  <meta name="keywords" content="Youth Innovations Marketplace, EVAC, Ending Violence Against Children, Global Ministerial Conference Manila 2026, Terre des Hommes Netherlands, Kindernothilfe, Global Youth-Led Movement">
-  
+  <meta name="description"
+    content="Official website for the Youth Innovations Marketplace: Scalable Solutions to End Violence against Children. Satellite Event of the 2nd Global Ministerial Conference on Ending Violence Against Children in Manila, Philippines.">
+  <meta name="keywords"
+    content="Youth Innovations Marketplace, EVAC, Ending Violence Against Children, Global Ministerial Conference Manila 2026, Terre des Hommes Netherlands, Kindernothilfe, Global Youth-Led Movement">
+
   <!-- Site Icon / Favicon using brand mark -->
   <link rel="icon" type="image/png" sizes="32x32" href="landing/assets/web/favicon-32x32.png?v=3">
   <link rel="icon" type="image/png" sizes="16x16" href="landing/assets/web/favicon-16x16.png?v=3">
   <link rel="apple-touch-icon" sizes="180x180" href="landing/assets/web/favicon-180x180.png?v=3">
   <link rel="icon" type="image/png" href="landing/assets/web/logo-transparent.png?v=3">
   <link rel="shortcut icon" href="landing/favicon.ico?v=3">
-  
+
   <!-- Google Fonts: Plus Jakarta Sans & Outfit (reflecting Loyola Round & Canva Sans) -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400&display=swap" rel="stylesheet">
-  
+  <link
+    href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400&display=swap"
+    rel="stylesheet">
+
   <!-- Font Awesome Icons for polished UI -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-  
+
   <!-- Custom Stylesheet -->
   <link rel="stylesheet" href="landing/styles.css?v=16">
 
@@ -44,7 +49,7 @@
       border: none;
       cursor: pointer;
       box-shadow: 0 4px 16px rgba(0, 212, 255, 0.3);
-      transition: transform 0.25s cubic-bezier(0.34,1.56,0.64,1), box-shadow 0.25s;
+      transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.25s;
       text-decoration: none;
       letter-spacing: 0.02em;
       position: relative;
@@ -52,26 +57,38 @@
       white-space: nowrap;
       flex-shrink: 0;
     }
+
     .btn-game-entry::before {
       content: '';
       position: absolute;
       inset: 0;
-      background: linear-gradient(135deg, rgba(255,255,255,0.15) 0%, transparent 50%);
+      background: linear-gradient(135deg, rgba(255, 255, 255, 0.15) 0%, transparent 50%);
       pointer-events: none;
     }
+
     .btn-game-entry:hover {
       transform: translateY(-2px);
       box-shadow: 0 8px 24px rgba(0, 212, 255, 0.45);
       color: #fff;
     }
+
     .btn-game-entry .game-icon {
       font-size: 1.05em;
-      filter: drop-shadow(0 2px 4px rgba(0,0,0,0.2));
+      filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));
     }
+
     @keyframes yim-gradient-shift {
-      0% { background-position: 0% 50%; }
-      50% { background-position: 100% 50%; }
-      100% { background-position: 0% 50%; }
+      0% {
+        background-position: 0% 50%;
+      }
+
+      50% {
+        background-position: 100% 50%;
+      }
+
+      100% {
+        background-position: 0% 50%;
+      }
     }
 
     /* Floating sticky CTA */
@@ -92,25 +109,37 @@
       border-radius: 16px;
       text-decoration: none;
       box-shadow: 0 10px 40px rgba(25, 53, 97, 0.35), 0 0 0 3px rgba(251, 217, 96, 0.4);
-      transition: transform 0.3s cubic-bezier(0.34,1.56,0.64,1), box-shadow 0.3s;
+      transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.3s;
       border: 2px solid rgba(251, 217, 96, 0.5);
     }
+
     .floating-game-cta:hover {
       transform: translateY(-4px) scale(1.04);
       box-shadow: 0 16px 50px rgba(25, 53, 97, 0.45), 0 0 0 4px rgba(251, 217, 96, 0.6);
       color: #fff;
     }
+
     .floating-game-cta .pulse-ring {
-      width: 10px; height: 10px;
+      width: 10px;
+      height: 10px;
       border-radius: 50%;
       background: #00d4ff;
       box-shadow: 0 0 0 0 rgba(0, 212, 255, 0.5);
       animation: float-pulse 2s ease-in-out infinite;
     }
+
     @keyframes float-pulse {
-      0% { box-shadow: 0 0 0 0 rgba(0, 212, 255, 0.5); }
-      70% { box-shadow: 0 0 0 10px rgba(0, 212, 255, 0); }
-      100% { box-shadow: 0 0 0 0 rgba(0, 212, 255, 0); }
+      0% {
+        box-shadow: 0 0 0 0 rgba(0, 212, 255, 0.5);
+      }
+
+      70% {
+        box-shadow: 0 0 0 10px rgba(0, 212, 255, 0);
+      }
+
+      100% {
+        box-shadow: 0 0 0 0 rgba(0, 212, 255, 0);
+      }
     }
 
     /* Mobile game button in drawer */
@@ -137,8 +166,22 @@
         font-size: 0.85rem;
       }
     }
+
+    /* Announcement meta registration link */
+    a.badge-pill {
+      text-decoration: none;
+      cursor: pointer;
+      transition: background-color 0.2s ease, color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    a.badge-pill:hover {
+      background: rgba(255, 255, 255, 0.22);
+      color: #fff;
+      transform: translateY(-1px);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    }
   </style>
 </head>
+
 <body>
 
   <!-- Top Global Announcement Ribbon -->
@@ -148,10 +191,13 @@
         <span class="pulse-dot"></span> SATELLITE EVENT
       </div>
       <p class="announcement-text">
-        <strong>2nd Global Ministerial Conference on Ending Violence Against Children (EVAC)</strong> &bull; 17 November 2026 &bull; Marriott Hotel Manila, Philippines
+        <strong>2nd Global Ministerial Conference on Ending Violence Against Children (EVAC)</strong> &bull; 17 November
+        2026 &bull; Marriott Hotel Manila, Philippines
       </p>
       <div class="announcement-meta">
-        <span class="badge-pill"><i class="fa-solid fa-door-open"></i> Open Event &bull; No Pre-Registration Required</span>
+        <a href="#" class="badge-pill" id="publicRegBtn" title="Registration for General Public">
+          <i class="fa-solid fa-id-card"></i> Registration for General Public
+        </a>
       </div>
     </div>
   </div>
@@ -160,7 +206,8 @@
   <header class="main-header" id="mainHeader">
     <div class="container nav-container">
       <a href="#hero" class="brand-logo-link" aria-label="Youth Innovations Marketplace Home">
-        <img src="landing/assets/web/logo-navbar.png" alt="Youth Innovations Marketplace Logo" class="brand-logo-img" width="220" height="52">
+        <img src="landing/assets/web/logo-navbar.png" alt="Youth Innovations Marketplace Logo" class="brand-logo-img"
+          width="220" height="52">
       </a>
 
       <!-- Desktop Navigation Menu -->
@@ -191,7 +238,8 @@
     <!-- Mobile Drawer Navigation -->
     <div class="mobile-drawer" id="mobileDrawer">
       <div class="mobile-drawer-header">
-        <img src="landing/assets/web/logo-navbar.png" alt="Youth Innovations Marketplace" class="mobile-logo" width="180" height="42">
+        <img src="landing/assets/web/logo-navbar.png" alt="Youth Innovations Marketplace" class="mobile-logo"
+          width="180" height="42">
         <button class="close-drawer-btn" id="closeDrawerBtn" aria-label="Close menu">
           <i class="fa-solid fa-xmark"></i>
         </button>
@@ -218,7 +266,8 @@
     <!-- HERO SECTION (SPLIT STAGE: BLUEPRINT BACKGROUND + DESIGN ON SIDE) -->
     <section class="hero-section hero-split-stage" id="hero">
       <div class="hero-bg-layer">
-        <img src="landing/assets/web/hero-bg.png" alt="Blueprint Grid Background" class="hero-bg-img" fetchpriority="high" width="2130" height="1322">
+        <img src="landing/assets/web/hero-bg.png" alt="Blueprint Grid Background" class="hero-bg-img"
+          fetchpriority="high" width="2130" height="1322">
         <div class="hero-bg-overlay"></div>
       </div>
 
@@ -236,14 +285,18 @@
             </p>
 
             <p class="hero-lead-description">
-              A dynamic, participatory bridge connecting <strong>20+ frontline youth-led solutions</strong> across Asia-Pacific and the globe directly with ministers, senior government officials, international funders, and institutional leaders.
+              A dynamic, participatory bridge connecting <strong>20+ frontline youth-led solutions</strong> across the
+              globe directly with ministers, senior government officials, international funders, and institutional
+              leaders.
             </p>
           </div>
 
           <!-- Right Column: The Design Graphic (Tutu + Marketplace Title + Partners) -->
           <div class="hero-visual-col">
             <div class="hero-design-wrapper">
-              <img src="landing/assets/web/hero-design.png" alt="Youth Innovation Marketplace - Official Mascot Tutu & Institutional Partners" class="hero-design-img" width="1395" height="942">
+              <img src="landing/assets/web/hero-design.png"
+                alt="Youth Innovation Marketplace - Official Mascot Tutu & Institutional Partners"
+                class="hero-design-img" width="1395" height="942">
             </div>
           </div>
         </div>
@@ -307,10 +360,13 @@
           <span class="ribbon-eyebrow">CO-CONVENED & SUPPORTED BY GLOBAL ADVOCATES</span>
         </div>
         <div class="partners-logos-wrap">
-          <img src="landing/assets/web/partners-lockup-trans.png" alt="Official Partner Lockup: Global Youth-Led Movement on Ending Violence Against Children, Kindernothilfe, Terre des Hommes Netherlands, German Cooperation, and European Union" class="partner-lockup-img" width="840" height="145">
+          <img src="landing/assets/web/partners-lockup-trans.png"
+            alt="Official Partner Lockup: Global Youth-Led Movement on Ending Violence Against Children, Kindernothilfe, Terre des Hommes Netherlands, German Cooperation, and European Union"
+            class="partner-lockup-img" width="840" height="145">
         </div>
         <p class="partner-collab-caption">
-          In collaboration with youth-led organizations and youth delegates from the <strong>Violence Ends With Us</strong> Regional Summit.
+          In collaboration with youth-led organizations and youth delegates from the <strong>Violence Ends With
+            Us</strong> Regional Summit.
         </p>
       </div>
     </section>
@@ -320,11 +376,13 @@
       <div class="container">
         <div class="section-header text-center">
           <span class="section-tag">
-            <img src="landing/assets/web/icon-sun-clean.png" alt="Sun Icon" class="inline-icon" width="18" height="18"> ABOUT THE MARKETPLACE
+            <img src="landing/assets/web/icon-sun-clean.png" alt="Sun Icon" class="inline-icon" width="18" height="18">
+            ABOUT THE MARKETPLACE
           </span>
           <h2 class="section-title">A Turning Point in Global Child Protection</h2>
           <p class="section-subtitle">
-            Moving beyond mere consultation toward genuine youth leadership, institutional investment, and lasting systems change.
+            Moving beyond mere consultation toward genuine youth leadership, institutional investment, and lasting
+            systems change.
           </p>
         </div>
 
@@ -335,7 +393,11 @@
             </div>
             <h3>From Consultation to Co-Creation</h3>
             <p>
-              The Second Global Ministerial Conference on Ending Violence Against Children (EVAC) in Manila is a momentous occasion for governments and multilateral partners to demonstrate tangible progress on pledges initiated in Bogotá 2024. A defining shift since the first conference is the clear recognition of children and young people not merely as vulnerable beneficiaries, but as vital <strong>co-architects of protection systems</strong>.
+              The Second Global Ministerial Conference on Ending Violence Against Children (EVAC) in Manila is a
+              momentous occasion for governments and multilateral partners to demonstrate tangible progress on pledges
+              initiated in Bogotá 2024. A defining shift since the first conference is the clear recognition of children
+              and young people not merely as vulnerable beneficiaries, but as vital <strong>co-architects of protection
+                systems</strong>.
             </p>
           </div>
 
@@ -345,7 +407,10 @@
             </div>
             <h3>6 Months of Rigorous Piloting</h3>
             <p>
-              Building directly on the <em>Violence Ends With Us</em> Regional Youth-Led Summit held in the Philippines in April 2026, <strong>10 to 20+ youth-led solutions</strong> have spent six months testing, piloting, and gathering field evidence. The Marketplace gives them an international stage to present verified results, lessons learned, and clear roadmaps for regional scale.
+              Building directly on the <em>Violence Ends With Us</em> Regional Youth-Led Summit held in the Philippines
+              in April 2026, <strong>10 to 20+ youth-led solutions</strong> have spent six months testing, piloting, and
+              gathering field evidence. The Marketplace gives them an international stage to present verified results,
+              lessons learned, and clear roadmaps for regional scale.
             </p>
           </div>
 
@@ -355,7 +420,9 @@
             </div>
             <h3>An Interactive, Non-Traditional Space</h3>
             <p>
-              Rather than standard panel lectures, the Marketplace creates an energetic, participatory exhibition where ministers, international delegates, and grassroots innovators interact directly at demo booths, matchmaking deal rooms, and intergenerational dialogues to forge concrete funding and policy pacts.
+              Rather than standard panel lectures, the Marketplace creates an energetic, participatory exhibition where
+              ministers, international delegates, and grassroots innovators interact directly at demo booths,
+              matchmaking deal rooms, and intergenerational dialogues to forge concrete funding and policy pacts.
             </p>
           </div>
         </div>
@@ -365,11 +432,14 @@
           <div class="banner-inner">
             <div class="banner-text">
               <span class="banner-badge">Our Ambition</span>
-              <h3>“To demonstrate that meaningful and ethical youth participation can move beyond consultation towards genuine leadership and investment.”</h3>
-              <p>Positioned right at the intersection of high-level ministerial policy commitments and grassroots young people's innovations.</p>
+              <h3>“To demonstrate that meaningful and ethical youth participation can move beyond consultation towards
+                genuine leadership and investment.”</h3>
+              <p>Positioned right at the intersection of high-level ministerial policy commitments and grassroots young
+                people's innovations.</p>
             </div>
             <div class="banner-graphic">
-              <img src="landing/assets/web/scene-island-tutu.jpg" alt="Tutu sailing toward the lighthouse safe haven" class="banner-img" width="500" height="281" loading="lazy" decoding="async">
+              <img src="landing/assets/web/scene-island-tutu.jpg" alt="Tutu sailing toward the lighthouse safe haven"
+                class="banner-img" width="500" height="281" loading="lazy" decoding="async">
             </div>
           </div>
         </div>
@@ -381,11 +451,13 @@
       <div class="container">
         <div class="section-header text-center">
           <span class="section-tag">
-            <img src="landing/assets/web/icon-people-clean.png" alt="People Icon" class="inline-icon" width="18" height="18"> THE CORE CHALLENGE
+            <img src="landing/assets/web/icon-people-clean.png" alt="People Icon" class="inline-icon" width="18"
+              height="18"> THE CORE CHALLENGE
           </span>
           <h2 class="section-title">The Gap: Solutions Trapped at Pilot Stage</h2>
           <p class="section-subtitle">
-            Across the Asia-Pacific region, young innovators possess groundbreaking approaches, yet face structural bottlenecks that keep solutions from reaching millions of children.
+            Across the Asia-Pacific region, young innovators possess groundbreaking approaches, yet face structural
+            bottlenecks that keep solutions from reaching millions of children.
           </p>
         </div>
 
@@ -405,25 +477,29 @@
               <li>
                 <i class="fa-solid fa-circle-xmark"></i>
                 <div>
-                  <strong>Funding Deserts:</strong> Youth-led initiatives remain excluded from direct bilateral, multilateral, and domestic child-protection budgets.
+                  <strong>Funding Deserts:</strong> Youth-led initiatives remain excluded from direct bilateral,
+                  multilateral, and domestic child-protection budgets.
                 </div>
               </li>
               <li>
                 <i class="fa-solid fa-circle-xmark"></i>
                 <div>
-                  <strong>Technical & Mentorship Barriers:</strong> Promising tools lack specialized legal, regulatory, and technological infrastructure to scale safely.
+                  <strong>Technical & Mentorship Barriers:</strong> Promising tools lack specialized legal, regulatory,
+                  and technological infrastructure to scale safely.
                 </div>
               </li>
               <li>
                 <i class="fa-solid fa-circle-xmark"></i>
                 <div>
-                  <strong>Policy Disconnect:</strong> Governments frequently develop EVAC frameworks without structured pipelines to adopt proven grassroots innovations.
+                  <strong>Policy Disconnect:</strong> Governments frequently develop EVAC frameworks without structured
+                  pipelines to adopt proven grassroots innovations.
                 </div>
               </li>
               <li>
                 <i class="fa-solid fa-circle-xmark"></i>
                 <div>
-                  <strong>Missed Systems Change:</strong> Solutions remain isolated pilots rather than being integrated into national child protection systems.
+                  <strong>Missed Systems Change:</strong> Solutions remain isolated pilots rather than being integrated
+                  into national child protection systems.
                 </div>
               </li>
             </ul>
@@ -444,25 +520,29 @@
               <li>
                 <i class="fa-solid fa-circle-check"></i>
                 <div>
-                  <strong>Direct Ministerial Access:</strong> Unfiltered dialogue between youth leaders and high-level decision-makers.
+                  <strong>Direct Ministerial Access:</strong> Unfiltered dialogue between youth leaders and high-level
+                  decision-makers.
                 </div>
               </li>
               <li>
                 <i class="fa-solid fa-circle-check"></i>
                 <div>
-                  <strong>Matchmaking at the Deal Corner:</strong> Structured one-on-one sessions linking innovations to catalytic capital and technical assistance.
+                  <strong>Matchmaking at the Deal Corner:</strong> Structured one-on-one sessions linking innovations to
+                  catalytic capital and technical assistance.
                 </div>
               </li>
               <li>
                 <i class="fa-solid fa-circle-check"></i>
                 <div>
-                  <strong>Actionable Policy Integration:</strong> Visual mind mapping on the Policy Wall to integrate tools directly into national programs.
+                  <strong>Actionable Policy Integration:</strong> Visual mind mapping on the Policy Wall to integrate
+                  tools directly into national programs.
                 </div>
               </li>
               <li>
                 <i class="fa-solid fa-circle-check"></i>
                 <div>
-                  <strong>Accountability Follow-Through:</strong> Post-conference monitoring mechanisms ensuring commitments convert to resourced reality.
+                  <strong>Accountability Follow-Through:</strong> Post-conference monitoring mechanisms ensuring
+                  commitments convert to resourced reality.
                 </div>
               </li>
             </ul>
@@ -477,12 +557,14 @@
           <div class="ambition-card">
             <div class="ambition-number">01</div>
             <h4>Showcase Tested Solutions</h4>
-            <p>Spotlight 20+ promising youth-led models that tackle violence against children across Asia-Pacific and beyond.</p>
+            <p>Spotlight 20+ promising youth-led models that tackle violence against children across Asia-Pacific and
+              beyond.</p>
           </div>
           <div class="ambition-card">
             <div class="ambition-number">02</div>
             <h4>Direct Decision-Maker Dialogue</h4>
-            <p>Connect young inventors face-to-face with government ministers, international donors, and development partners.</p>
+            <p>Connect young inventors face-to-face with government ministers, international donors, and development
+              partners.</p>
           </div>
           <div class="ambition-card">
             <div class="ambition-number">03</div>
@@ -492,7 +574,8 @@
           <div class="ambition-card">
             <div class="ambition-number">04</div>
             <h4>Institutionalize Policy Scale</h4>
-            <p>Open formal institutional pathways for youth-led practices to be adopted into statutory child welfare systems.</p>
+            <p>Open formal institutional pathways for youth-led practices to be adopted into statutory child welfare
+              systems.</p>
           </div>
         </div>
       </div>
@@ -503,11 +586,13 @@
       <div class="container">
         <div class="section-header text-center">
           <span class="section-tag">
-            <img src="landing/assets/web/icon-star-clean.png" alt="Star Icon" class="inline-icon" width="18" height="18"> WHAT WILL IT LOOK LIKE?
+            <img src="landing/assets/web/icon-star-clean.png" alt="Star Icon" class="inline-icon" width="18"
+              height="18"> WHAT WILL IT LOOK LIKE?
           </span>
           <h2 class="section-title">Five Immersive Experience Spaces</h2>
           <p class="section-subtitle">
-            An experiential, participatory environment tailored for active discovery, peer learning, targeted matchmaking, and systems-level impact.
+            An experiential, participatory environment tailored for active discovery, peer learning, targeted
+            matchmaking, and systems-level impact.
           </p>
         </div>
 
@@ -523,7 +608,9 @@
             </div>
             <h3>Interactive Youth Innovation Booths</h3>
             <p class="space-desc">
-              Over 20 dedicated innovation stations where visitors get hands-on exposure to live youth projects. Youth innovators will pitch their tools, digital reporting apps, community mechanisms, and present tangible evidence of reduced violence.
+              Over 20 dedicated innovation stations where visitors get hands-on exposure to live youth projects. Youth
+              innovators will pitch their tools, digital reporting apps, community mechanisms, and present tangible
+              evidence of reduced violence.
             </p>
             <div class="space-features">
               <span><i class="fa-solid fa-check"></i> Live Product Demos</span>
@@ -543,7 +630,9 @@
             </div>
             <h3>The Deal Corner</h3>
             <p class="space-desc">
-              The heart of marketplace transactions: a structured, youth-friendly coordination space for targeted bilateral conversations between youth initiatives and potential partners. Moving beyond visibility toward commitments for seed funding, tech mentorship, and scale-up.
+              The heart of marketplace transactions: a structured, youth-friendly coordination space for targeted
+              bilateral conversations between youth initiatives and potential partners. Moving beyond visibility toward
+              commitments for seed funding, tech mentorship, and scale-up.
             </p>
             <div class="space-features">
               <span><i class="fa-solid fa-check"></i> 1-on-1 Investment Meetings</span>
@@ -563,7 +652,9 @@
             </div>
             <h3>Call to Action Corner</h3>
             <p class="space-desc">
-              Amplifying priorities articulated by children and youth across Asia-Pacific: child labour, corporal punishment, child/forced marriage, and online exploitation. Delegates can explore grassroots recommendations and endorse the official petition.
+              Amplifying priorities articulated by children and youth across Asia-Pacific: child labour, corporal
+              punishment, child/forced marriage, and online exploitation. Delegates can explore grassroots
+              recommendations and endorse the official petition.
             </p>
             <div class="space-features">
               <span><i class="fa-solid fa-check"></i> Regional Petition Signing</span>
@@ -583,7 +674,9 @@
             </div>
             <h3>Intergenerational Dialogue</h3>
             <p class="space-desc">
-              <em>“From Youth Innovation to Systems Change”</em> — A focused plenary conversation bringing together young innovators, government ministers, and global development funders to explore what it truly takes for grassroots tools to become institutional policy.
+              <em>“From Youth Innovation to Systems Change”</em> — A focused plenary conversation bringing together
+              young innovators, government ministers, and global development funders to explore what it truly takes for
+              grassroots tools to become institutional policy.
             </p>
             <div class="space-features">
               <span><i class="fa-solid fa-check"></i> High-Level Panel Plenary</span>
@@ -603,7 +696,9 @@
             </div>
             <h3>The Policy Wall</h3>
             <p class="space-desc">
-              A dynamic visual mind map charting all showcased innovations against regional child protection frameworks. Delegates can pin partnerships, pledge institutional backing, and map connections between grassroots tools and statutory laws.
+              A dynamic visual mind map charting all showcased innovations against regional child protection frameworks.
+              Delegates can pin partnerships, pledge institutional backing, and map connections between grassroots tools
+              and statutory laws.
             </p>
             <div class="space-features">
               <span><i class="fa-solid fa-check"></i> Visual Mind Map</span>
@@ -622,7 +717,8 @@
           <span class="section-tag tag-yellow">PRIORITY DOMAINS</span>
           <h2 class="section-title text-white">Asia-Pacific Youth Priority Tracks</h2>
           <p class="section-subtitle text-light">
-            Innovations showcased in the Marketplace address the four most urgent child protection themes prioritized by youth leaders from the Violence Ends With Us movement.
+            Innovations showcased in the Marketplace address the four most urgent child protection themes prioritized by
+            youth leaders from the Violence Ends With Us movement.
           </p>
         </div>
 
@@ -635,7 +731,8 @@
             </div>
             <h3>Child Labour</h3>
             <p>
-              Frontline approaches dismantling hazardous economic exploitation through community-led early warning systems, digital re-enrollment trackers, and youth vocational safety nets.
+              Frontline approaches dismantling hazardous economic exploitation through community-led early warning
+              systems, digital re-enrollment trackers, and youth vocational safety nets.
             </p>
             <div class="thematic-metric">
               <i class="fa-solid fa-circle-arrow-right"></i> Target: Universal education & ethical supply chains
@@ -650,7 +747,8 @@
             </div>
             <h3>Corporal Punishment</h3>
             <p>
-              Innovations eliminating violent discipline at home, school, and community settings through positive parenting curricula, peer restorative circles, and youth-led legislative advocacy.
+              Innovations eliminating violent discipline at home, school, and community settings through positive
+              parenting curricula, peer restorative circles, and youth-led legislative advocacy.
             </p>
             <div class="thematic-metric">
               <i class="fa-solid fa-circle-arrow-right"></i> Target: Legal prohibitions & cultural shifts
@@ -665,7 +763,8 @@
             </div>
             <h3>Child, Early & Forced Marriage</h3>
             <p>
-              Community-grounded models led by adolescent girls, deploying peer hotline networks, safe houses, and community elder engagement to halt early marriages and uphold bodily autonomy.
+              Community-grounded models led by adolescent girls, deploying peer hotline networks, safe houses, and
+              community elder engagement to halt early marriages and uphold bodily autonomy.
             </p>
             <div class="thematic-metric">
               <i class="fa-solid fa-circle-arrow-right"></i> Target: Girl-led protection & secondary completion
@@ -680,7 +779,8 @@
             </div>
             <h3>Online Child Exploitation</h3>
             <p>
-              Digital tools and AI safety watchdogs created by youth developers to protect peers from grooming, non-consensual imagery, and sextortion across messaging apps and online platforms.
+              Digital tools and AI safety watchdogs created by youth developers to protect peers from grooming,
+              non-consensual imagery, and sextortion across messaging apps and online platforms.
             </p>
             <div class="thematic-metric">
               <i class="fa-solid fa-circle-arrow-right"></i> Target: Algorithmic accountability & rapid support
@@ -696,7 +796,8 @@
       <div class="container">
         <div class="section-header text-center">
           <span class="section-tag">
-            <img src="landing/assets/web/icon-sun-clean.png" alt="Icon" class="inline-icon" width="18" height="18"> OFFICIAL SCHEDULE
+            <img src="landing/assets/web/icon-sun-clean.png" alt="Icon" class="inline-icon" width="18" height="18">
+            OFFICIAL SCHEDULE
           </span>
           <h2 class="section-title">Programme Agenda</h2>
           <p class="section-subtitle">
@@ -739,7 +840,9 @@
                     <span class="agenda-badge badge-neutral">Preparation</span>
                   </div>
                   <h4 class="agenda-card-title">Team Arrival & Booth Set-Up</h4>
-                  <p class="agenda-card-desc">Innovation teams prepare their booths, displays, demonstrations, and interactive activities. Organisers complete final technical, accessibility, safeguarding, and venue checks.</p>
+                  <p class="agenda-card-desc">Innovation teams prepare their booths, displays, demonstrations, and
+                    interactive activities. Organisers complete final technical, accessibility, safeguarding, and venue
+                    checks.</p>
                   <div class="agenda-card-footer">
                     <span><i class="fa-solid fa-booth-curtain"></i> Diplomatic Hall Booths</span>
                   </div>
@@ -753,7 +856,9 @@
                     <span class="agenda-badge badge-blue">Arrival & Preview</span>
                   </div>
                   <h4 class="agenda-card-title">Registration & Marketplace Preview</h4>
-                  <p class="agenda-card-desc">Guests arrive and begin exploring booths. Participants receive an interactive "Treasure Map" to collect booth stamps for exclusive collaterals and prizes, with youth-produced multimedia content broadcast across the hall.</p>
+                  <p class="agenda-card-desc">Guests arrive and begin exploring booths. Participants receive an
+                    interactive "Treasure Map" to collect booth stamps for exclusive collaterals and prizes, with
+                    youth-produced multimedia content broadcast across the hall.</p>
                   <div class="agenda-card-footer">
                     <span><i class="fa-solid fa-map-location-dot"></i> Registration Foyer & Booths</span>
                   </div>
@@ -767,7 +872,8 @@
                     <span class="agenda-badge badge-accent">Official Opening</span>
                   </div>
                   <h4 class="agenda-card-title">Welcome & Marketplace Opening</h4>
-                  <p class="agenda-card-desc">A short standing welcome introducing the purpose of the Marketplace, participating youth innovator teams, and collaborative engagement pathways for visiting guests.</p>
+                  <p class="agenda-card-desc">A short standing welcome introducing the purpose of the Marketplace,
+                    participating youth innovator teams, and collaborative engagement pathways for visiting guests.</p>
                   <div class="agenda-card-footer">
                     <span><i class="fa-solid fa-bullhorn"></i> Main Stage</span>
                   </div>
@@ -781,7 +887,9 @@
                     <span class="agenda-badge badge-yellow">Pitching & Demos</span>
                   </div>
                   <h4 class="agenda-card-title">Open Marketplace & Innovation Spotlights</h4>
-                  <p class="agenda-card-desc">Guests move freely between booths. The roving emcee conducts live booth promotions with camera feeds, spotlighting rapid 3- to 5-minute pitches, demonstrations, and interviews directly with delegates.</p>
+                  <p class="agenda-card-desc">Guests move freely between booths. The roving emcee conducts live booth
+                    promotions with camera feeds, spotlighting rapid 3- to 5-minute pitches, demonstrations, and
+                    interviews directly with delegates.</p>
                   <div class="agenda-card-footer">
                     <span><i class="fa-solid fa-video"></i> Exhibition Floor & Live Screen</span>
                   </div>
@@ -795,7 +903,8 @@
                     <span class="agenda-badge badge-neutral">Energiser</span>
                   </div>
                   <h4 class="agenda-card-title">Marketplace Energiser</h4>
-                  <p class="agenda-card-desc">A short interactive youth-led activity, announcement, and youth performance drawing guests together and spotlighting selected booths and activities to visit.</p>
+                  <p class="agenda-card-desc">A short interactive youth-led activity, announcement, and youth
+                    performance drawing guests together and spotlighting selected booths and activities to visit.</p>
                   <div class="agenda-card-footer">
                     <span><i class="fa-solid fa-music"></i> Hall Center</span>
                   </div>
@@ -809,7 +918,9 @@
                     <span class="agenda-badge badge-blue">Partner Matchmaking</span>
                   </div>
                   <h4 class="agenda-card-title">Open Marketplace & Partner Connections</h4>
-                  <p class="agenda-card-desc">Booth visits continue, with organisers facilitating direct introductions between innovation teams and relevant government, funding, technical, and civil society partners (with dedicated Deal Corner time slots).</p>
+                  <p class="agenda-card-desc">Booth visits continue, with organisers facilitating direct introductions
+                    between innovation teams and relevant government, funding, technical, and civil society partners
+                    (with dedicated Deal Corner time slots).</p>
                   <div class="agenda-card-footer">
                     <span><i class="fa-solid fa-handshake"></i> Booths & The Deal Corner</span>
                   </div>
@@ -836,7 +947,9 @@
                     <span class="agenda-badge badge-neutral">Networking</span>
                   </div>
                   <h4 class="agenda-card-title">Networking Lunch (Marketplace Open)</h4>
-                  <p class="agenda-card-desc">The Marketplace remains open during lunch. Innovation teams rotate to ensure that all participants have time to eat, rest, and network informally with attending delegates.</p>
+                  <p class="agenda-card-desc">The Marketplace remains open during lunch. Innovation teams rotate to
+                    ensure that all participants have time to eat, rest, and network informally with attending
+                    delegates.</p>
                   <div class="agenda-card-footer">
                     <span><i class="fa-solid fa-utensils"></i> Diplomatic Hall Foyer</span>
                   </div>
@@ -850,7 +963,8 @@
                     <span class="agenda-badge badge-accent">Plenary Orientation</span>
                   </div>
                   <h4 class="agenda-card-title">Afternoon Welcome & Highlights</h4>
-                  <p class="agenda-card-desc">A brief standing welcome for new and returning guests, highlighting the high-level dialogue and strategic commitment activities taking place during the afternoon.</p>
+                  <p class="agenda-card-desc">A brief standing welcome for new and returning guests, highlighting the
+                    high-level dialogue and strategic commitment activities taking place during the afternoon.</p>
                   <div class="agenda-card-footer">
                     <span><i class="fa-solid fa-bullhorn"></i> Main Stage</span>
                   </div>
@@ -864,7 +978,8 @@
                     <span class="agenda-badge badge-blue">Live Demos</span>
                   </div>
                   <h4 class="agenda-card-title">Open Marketplace & Live Demonstrations</h4>
-                  <p class="agenda-card-desc">Guests continue exploring booths, participating in interactive activities, and viewing deep-dive repeated presentations and live technology tool demonstrations.</p>
+                  <p class="agenda-card-desc">Guests continue exploring booths, participating in interactive activities,
+                    and viewing deep-dive repeated presentations and live technology tool demonstrations.</p>
                   <div class="agenda-card-footer">
                     <span><i class="fa-solid fa-laptop-code"></i> Innovation Booths</span>
                   </div>
@@ -878,7 +993,10 @@
                     <span class="agenda-badge badge-featured"><i class="fa-solid fa-star"></i> Featured Plenary</span>
                   </div>
                   <h4 class="agenda-card-title">Intergenerational Dialogue: From Youth Innovation to Systems Change</h4>
-                  <p class="agenda-card-desc">A focused high-level dialogue uniting 4 speakers: young innovators, a government representative, and institutional funding/technical partners (KNH, TDH, Plan Asia, Safe Online, WHO). 20 mins panel responses + 25 mins interactive exchange exploring what youth-led initiatives need to influence policy and secure sustainable scale.</p>
+                  <p class="agenda-card-desc">A focused high-level dialogue uniting 4 speakers: young innovators, a
+                    government representative, and institutional funding/technical partners (KNH, TDH, Plan Asia, Safe
+                    Online, WHO). 20 mins panel responses + 25 mins interactive exchange exploring what youth-led
+                    initiatives need to influence policy and secure sustainable scale.</p>
                   <div class="agenda-card-footer">
                     <span><i class="fa-solid fa-landmark"></i> Main Stage Plenary</span>
                   </div>
@@ -892,7 +1010,9 @@
                     <span class="agenda-badge badge-blue">Bilateral Matchmaking</span>
                   </div>
                   <h4 class="agenda-card-title">Open Marketplace & Partnership Connections</h4>
-                  <p class="agenda-card-desc">Guests return to selected booths for focused conversations on funding allocations, technical support, evidence-building, policy integration, and cross-border collaboration or scale.</p>
+                  <p class="agenda-card-desc">Guests return to selected booths for focused conversations on funding
+                    allocations, technical support, evidence-building, policy integration, and cross-border
+                    collaboration or scale.</p>
                   <div class="agenda-card-footer">
                     <span><i class="fa-solid fa-comments"></i> Booths & Deal Corner</span>
                   </div>
@@ -906,7 +1026,9 @@
                     <span class="agenda-badge badge-yellow">Commitments</span>
                   </div>
                   <h4 class="agenda-card-title">Commitments & Connections</h4>
-                  <p class="agenda-card-desc">Guests record tangible offers of support, introduction pacts, follow-up bilateral meetings, and expressions of interest through the physical and digital Commitment Wall.</p>
+                  <p class="agenda-card-desc">Guests record tangible offers of support, introduction pacts, follow-up
+                    bilateral meetings, and expressions of interest through the physical and digital Commitment Wall.
+                  </p>
                   <div class="agenda-card-footer">
                     <span><i class="fa-solid fa-file-signature"></i> Commitment Wall</span>
                   </div>
@@ -920,7 +1042,9 @@
                     <span class="agenda-badge badge-accent">Youth Advocacy</span>
                   </div>
                   <h4 class="agenda-card-title">Youth Reflections & Call to Action</h4>
-                  <p class="agenda-card-desc">Young innovators share brief reflections from the Marketplace, key lessons from implementing their solutions, and deliver a collective call for sustained investment in youth-led action.</p>
+                  <p class="agenda-card-desc">Young innovators share brief reflections from the Marketplace, key lessons
+                    from implementing their solutions, and deliver a collective call for sustained investment in
+                    youth-led action.</p>
                   <div class="agenda-card-footer">
                     <span><i class="fa-solid fa-microphone-lines"></i> Main Stage</span>
                   </div>
@@ -934,7 +1058,9 @@
                     <span class="agenda-badge badge-neutral">Official Closing</span>
                   </div>
                   <h4 class="agenda-card-title">Closing Remarks & Next Steps</h4>
-                  <p class="agenda-card-desc">Closing remarks acknowledge participating teams and partners, summarize key connections and commitments made, and explain how follow-up will be coordinated after the event.</p>
+                  <p class="agenda-card-desc">Closing remarks acknowledge participating teams and partners, summarize
+                    key connections and commitments made, and explain how follow-up will be coordinated after the event.
+                  </p>
                   <div class="agenda-card-footer">
                     <span><i class="fa-solid fa-flag-checkered"></i> Main Stage</span>
                   </div>
@@ -950,7 +1076,8 @@
             <div class="prep-header">
               <div class="prep-badge"><i class="fa-solid fa-graduation-cap"></i> PRE-CONFERENCE WORKSHOP</div>
               <h3>Youth Preparation Workshop: 14 November 2026 (Half Day)</h3>
-              <p>Designed to support young frontline innovators in honing their pitches, mastering stakeholder engagement, and rehearsing demonstrations prior to the Ministerial Conference.</p>
+              <p>Designed to support young frontline innovators in honing their pitches, mastering stakeholder
+                engagement, and rehearsing demonstrations prior to the Ministerial Conference.</p>
             </div>
             <div class="prep-grid">
               <div class="prep-item">
@@ -1043,7 +1170,9 @@
               </div>
               <h3>The Deal Corner: Thematic Matchmaking Schedule</h3>
               <p>
-                Operating continuously alongside the plenary and open booths, The Deal Corner offers dedicated, private matchmaking slots for youth innovators to pitch directly to bilateral funders, corporate partners, and government directors.
+                Operating continuously alongside the plenary and open booths, The Deal Corner offers dedicated, private
+                matchmaking slots for youth innovators to pitch directly to bilateral funders, corporate partners, and
+                government directors.
               </p>
               <div class="deal-slots">
                 <div class="slot">
@@ -1078,11 +1207,13 @@
       <div class="container">
         <div class="section-header text-center">
           <span class="section-tag">
-            <img src="landing/assets/web/icon-people-clean.png" alt="Icon" class="inline-icon" width="18" height="18"> VALUE MATRIX
+            <img src="landing/assets/web/icon-people-clean.png" alt="Icon" class="inline-icon" width="18" height="18">
+            VALUE MATRIX
           </span>
           <h2 class="section-title">Why Engage with the Marketplace?</h2>
           <p class="section-subtitle">
-            A targeted value proposition tailored for ministers, senior policymakers, international development partners, and civil society.
+            A targeted value proposition tailored for ministers, senior policymakers, international development
+            partners, and civil society.
           </p>
         </div>
 
@@ -1093,9 +1224,18 @@
             <div class="stakeholder-icon"><i class="fa-solid fa-landmark-flag"></i></div>
             <h3>Ministers & Senior Officials</h3>
             <ul class="stakeholder-checklist">
-              <li><i class="fa-solid fa-check"></i> <div><strong>Adopt Grounded Interventions:</strong> Identify proven, grassroots models that directly reinforce national EVAC policy frameworks.</div></li>
-              <li><i class="fa-solid fa-check"></i> <div><strong>Deliver on Bogotá Commitments:</strong> Showcase tangible fulfillment of ministerial pledges prioritizing child participation.</div></li>
-              <li><i class="fa-solid fa-check"></i> <div><strong>Direct Youth Insights:</strong> Hear firsthand analysis on emerging risks like online exploitation and school-based violence.</div></li>
+              <li><i class="fa-solid fa-check"></i>
+                <div><strong>Adopt Grounded Interventions:</strong> Identify proven, grassroots models that directly
+                  reinforce national EVAC policy frameworks.</div>
+              </li>
+              <li><i class="fa-solid fa-check"></i>
+                <div><strong>Deliver on Bogotá Commitments:</strong> Showcase tangible fulfillment of ministerial
+                  pledges prioritizing child participation.</div>
+              </li>
+              <li><i class="fa-solid fa-check"></i>
+                <div><strong>Direct Youth Insights:</strong> Hear firsthand analysis on emerging risks like online
+                  exploitation and school-based violence.</div>
+              </li>
             </ul>
           </div>
 
@@ -1105,9 +1245,18 @@
             <div class="stakeholder-icon"><i class="fa-solid fa-coins"></i></div>
             <h3>Development Partners & Funders</h3>
             <ul class="stakeholder-checklist">
-              <li><i class="fa-solid fa-check"></i> <div><strong>High-Impact Capital Deployment:</strong> Direct catalytic funding to 20+ pre-vetted youth solutions with six months of piloting data.</div></li>
-              <li><i class="fa-solid fa-check"></i> <div><strong>Co-Financing Opportunities:</strong> Partner with bilateral donors and multilateral funds at the Deal Corner.</div></li>
-              <li><i class="fa-solid fa-check"></i> <div><strong>Sustainable Follow-Up:</strong> Rely on consortium-backed monitoring to track the ROI and impact trajectory.</div></li>
+              <li><i class="fa-solid fa-check"></i>
+                <div><strong>High-Impact Capital Deployment:</strong> Direct catalytic funding to 20+ pre-vetted youth
+                  solutions with six months of piloting data.</div>
+              </li>
+              <li><i class="fa-solid fa-check"></i>
+                <div><strong>Co-Financing Opportunities:</strong> Partner with bilateral donors and multilateral funds
+                  at the Deal Corner.</div>
+              </li>
+              <li><i class="fa-solid fa-check"></i>
+                <div><strong>Sustainable Follow-Up:</strong> Rely on consortium-backed monitoring to track the ROI and
+                  impact trajectory.</div>
+              </li>
             </ul>
           </div>
 
@@ -1117,9 +1266,18 @@
             <div class="stakeholder-icon"><i class="fa-solid fa-network-wired"></i></div>
             <h3>Civil Society & Youth Coalitions</h3>
             <ul class="stakeholder-checklist">
-              <li><i class="fa-solid fa-check"></i> <div><strong>Cross-Regional Solidarity:</strong> Forge partnerships between local grassroots groups and international INGO networks.</div></li>
-              <li><i class="fa-solid fa-check"></i> <div><strong>Ethical Participation Benchmark:</strong> Experience safe, dignified child and youth agency in practice.</div></li>
-              <li><i class="fa-solid fa-check"></i> <div><strong>Policy Advocacy Coalitions:</strong> Leverage the collective Call to Action to demand systemic legal reforms.</div></li>
+              <li><i class="fa-solid fa-check"></i>
+                <div><strong>Cross-Regional Solidarity:</strong> Forge partnerships between local grassroots groups and
+                  international INGO networks.</div>
+              </li>
+              <li><i class="fa-solid fa-check"></i>
+                <div><strong>Ethical Participation Benchmark:</strong> Experience safe, dignified child and youth agency
+                  in practice.</div>
+              </li>
+              <li><i class="fa-solid fa-check"></i>
+                <div><strong>Policy Advocacy Coalitions:</strong> Leverage the collective Call to Action to demand
+                  systemic legal reforms.</div>
+              </li>
             </ul>
           </div>
         </div>
@@ -1136,10 +1294,14 @@
           <div class="safeguarding-text">
             <h3>Child Safeguarding & Ethical Participation Protocol</h3>
             <p>
-              The safety, wellbeing, agency, and dignity of child and youth delegates are non-negotiable. All delegates, organizers, government ministers, and guests are strictly required to uphold and comply with the <strong>Youth Marketplace Safeguarding Policy</strong>.
+              The safety, wellbeing, agency, and dignity of child and youth delegates are non-negotiable. All delegates,
+              organizers, government ministers, and guests are strictly required to uphold and comply with the
+              <strong>Youth Marketplace Safeguarding Policy</strong>.
             </p>
             <p>
-              This includes ethical consent protocols for photography and filming, zero-tolerance for any form of harassment, intimidation, or tokenism, and accessible, youth-friendly safeguarding reporting desks throughout the Marriott Hotel venue.
+              This includes ethical consent protocols for photography and filming, zero-tolerance for any form of
+              harassment, intimidation, or tokenism, and accessible, youth-friendly safeguarding reporting desks
+              throughout the Marriott Hotel venue.
             </p>
           </div>
         </div>
@@ -1151,11 +1313,13 @@
       <div class="container">
         <div class="section-header text-center">
           <span class="section-tag">
-            <img src="landing/assets/web/icon-people-clean.png" alt="Icon" class="inline-icon" width="18" height="18"> GET IN TOUCH
+            <img src="landing/assets/web/icon-people-clean.png" alt="Icon" class="inline-icon" width="18" height="18">
+            GET IN TOUCH
           </span>
           <h2 class="section-title">Event Contacts & Leadership</h2>
           <p class="section-subtitle">
-            Reach out directly to the co-convening consortium for inquiries on participation, media, booth applications, or partnerships.
+            Reach out directly to the co-convening consortium for inquiries on participation, media, booth applications,
+            or partnerships.
           </p>
         </div>
 
@@ -1208,7 +1372,8 @@
               <h4>Event Location & Accessibility</h4>
               <p><strong>Marriott Hotel Manila &bull; Diplomatic Hall</strong></p>
               <p>Newport World Resorts, Pasay City, Metro Manila, Philippines</p>
-              <p class="venue-notes"><i class="fa-solid fa-universal-access"></i> Fully wheelchair accessible &bull; English interpretation available &bull; Open entrance</p>
+              <p class="venue-notes"><i class="fa-solid fa-universal-access"></i> Fully wheelchair accessible &bull;
+                English interpretation available &bull; Open entrance</p>
             </div>
           </div>
         </div>
@@ -1221,18 +1386,22 @@
     <div class="container footer-container">
       <div class="footer-top">
         <div class="footer-brand">
-          <img src="landing/assets/web/footer-logo-sharp.png" alt="Youth Innovations Marketplace" class="footer-logo" width="220" height="124">
+          <img src="landing/assets/web/footer-logo-sharp.png" alt="Youth Innovations Marketplace" class="footer-logo"
+            width="220" height="124">
           <p>
-            Youth Innovations Marketplace: Scalable Solutions to End Violence against Children. Satellite Event of the 2nd Global Ministerial Conference on Ending Violence Against Children (EVAC), Manila 2026.
+            Youth Innovations Marketplace: Scalable Solutions to End Violence against Children. Satellite Event of the
+            2nd Global Ministerial Conference on Ending Violence Against Children (EVAC), Manila 2026.
           </p>
         </div>
 
         <div class="footer-links-col">
           <h5>Co-Conveners</h5>
           <ul>
-            <li><a href="https://www.terredeshommes.nl/en" target="_blank" rel="noopener">Terre des Hommes Netherlands</a></li>
+            <li><a href="https://www.terredeshommes.nl/en" target="_blank" rel="noopener">Terre des Hommes
+                Netherlands</a></li>
             <li><a href="https://www.kindernothilfe.org" target="_blank" rel="noopener">Kindernothilfe (KNH)</a></li>
-            <li><a href="https://violenceendswithus.com/" target="_blank" rel="noopener">Violence Ends With Us Movement</a></li>
+            <li><a href="https://violenceendswithus.com/" target="_blank" rel="noopener">Violence Ends With Us
+                Movement</a></li>
           </ul>
         </div>
 
@@ -1246,7 +1415,8 @@
       </div>
 
       <div class="footer-bottom">
-        <p>&copy; 2026 Youth Innovations Marketplace &bull; All Rights Reserved &bull; Co-convened by Global Youth-Led Movement on EVAC, Terre des Hommes Netherlands, and Kindernothilfe.</p>
+        <p>&copy; 2026 Youth Innovations Marketplace &bull; All Rights Reserved &bull; Co-convened by Global Youth-Led
+          Movement on EVAC, Terre des Hommes Netherlands, and Kindernothilfe.</p>
       </div>
     </div>
   </footer>
@@ -1274,4 +1444,5 @@
   <!-- Custom JavaScript -->
   <script src="landing/app.js?v=7"></script>
 </body>
+
 </html>
