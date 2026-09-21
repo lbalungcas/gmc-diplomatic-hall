@@ -1,562 +1,1311 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
-  <meta name="theme-color" content="#060911" />
-  <meta name="mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <title>Diplomatic Main Hall • First Person 3D Walkthrough</title>
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23060911'/%3E%3Ccircle cx='32' cy='32' r='18' fill='none' stroke='%2300d4ff' stroke-width='5'/%3E%3Ccircle cx='32' cy='32' r='6' fill='%23f59e0b'/%3E%3C/svg%3E" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Youth Innovations Marketplace | 2nd GMC EVAC (Manila 2026)</title>
+  <meta name="description" content="Official website for the Youth Innovations Marketplace: Scalable Solutions to End Violence against Children. Satellite Event of the 2nd Global Ministerial Conference on Ending Violence Against Children in Manila, Philippines.">
+  <meta name="keywords" content="Youth Innovations Marketplace, EVAC, Ending Violence Against Children, Global Ministerial Conference Manila 2026, Terre des Hommes Netherlands, Kindernothilfe, Global Youth-Led Movement">
+  
+  <!-- Site Icon / Favicon using brand mark -->
+  <link rel="icon" type="image/png" sizes="32x32" href="landing/assets/web/favicon-32x32.png?v=3">
+  <link rel="icon" type="image/png" sizes="16x16" href="landing/assets/web/favicon-16x16.png?v=3">
+  <link rel="apple-touch-icon" sizes="180x180" href="landing/assets/web/favicon-180x180.png?v=3">
+  <link rel="icon" type="image/png" href="landing/assets/web/logo-transparent.png?v=3">
+  <link rel="shortcut icon" href="landing/favicon.ico?v=3">
+  
+  <!-- Google Fonts: Plus Jakarta Sans & Outfit (reflecting Loyola Round & Canva Sans) -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="/src/style.css" />
-  <script src="https://www.youtube.com/iframe_api"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400&display=swap" rel="stylesheet">
+  
+  <!-- Font Awesome Icons for polished UI -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  
+  <!-- Custom Stylesheet -->
+  <link rel="stylesheet" href="landing/styles.css?v=16">
+
+  <!-- Virtual Marketplace CTA Styles -->
+  <style>
+    /* Animated game entry button */
+    .btn-game-entry {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      background: linear-gradient(135deg, #00d4ff 0%, #7c3aed 50%, #f59e0b 100%);
+      background-size: 200% 200%;
+      animation: yim-gradient-shift 3s ease infinite;
+      color: #fff;
+      font-family: var(--font-display, 'Outfit', sans-serif);
+      font-weight: 800;
+      font-size: 1.05rem;
+      padding: 14px 32px;
+      border-radius: 14px;
+      border: none;
+      cursor: pointer;
+      box-shadow: 0 8px 32px rgba(0, 212, 255, 0.3);
+      transition: transform 0.3s cubic-bezier(0.34,1.56,0.64,1), box-shadow 0.3s;
+      text-decoration: none;
+      letter-spacing: 0.02em;
+      position: relative;
+      overflow: hidden;
+    }
+    .btn-game-entry::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(135deg, rgba(255,255,255,0.15) 0%, transparent 50%);
+      pointer-events: none;
+    }
+    .btn-game-entry:hover {
+      transform: translateY(-3px) scale(1.03);
+      box-shadow: 0 14px 44px rgba(0, 212, 255, 0.45);
+      color: #fff;
+    }
+    .btn-game-entry .game-icon {
+      font-size: 1.3em;
+      filter: drop-shadow(0 2px 4px rgba(0,0,0,0.2));
+    }
+    @keyframes yim-gradient-shift {
+      0% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
+
+    /* Navbar game pill */
+    .nav-game-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: linear-gradient(135deg, #00d4ff, #7c3aed);
+      background-size: 200% 200%;
+      animation: yim-gradient-shift 3s ease infinite;
+      color: #fff !important;
+      font-weight: 700;
+      font-size: 0.82rem;
+      padding: 8px 18px;
+      border-radius: 999px;
+      text-decoration: none;
+      box-shadow: 0 4px 18px rgba(0, 212, 255, 0.25);
+      transition: transform 0.25s, box-shadow 0.25s;
+      letter-spacing: 0.03em;
+    }
+    .nav-game-pill:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 28px rgba(0, 212, 255, 0.4);
+      color: #fff !important;
+    }
+
+    /* Floating sticky CTA */
+    .floating-game-cta {
+      position: fixed;
+      bottom: 28px;
+      right: 28px;
+      z-index: 9998;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: linear-gradient(135deg, #193561 0%, #254f8e 100%);
+      color: #fff;
+      font-family: var(--font-display, 'Outfit', sans-serif);
+      font-weight: 700;
+      font-size: 0.95rem;
+      padding: 14px 24px;
+      border-radius: 16px;
+      text-decoration: none;
+      box-shadow: 0 10px 40px rgba(25, 53, 97, 0.35), 0 0 0 3px rgba(251, 217, 96, 0.4);
+      transition: transform 0.3s cubic-bezier(0.34,1.56,0.64,1), box-shadow 0.3s;
+      border: 2px solid rgba(251, 217, 96, 0.5);
+    }
+    .floating-game-cta:hover {
+      transform: translateY(-4px) scale(1.04);
+      box-shadow: 0 16px 50px rgba(25, 53, 97, 0.45), 0 0 0 4px rgba(251, 217, 96, 0.6);
+      color: #fff;
+    }
+    .floating-game-cta .pulse-ring {
+      width: 10px; height: 10px;
+      border-radius: 50%;
+      background: #00d4ff;
+      box-shadow: 0 0 0 0 rgba(0, 212, 255, 0.5);
+      animation: float-pulse 2s ease-in-out infinite;
+    }
+    @keyframes float-pulse {
+      0% { box-shadow: 0 0 0 0 rgba(0, 212, 255, 0.5); }
+      70% { box-shadow: 0 0 0 10px rgba(0, 212, 255, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(0, 212, 255, 0); }
+    }
+
+    /* Mobile game button in drawer */
+    .mobile-game-entry {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: linear-gradient(135deg, #00d4ff 0%, #7c3aed 100%);
+      color: #fff !important;
+      font-weight: 700;
+      padding: 14px 20px;
+      border-radius: 12px;
+      text-decoration: none;
+      margin-top: 8px;
+      font-size: 1rem;
+    }
+
+    /* Hide floating CTA on very small screens when it overlaps */
+    @media (max-width: 480px) {
+      .floating-game-cta {
+        bottom: 16px;
+        right: 16px;
+        padding: 12px 18px;
+        font-size: 0.85rem;
+      }
+    }
+  </style>
 </head>
 <body>
-  <!-- 3D Canvas Container (also the touch-look surface on mobile) -->
-  <div id="canvas-container"></div>
 
-  <!-- Center Crosshair -->
-  <div id="crosshair" aria-hidden="true">
-    <div class="cross-dot"></div>
-  </div>
-
-  <!-- Top Header HUD -->
-  <header id="top-hud">
-    <div class="hud-brand">
-      <div class="brand-badge">GMC 2026</div>
-      <div class="brand-text">
-        <h1>Diplomatic Main Hall</h1>
-        <p>Youth Innovations Marketplace • Marriott Manila</p>
+  <!-- Top Global Announcement Ribbon -->
+  <div class="top-announcement-bar" id="announcementBar">
+    <div class="container announcement-inner">
+      <div class="announcement-badge">
+        <span class="pulse-dot"></span> SATELLITE EVENT
+      </div>
+      <p class="announcement-text">
+        <strong>2nd Global Ministerial Conference on Ending Violence Against Children (EVAC)</strong> &bull; 17 November 2026 &bull; Marriott Hotel Manila, Philippines
+      </p>
+      <div class="announcement-meta">
+        <span class="badge-pill"><i class="fa-solid fa-door-open"></i> Open Event &bull; No Pre-Registration Required</span>
       </div>
     </div>
-    <nav class="hud-stats" aria-label="Hall controls">
-      <div id="multiplayer-badge" class="stat-pill" title="Live Delegates in Hall">
-        <span class="pill-icon">👥</span>
-        <span class="pill-value" id="online-count">1</span>
-        <span class="pill-label">Online</span>
+  </div>
+
+  <!-- Main Navigation Header -->
+  <header class="main-header" id="mainHeader">
+    <div class="container nav-container">
+      <a href="#hero" class="brand-logo-link" aria-label="Youth Innovations Marketplace Home">
+        <img src="landing/assets/web/logo-navbar.png" alt="Youth Innovations Marketplace Logo" class="brand-logo-img" width="220" height="52">
+      </a>
+
+      <!-- Desktop Navigation Menu -->
+      <nav class="desktop-nav" aria-label="Primary Navigation">
+        <ul class="nav-links">
+          <li><a href="#about" class="nav-link">About</a></li>
+          <li><a href="#challenge" class="nav-link">The Gap</a></li>
+          <li><a href="#spaces" class="nav-link">Spaces</a></li>
+          <li><a href="#thematics" class="nav-link">Themes</a></li>
+          <li><a href="#agenda" class="nav-link">Agenda</a></li>
+          <li><a href="#why-engage" class="nav-link">Why Attend</a></li>
+          <li><a href="#partners-bar" class="nav-link">Partners</a></li>
+          <li><a href="#contact" class="nav-link">Contact</a></li>
+        </ul>
+        <a href="/game/" class="nav-game-pill" title="Enter the 3D Virtual Marketplace">
+          🎮 Virtual Hall
+        </a>
+      </nav>
+
+      <!-- Action Buttons -->
+      <div class="header-actions">
+        <a href="/game/" class="btn btn-primary btn-sm" style="background:linear-gradient(135deg,#00d4ff,#7c3aed);border:none;">
+          🎮 Enter 3D Hall
+        </a>
+        <a href="#contact" class="btn btn-primary btn-sm">
+          <i class="fa-solid fa-paper-plane"></i> Get in Touch
+        </a>
+        <button class="mobile-toggle" id="mobileMenuBtn" aria-label="Toggle Navigation Menu">
+          <i class="fa-solid fa-bars-staggered"></i>
+        </button>
       </div>
-      <button id="stage-stream-btn" class="stat-pill live-pill clickable" title="Watch Stage Stream in Theater Mode" aria-label="Watch live stage stream">
-        <span class="pill-icon compact-only">📺</span>
-        <span class="pill-label">Live Stage</span>
-      </button>
-      <button id="passport-btn" class="stat-pill clickable" title="Open Expo Passport (P)" aria-label="Open expo passport">
-        <span class="pill-icon">🌟</span>
-        <span class="pill-label">Passport</span>
-        <span class="pill-value"><span id="stamps-count">0</span>/20</span>
-      </button>
-      <button id="teleport-btn" class="stat-pill clickable" title="Quick Jump Locations (T)" aria-label="Quick jump locations">
-        <span class="pill-icon">📍</span>
-        <span class="pill-label">Jump</span>
-      </button>
-      <button id="audio-toggle" class="icon-btn" title="Toggle Sound / Ambience (M)" aria-label="Toggle sound" aria-pressed="true">🔊</button>
-      <button id="fullscreen-btn" class="icon-btn" title="Toggle Fullscreen (F)" aria-label="Toggle fullscreen">⛶</button>
-      <button id="help-btn" class="icon-btn" title="Controls Help (?)" aria-label="Show controls help">❓</button>
-    </nav>
+    </div>
+
+    <!-- Mobile Drawer Navigation -->
+    <div class="mobile-drawer" id="mobileDrawer">
+      <div class="mobile-drawer-header">
+        <img src="landing/assets/web/logo-navbar.png" alt="Youth Innovations Marketplace" class="mobile-logo" width="180" height="42">
+        <button class="close-drawer-btn" id="closeDrawerBtn" aria-label="Close menu">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+      <ul class="mobile-nav-links">
+        <li><a href="#about" class="mobile-nav-link"><i class="fa-solid fa-info-circle"></i> About</a></li>
+        <li><a href="#challenge" class="mobile-nav-link"><i class="fa-solid fa-bullseye"></i> The Gap</a></li>
+        <li><a href="#spaces" class="mobile-nav-link"><i class="fa-solid fa-cubes"></i> Spaces</a></li>
+        <li><a href="#thematics" class="mobile-nav-link"><i class="fa-solid fa-layer-group"></i> Themes</a></li>
+        <li><a href="#agenda" class="mobile-nav-link"><i class="fa-solid fa-calendar-days"></i> Agenda</a></li>
+        <li><a href="#why-engage" class="mobile-nav-link"><i class="fa-solid fa-handshake"></i> Why Attend</a></li>
+        <li><a href="#partners-bar" class="mobile-nav-link"><i class="fa-solid fa-handshake"></i> Partners</a></li>
+        <li><a href="#contact" class="mobile-nav-link"><i class="fa-solid fa-envelope"></i> Contact</a></li>
+      </ul>
+      <div class="mobile-drawer-actions">
+        <a href="/game/" class="mobile-game-entry">
+          🎮 Explore the Virtual Marketplace
+        </a>
+        <a href="#contact" class="btn btn-primary btn-block">
+          <i class="fa-solid fa-paper-plane"></i> Get in Touch
+        </a>
+      </div>
+    </div>
   </header>
 
-  <!-- Minimap Radar -->
-  <aside id="minimap-container" aria-label="Floor radar">
-    <button class="minimap-header" id="minimap-toggle" title="Collapse / expand radar" aria-expanded="true">
-      <span>FLOOR RADAR</span>
-      <span class="minimap-sub">Tap a booth to track</span>
-      <span class="minimap-chevron" aria-hidden="true">▾</span>
-    </button>
-    <div class="minimap-body">
-      <canvas id="minimap-canvas" width="200" height="200"></canvas>
-      <div class="minimap-legend">
-        <span><span class="legend-dot player"></span> You</span>
-        <span><span class="legend-dot booth"></span> Booth</span>
-        <span><span class="legend-dot visited"></span> Visited</span>
-        <span><span class="legend-dot stage"></span> Stage</span>
+  <main>
+    <!-- HERO SECTION (SPLIT STAGE: BLUEPRINT BACKGROUND + DESIGN ON SIDE) -->
+    <section class="hero-section hero-split-stage" id="hero">
+      <div class="hero-bg-layer">
+        <img src="landing/assets/web/hero-bg.png" alt="Blueprint Grid Background" class="hero-bg-img" fetchpriority="high" width="2130" height="1322">
+        <div class="hero-bg-overlay"></div>
       </div>
-    </div>
-  </aside>
 
-  <!-- Active Waypoint Distance HUD -->
-  <div id="waypoint-hud" class="hidden" role="status">
-    <div class="waypoint-arrow" id="waypoint-arrow" aria-hidden="true">➤</div>
-    <div class="waypoint-text">
-      <span id="waypoint-name">Target: Booth 01</span>
-      <span id="waypoint-dist" class="waypoint-dist">12.4m</span>
-    </div>
-    <button id="waypoint-clear" class="waypoint-close" title="Clear target" aria-label="Clear target">✕</button>
-  </div>
+      <div class="container hero-stage-container">
+        <!-- Main 2-Column Row: Headline on Left, Design Graphic on Right -->
+        <div class="hero-main-split">
+          <!-- Left Column: Primary Typography & Description -->
+          <div class="hero-text-col">
+            <h1 class="hero-main-title">
+              Scalable Solutions to End <span class="highlight-yellow">Violence Against Children</span>
+            </h1>
 
-  <!-- Floating Proximity Action Prompt -->
-  <button id="proximity-prompt" class="hidden" type="button" aria-live="polite">
-    <span class="key-badge" id="prompt-key">E</span>
-    <span class="prompt-info">
-      <span class="prompt-title" id="prompt-booth-name">Booth 01</span>
-      <span class="prompt-sub" id="prompt-booth-cat">Press E to interact</span>
-    </span>
-  </button>
+            <p class="hero-quote-text">
+              “From Pledges to Protection: Youth-Led Solutions in Action”
+            </p>
 
-  <!-- Sitting Status Banner -->
-  <div id="sitting-hud" class="hidden" role="status">
-    <div class="sitting-badge">🪑 SEATED</div>
-    <div class="sitting-text">
-      <span>Watching Stage Keynote</span>
-      <small class="desktop-only">Press [Space], [W], or [E] to stand up</small>
-      <small class="touch-only">Move the joystick or tap Stand to get up</small>
-    </div>
-    <button id="stand-up-btn" class="stand-btn">Stand Up</button>
-  </div>
+            <p class="hero-lead-description">
+              A dynamic, participatory bridge connecting <strong>20+ frontline youth-led solutions</strong> across Asia-Pacific and the globe directly with ministers, senior government officials, international funders, and institutional leaders.
+            </p>
+          </div>
 
-  <!-- Toast Notifications -->
-  <div id="toast-stack" aria-live="polite" aria-atomic="false"></div>
+          <!-- Right Column: The Design Graphic (Tutu + Marketplace Title + Partners) -->
+          <div class="hero-visual-col">
+            <div class="hero-design-wrapper">
+              <img src="landing/assets/web/hero-design.png" alt="Youth Innovation Marketplace - Official Mascot Tutu & Institutional Partners" class="hero-design-img" width="1395" height="942">
+            </div>
+          </div>
+        </div>
 
-  <!-- Start / Pause / Help Overlay -->
-  <div id="blocker" data-mode="welcome">
-    <div id="instructions">
-      <div class="welcome-card">
-        <div class="welcome-badge" id="blocker-badge">FIRST-PERSON 3D EXPO</div>
-        <h2 id="blocker-title">Youth Innovations Marketplace</h2>
-        <p class="venue-subtitle">Diplomatic Main Hall · Marriott Hotel Manila · 17 Nov 2026</p>
-        <p class="welcome-lead" id="blocker-lead">
-          Walk the digital companion hall: visit 20 youth innovation booths, collect passport stamps, ask Tutu about the event &amp; safeguarding, and leave a pledge on the Commitment Wall.
+        <!-- Bottom Overlaid Action & Meta Dock -->
+        <div class="hero-stage-bottom">
+          <div class="hero-dock-card">
+            <!-- Event Meta Strip -->
+            <div class="hero-dock-meta">
+              <div class="dock-meta-item">
+                <i class="fa-regular fa-calendar-check"></i>
+                <div class="dock-meta-text">
+                  <span class="dock-meta-lbl">Date & Time</span>
+                  <span class="dock-meta-val">17 Nov 2026 &bull; 9:00 AM – 5:00 PM</span>
+                </div>
+              </div>
+              <div class="dock-meta-item">
+                <i class="fa-solid fa-location-dot"></i>
+                <div class="dock-meta-text">
+                  <span class="dock-meta-lbl">Venue</span>
+                  <span class="dock-meta-val">Marriott Hotel Manila, Diplomatic Hall</span>
+                </div>
+              </div>
+              <div class="dock-meta-item">
+                <i class="fa-solid fa-ticket-simple"></i>
+                <div class="dock-meta-text">
+                  <span class="dock-meta-lbl">Format</span>
+                  <span class="dock-meta-val">Open Event &bull; English &bull; Free Admission</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Single Horizontal Line Hero CTAs -->
+            <div class="hero-cta-group">
+              <a href="/game/" class="btn-game-entry">
+                <span class="game-icon">🎮</span> Explore the Virtual Marketplace
+              </a>
+              <a href="#spaces" class="btn btn-primary">
+                <i class="fa-solid fa-compass"></i> Marketplace Spaces
+              </a>
+              <a href="#agenda" class="btn btn-secondary">
+                <i class="fa-solid fa-clock"></i> View Agenda
+              </a>
+            </div>
+
+            <!-- Co-Conveners attribution -->
+            <div class="hero-conveners-note">
+              <span class="note-label">Co-convened by:</span>
+              <span class="convener-name">Global Youth-Led Movement on EVAC</span>
+              <span class="separator">&bull;</span>
+              <span class="convener-name">Terre des Hommes Netherlands</span>
+              <span class="separator">&bull;</span>
+              <span class="convener-name">Kindernothilfe</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- OFFICIAL CO-CONVENERS & SUPPORTERS BAR -->
+    <section class="partners-ribbon-section" id="partners-bar">
+      <div class="container">
+        <div class="ribbon-header">
+          <span class="ribbon-eyebrow">CO-CONVENED & SUPPORTED BY GLOBAL ADVOCATES</span>
+        </div>
+        <div class="partners-logos-wrap">
+          <img src="landing/assets/web/partners-lockup-trans.png" alt="Official Partner Lockup: Global Youth-Led Movement on Ending Violence Against Children, Kindernothilfe, Terre des Hommes Netherlands, German Cooperation, and European Union" class="partner-lockup-img" width="840" height="145">
+        </div>
+        <p class="partner-collab-caption">
+          In collaboration with youth-led organizations and youth delegates from the <strong>Violence Ends With Us</strong> Regional Summit.
         </p>
-
-        <div class="welcome-highlights" aria-label="What you can do">
-          <div class="welcome-chip"><span class="welcome-chip-ico" aria-hidden="true">🎪</span><span>20 booths</span></div>
-          <div class="welcome-chip"><span class="welcome-chip-ico" aria-hidden="true">🐘</span><span>Ask Tutu</span></div>
-          <div class="welcome-chip"><span class="welcome-chip-ico" aria-hidden="true">🛂</span><span>Passport</span></div>
-          <div class="welcome-chip"><span class="welcome-chip-ico" aria-hidden="true">🛡️</span><span>Safeguarding</span></div>
-        </div>
-
-        <p class="welcome-section-label desktop-only">Desktop controls</p>
-        <div class="instructions-grid desktop-only" aria-label="Desktop controls">
-          <div class="inst-item">
-            <span class="inst-ico" aria-hidden="true">🚶</span>
-            <span class="inst-key">W A S D</span>
-            <span class="inst-desc">Walk the hall</span>
-          </div>
-          <div class="inst-item">
-            <span class="inst-ico" aria-hidden="true">👀</span>
-            <span class="inst-key">MOUSE</span>
-            <span class="inst-desc">Look around</span>
-          </div>
-          <div class="inst-item">
-            <span class="inst-ico" aria-hidden="true">🤝</span>
-            <span class="inst-key">E</span>
-            <span class="inst-desc">Interact / Ask Tutu</span>
-          </div>
-          <div class="inst-item">
-            <span class="inst-ico" aria-hidden="true">📺</span>
-            <span class="inst-key">CLICK TV</span>
-            <span class="inst-desc">Watch with sound</span>
-          </div>
-          <div class="inst-item">
-            <span class="inst-ico" aria-hidden="true">🛂</span>
-            <span class="inst-key">P · T · M</span>
-            <span class="inst-desc">Passport · Teleport · Mute</span>
-          </div>
-          <div class="inst-item">
-            <span class="inst-ico" aria-hidden="true">⏸️</span>
-            <span class="inst-key">ESC · R · F</span>
-            <span class="inst-desc">Pause · Entrance · Fullscreen</span>
-          </div>
-        </div>
-
-        <p class="welcome-section-label touch-only">Tablet &amp; kiosk controls</p>
-        <div class="instructions-grid touch-only" aria-label="Touch controls">
-          <div class="inst-item">
-            <span class="inst-ico" aria-hidden="true">🕹️</span>
-            <span class="inst-key">JOYSTICK</span>
-            <span class="inst-desc">Walk with left stick</span>
-          </div>
-          <div class="inst-item">
-            <span class="inst-ico" aria-hidden="true">👆</span>
-            <span class="inst-key">DRAG</span>
-            <span class="inst-desc">Look around the hall</span>
-          </div>
-          <div class="inst-item">
-            <span class="inst-ico" aria-hidden="true">🎯</span>
-            <span class="inst-key">TAP</span>
-            <span class="inst-desc">Prompt or 🎯 to interact</span>
-          </div>
-          <div class="inst-item">
-            <span class="inst-ico" aria-hidden="true">📺</span>
-            <span class="inst-key">TV</span>
-            <span class="inst-desc">Tap booth TV for sound</span>
-          </div>
-          <div class="inst-item">
-            <span class="inst-ico" aria-hidden="true">🛂</span>
-            <span class="inst-key">HUD</span>
-            <span class="inst-desc">Passport · Teleport · Mute</span>
-          </div>
-          <div class="inst-item">
-            <span class="inst-ico" aria-hidden="true">🪑</span>
-            <span class="inst-key">SEAT</span>
-            <span class="inst-desc">Sit near stage · Stand to leave</span>
-          </div>
-        </div>
-
-        <div id="load-status" class="load-status" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
-          <div class="load-bar"><div class="load-bar-fill" id="load-bar-fill"></div></div>
-          <span class="load-text" id="load-text">Preparing the venue…</span>
-        </div>
-
-        <button id="start-btn" class="primary-btn" disabled>
-          <span id="start-btn-label">LOADING VENUE</span>
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
-        </button>
-        <p class="click-note desktop-only" id="blocker-note">Click the button or press Enter to lock the cursor and start walking.</p>
-        <p class="click-note touch-only" id="blocker-note-touch">Tip: rotate to landscape and use fullscreen for the best kiosk experience.</p>
       </div>
+    </section>
+
+    <!-- ABOUT & CONTEXT SECTION -->
+    <section class="about-section section-padding" id="about">
+      <div class="container">
+        <div class="section-header text-center">
+          <span class="section-tag">
+            <img src="landing/assets/web/icon-sun-clean.png" alt="Sun Icon" class="inline-icon" width="18" height="18"> ABOUT THE MARKETPLACE
+          </span>
+          <h2 class="section-title">A Turning Point in Global Child Protection</h2>
+          <p class="section-subtitle">
+            Moving beyond mere consultation toward genuine youth leadership, institutional investment, and lasting systems change.
+          </p>
+        </div>
+
+        <div class="about-grid">
+          <div class="about-card card-primary">
+            <div class="about-card-icon">
+              <i class="fa-solid fa-hand-holding-heart"></i>
+            </div>
+            <h3>From Consultation to Co-Creation</h3>
+            <p>
+              The Second Global Ministerial Conference on Ending Violence Against Children (EVAC) in Manila is a momentous occasion for governments and multilateral partners to demonstrate tangible progress on pledges initiated in Bogotá 2024. A defining shift since the first conference is the clear recognition of children and young people not merely as vulnerable beneficiaries, but as vital <strong>co-architects of protection systems</strong>.
+            </p>
+          </div>
+
+          <div class="about-card card-secondary">
+            <div class="about-card-icon">
+              <i class="fa-solid fa-seedling"></i>
+            </div>
+            <h3>6 Months of Rigorous Piloting</h3>
+            <p>
+              Building directly on the <em>Violence Ends With Us</em> Regional Youth-Led Summit held in the Philippines in April 2026, <strong>10 to 20+ youth-led solutions</strong> have spent six months testing, piloting, and gathering field evidence. The Marketplace gives them an international stage to present verified results, lessons learned, and clear roadmaps for regional scale.
+            </p>
+          </div>
+
+          <div class="about-card card-accent">
+            <div class="about-card-icon">
+              <i class="fa-solid fa-users-gear"></i>
+            </div>
+            <h3>An Interactive, Non-Traditional Space</h3>
+            <p>
+              Rather than standard panel lectures, the Marketplace creates an energetic, participatory exhibition where ministers, international delegates, and grassroots innovators interact directly at demo booths, matchmaking deal rooms, and intergenerational dialogues to forge concrete funding and policy pacts.
+            </p>
+          </div>
+        </div>
+
+        <!-- Visual Highlight Banner -->
+        <div class="about-visual-banner">
+          <div class="banner-inner">
+            <div class="banner-text">
+              <span class="banner-badge">Our Ambition</span>
+              <h3>“To demonstrate that meaningful and ethical youth participation can move beyond consultation towards genuine leadership and investment.”</h3>
+              <p>Positioned right at the intersection of high-level ministerial policy commitments and grassroots young people's innovations.</p>
+            </div>
+            <div class="banner-graphic">
+              <img src="landing/assets/web/scene-island-tutu.jpg" alt="Tutu sailing toward the lighthouse safe haven" class="banner-img" width="500" height="281" loading="lazy" decoding="async">
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- THE GAP & AMBITION SECTION -->
+    <section class="challenge-section section-padding bg-light" id="challenge">
+      <div class="container">
+        <div class="section-header text-center">
+          <span class="section-tag">
+            <img src="landing/assets/web/icon-people-clean.png" alt="People Icon" class="inline-icon" width="18" height="18"> THE CORE CHALLENGE
+          </span>
+          <h2 class="section-title">The Gap: Solutions Trapped at Pilot Stage</h2>
+          <p class="section-subtitle">
+            Across the Asia-Pacific region, young innovators possess groundbreaking approaches, yet face structural bottlenecks that keep solutions from reaching millions of children.
+          </p>
+        </div>
+
+        <div class="gap-comparison-grid">
+          <!-- The Gap Column -->
+          <div class="gap-box box-problem">
+            <div class="box-header">
+              <div class="box-icon icon-danger">
+                <i class="fa-solid fa-triangle-exclamation"></i>
+              </div>
+              <div>
+                <span class="box-eyebrow">THE REALITY</span>
+                <h3>The Critical Disconnect</h3>
+              </div>
+            </div>
+            <ul class="gap-list">
+              <li>
+                <i class="fa-solid fa-circle-xmark"></i>
+                <div>
+                  <strong>Funding Deserts:</strong> Youth-led initiatives remain excluded from direct bilateral, multilateral, and domestic child-protection budgets.
+                </div>
+              </li>
+              <li>
+                <i class="fa-solid fa-circle-xmark"></i>
+                <div>
+                  <strong>Technical & Mentorship Barriers:</strong> Promising tools lack specialized legal, regulatory, and technological infrastructure to scale safely.
+                </div>
+              </li>
+              <li>
+                <i class="fa-solid fa-circle-xmark"></i>
+                <div>
+                  <strong>Policy Disconnect:</strong> Governments frequently develop EVAC frameworks without structured pipelines to adopt proven grassroots innovations.
+                </div>
+              </li>
+              <li>
+                <i class="fa-solid fa-circle-xmark"></i>
+                <div>
+                  <strong>Missed Systems Change:</strong> Solutions remain isolated pilots rather than being integrated into national child protection systems.
+                </div>
+              </li>
+            </ul>
+          </div>
+
+          <!-- The Marketplace Solution Column -->
+          <div class="gap-box box-solution">
+            <div class="box-header">
+              <div class="box-icon icon-success">
+                <i class="fa-solid fa-bridge-water"></i>
+              </div>
+              <div>
+                <span class="box-eyebrow">THE MARKETPLACE RESPONSE</span>
+                <h3>The Scalability Bridge</h3>
+              </div>
+            </div>
+            <ul class="gap-list">
+              <li>
+                <i class="fa-solid fa-circle-check"></i>
+                <div>
+                  <strong>Direct Ministerial Access:</strong> Unfiltered dialogue between youth leaders and high-level decision-makers.
+                </div>
+              </li>
+              <li>
+                <i class="fa-solid fa-circle-check"></i>
+                <div>
+                  <strong>Matchmaking at the Deal Corner:</strong> Structured one-on-one sessions linking innovations to catalytic capital and technical assistance.
+                </div>
+              </li>
+              <li>
+                <i class="fa-solid fa-circle-check"></i>
+                <div>
+                  <strong>Actionable Policy Integration:</strong> Visual mind mapping on the Policy Wall to integrate tools directly into national programs.
+                </div>
+              </li>
+              <li>
+                <i class="fa-solid fa-circle-check"></i>
+                <div>
+                  <strong>Accountability Follow-Through:</strong> Post-conference monitoring mechanisms ensuring commitments convert to resourced reality.
+                </div>
+              </li>
+            </ul>
+          </div>
+        </div>
+
+        <!-- 4 Strategic Ambition Cards -->
+        <div class="ambition-heading">
+          <h3>Our Four Strategic Ambition Pillars</h3>
+        </div>
+        <div class="ambition-grid">
+          <div class="ambition-card">
+            <div class="ambition-number">01</div>
+            <h4>Showcase Tested Solutions</h4>
+            <p>Spotlight 20+ promising youth-led models that tackle violence against children across Asia-Pacific and beyond.</p>
+          </div>
+          <div class="ambition-card">
+            <div class="ambition-number">02</div>
+            <h4>Direct Decision-Maker Dialogue</h4>
+            <p>Connect young inventors face-to-face with government ministers, international donors, and development partners.</p>
+          </div>
+          <div class="ambition-card">
+            <div class="ambition-number">03</div>
+            <h4>Elevate Youth Agency</h4>
+            <p>Solidify children and young people as recognized strategic actors in achieving national EVAC pledges.</p>
+          </div>
+          <div class="ambition-card">
+            <div class="ambition-number">04</div>
+            <h4>Institutionalize Policy Scale</h4>
+            <p>Open formal institutional pathways for youth-led practices to be adopted into statutory child welfare systems.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- MARKETPLACE SPACES SECTION (EVEN 2+3 BALANCED GRID) -->
+    <section class="spaces-section section-padding" id="spaces">
+      <div class="container">
+        <div class="section-header text-center">
+          <span class="section-tag">
+            <img src="landing/assets/web/icon-star-clean.png" alt="Star Icon" class="inline-icon" width="18" height="18"> WHAT WILL IT LOOK LIKE?
+          </span>
+          <h2 class="section-title">Five Immersive Experience Spaces</h2>
+          <p class="section-subtitle">
+            An experiential, participatory environment tailored for active discovery, peer learning, targeted matchmaking, and systems-level impact.
+          </p>
+        </div>
+
+        <div class="spaces-grid">
+          <!-- Space 1 -->
+          <div class="space-card" id="space-booths">
+            <div class="space-card-top">
+              <span class="space-number">SPACE 01</span>
+              <span class="space-badge badge-blue">Interactive Pitching</span>
+            </div>
+            <div class="space-icon-wrapper">
+              <i class="fa-solid fa-store"></i>
+            </div>
+            <h3>Interactive Youth Innovation Booths</h3>
+            <p class="space-desc">
+              Over 20 dedicated innovation stations where visitors get hands-on exposure to live youth projects. Youth innovators will pitch their tools, digital reporting apps, community mechanisms, and present tangible evidence of reduced violence.
+            </p>
+            <div class="space-features">
+              <span><i class="fa-solid fa-check"></i> Live Product Demos</span>
+              <span><i class="fa-solid fa-check"></i> Youth-Minister Chats</span>
+              <span><i class="fa-solid fa-check"></i> Field Impact Case Studies</span>
+            </div>
+          </div>
+
+          <!-- Space 2 -->
+          <div class="space-card featured-card" id="space-deal-corner">
+            <div class="space-card-top">
+              <span class="space-number">SPACE 02</span>
+              <span class="space-badge badge-yellow">Central Matchmaking</span>
+            </div>
+            <div class="space-icon-wrapper icon-accent">
+              <i class="fa-solid fa-handshake-angle"></i>
+            </div>
+            <h3>The Deal Corner</h3>
+            <p class="space-desc">
+              The heart of marketplace transactions: a structured, youth-friendly coordination space for targeted bilateral conversations between youth initiatives and potential partners. Moving beyond visibility toward commitments for seed funding, tech mentorship, and scale-up.
+            </p>
+            <div class="space-features">
+              <span><i class="fa-solid fa-check"></i> 1-on-1 Investment Meetings</span>
+              <span><i class="fa-solid fa-check"></i> Mentorship & Tech Matching</span>
+              <span><i class="fa-solid fa-check"></i> Post-Event Follow-Up Tracker</span>
+            </div>
+          </div>
+
+          <!-- Space 3 -->
+          <div class="space-card" id="space-cta-corner">
+            <div class="space-card-top">
+              <span class="space-number">SPACE 03</span>
+              <span class="space-badge badge-pink">Grassroots Voice</span>
+            </div>
+            <div class="space-icon-wrapper">
+              <i class="fa-solid fa-bullhorn"></i>
+            </div>
+            <h3>Call to Action Corner</h3>
+            <p class="space-desc">
+              Amplifying priorities articulated by children and youth across Asia-Pacific: child labour, corporal punishment, child/forced marriage, and online exploitation. Delegates can explore grassroots recommendations and endorse the official petition.
+            </p>
+            <div class="space-features">
+              <span><i class="fa-solid fa-check"></i> Regional Petition Signing</span>
+              <span><i class="fa-solid fa-check"></i> 4 Thematic Deep Dives</span>
+              <span><i class="fa-solid fa-check"></i> Direct Youth Advocacy</span>
+            </div>
+          </div>
+
+          <!-- Space 4 -->
+          <div class="space-card" id="space-dialogue">
+            <div class="space-card-top">
+              <span class="space-number">SPACE 04</span>
+              <span class="space-badge badge-orange">High-Level Plenary</span>
+            </div>
+            <div class="space-icon-wrapper">
+              <i class="fa-solid fa-comments"></i>
+            </div>
+            <h3>Intergenerational Dialogue</h3>
+            <p class="space-desc">
+              <em>“From Youth Innovation to Systems Change”</em> — A focused plenary conversation bringing together young innovators, government ministers, and global development funders to explore what it truly takes for grassroots tools to become institutional policy.
+            </p>
+            <div class="space-features">
+              <span><i class="fa-solid fa-check"></i> High-Level Panel Plenary</span>
+              <span><i class="fa-solid fa-check"></i> Institutional Ownership</span>
+              <span><i class="fa-solid fa-check"></i> Financing Conditions</span>
+            </div>
+          </div>
+
+          <!-- Space 5 -->
+          <div class="space-card" id="space-policy-wall">
+            <div class="space-card-top">
+              <span class="space-number">SPACE 05</span>
+              <span class="space-badge badge-blue">Visual Ecosystem</span>
+            </div>
+            <div class="space-icon-wrapper">
+              <i class="fa-solid fa-diagram-project"></i>
+            </div>
+            <h3>The Policy Wall</h3>
+            <p class="space-desc">
+              A dynamic visual mind map charting all showcased innovations against regional child protection frameworks. Delegates can pin partnerships, pledge institutional backing, and map connections between grassroots tools and statutory laws.
+            </p>
+            <div class="space-features">
+              <span><i class="fa-solid fa-check"></i> Visual Mind Map</span>
+              <span><i class="fa-solid fa-check"></i> Real-Time Pledge Pinning</span>
+              <span><i class="fa-solid fa-check"></i> National-to-Global Pathways</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- THEMATIC ACTION TRACKS & ENDORSEMENT -->
+    <section class="thematics-section section-padding bg-navy text-white" id="thematics">
+      <div class="container">
+        <div class="section-header text-center">
+          <span class="section-tag tag-yellow">PRIORITY DOMAINS</span>
+          <h2 class="section-title text-white">Asia-Pacific Youth Priority Tracks</h2>
+          <p class="section-subtitle text-light">
+            Innovations showcased in the Marketplace address the four most urgent child protection themes prioritized by youth leaders from the Violence Ends With Us movement.
+          </p>
+        </div>
+
+        <div class="thematic-grid">
+          <!-- Track 1 -->
+          <div class="thematic-card">
+            <div class="thematic-icon-header">
+              <div class="thematic-icon"><i class="fa-solid fa-briefcase"></i></div>
+              <span class="thematic-tag">Track 01</span>
+            </div>
+            <h3>Child Labour</h3>
+            <p>
+              Frontline approaches dismantling hazardous economic exploitation through community-led early warning systems, digital re-enrollment trackers, and youth vocational safety nets.
+            </p>
+            <div class="thematic-metric">
+              <i class="fa-solid fa-circle-arrow-right"></i> Target: Universal education & ethical supply chains
+            </div>
+          </div>
+
+          <!-- Track 2 -->
+          <div class="thematic-card">
+            <div class="thematic-icon-header">
+              <div class="thematic-icon"><i class="fa-solid fa-ban"></i></div>
+              <span class="thematic-tag">Track 02</span>
+            </div>
+            <h3>Corporal Punishment</h3>
+            <p>
+              Innovations eliminating violent discipline at home, school, and community settings through positive parenting curricula, peer restorative circles, and youth-led legislative advocacy.
+            </p>
+            <div class="thematic-metric">
+              <i class="fa-solid fa-circle-arrow-right"></i> Target: Legal prohibitions & cultural shifts
+            </div>
+          </div>
+
+          <!-- Track 3 -->
+          <div class="thematic-card">
+            <div class="thematic-icon-header">
+              <div class="thematic-icon"><i class="fa-solid fa-ring"></i></div>
+              <span class="thematic-tag">Track 03</span>
+            </div>
+            <h3>Child, Early & Forced Marriage</h3>
+            <p>
+              Community-grounded models led by adolescent girls, deploying peer hotline networks, safe houses, and community elder engagement to halt early marriages and uphold bodily autonomy.
+            </p>
+            <div class="thematic-metric">
+              <i class="fa-solid fa-circle-arrow-right"></i> Target: Girl-led protection & secondary completion
+            </div>
+          </div>
+
+          <!-- Track 4 -->
+          <div class="thematic-card">
+            <div class="thematic-icon-header">
+              <div class="thematic-icon"><i class="fa-solid fa-shield-halved"></i></div>
+              <span class="thematic-tag">Track 04</span>
+            </div>
+            <h3>Online Child Exploitation</h3>
+            <p>
+              Digital tools and AI safety watchdogs created by youth developers to protect peers from grooming, non-consensual imagery, and sextortion across messaging apps and online platforms.
+            </p>
+            <div class="thematic-metric">
+              <i class="fa-solid fa-circle-arrow-right"></i> Target: Algorithmic accountability & rapid support
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- PROGRAMME AGENDA SECTION (TWO-COLUMN REFINED LAYOUT) -->
+    <section class="agenda-section section-padding" id="agenda">
+      <div class="container">
+        <div class="section-header text-center">
+          <span class="section-tag">
+            <img src="landing/assets/web/icon-sun-clean.png" alt="Icon" class="inline-icon" width="18" height="18"> OFFICIAL SCHEDULE
+          </span>
+          <h2 class="section-title">Programme Agenda</h2>
+          <p class="section-subtitle">
+            17 November 2026 &bull; 9:00 AM – 5:00 PM &bull; Diplomatic Hall, Marriott Hotel Manila
+          </p>
+        </div>
+
+        <!-- Agenda Day/Track Tabs -->
+        <div class="agenda-tabs" role="tablist">
+          <button class="agenda-tab active" data-tab="marketplace-day" role="tab" aria-selected="true">
+            <i class="fa-solid fa-calendar-check"></i> 17 Nov: Marketplace Day (Full Schedule)
+          </button>
+          <button class="agenda-tab" data-tab="prep-workshop" role="tab" aria-selected="false">
+            <i class="fa-solid fa-chalkboard-user"></i> 14 Nov: Youth Prep Workshop
+          </button>
+          <button class="agenda-tab" data-tab="deal-corner" role="tab" aria-selected="false">
+            <i class="fa-solid fa-handshake"></i> Parallel Deal Corner Tracks
+          </button>
+        </div>
+
+        <!-- TAB 1: 17 NOV MARKETPLACE DAY (TWO-COLUMN GRID) -->
+        <div class="agenda-tab-pane active" id="pane-marketplace-day">
+          <div class="agenda-two-col-grid">
+            <!-- COLUMN 1: MORNING SESSIONS -->
+            <div class="agenda-col">
+              <div class="agenda-col-header">
+                <div class="col-header-icon"><i class="fa-solid fa-sun"></i></div>
+                <div>
+                  <h3>Morning Sessions</h3>
+                  <span class="col-header-time">07:00 AM – 12:30 PM &bull; Discovery & Spotlights</span>
+                </div>
+              </div>
+
+              <div class="agenda-cards-list">
+                <!-- 07:00 - 09:00 -->
+                <div class="agenda-card">
+                  <div class="agenda-card-meta">
+                    <span class="agenda-time-pill">07:00 – 09:00 AM</span>
+                    <span class="agenda-duration-pill">2 hours</span>
+                    <span class="agenda-badge badge-neutral">Preparation</span>
+                  </div>
+                  <h4 class="agenda-card-title">Team Arrival & Booth Set-Up</h4>
+                  <p class="agenda-card-desc">Innovation teams prepare their booths, displays, demonstrations, and interactive activities. Organisers complete final technical, accessibility, safeguarding, and venue checks.</p>
+                  <div class="agenda-card-footer">
+                    <span><i class="fa-solid fa-booth-curtain"></i> Diplomatic Hall Booths</span>
+                  </div>
+                </div>
+
+                <!-- 09:00 - 09:30 -->
+                <div class="agenda-card">
+                  <div class="agenda-card-meta">
+                    <span class="agenda-time-pill">09:00 – 09:30 AM</span>
+                    <span class="agenda-duration-pill">30 mins</span>
+                    <span class="agenda-badge badge-blue">Arrival & Preview</span>
+                  </div>
+                  <h4 class="agenda-card-title">Registration & Marketplace Preview</h4>
+                  <p class="agenda-card-desc">Guests arrive and begin exploring booths. Participants receive an interactive "Treasure Map" to collect booth stamps for exclusive collaterals and prizes, with youth-produced multimedia content broadcast across the hall.</p>
+                  <div class="agenda-card-footer">
+                    <span><i class="fa-solid fa-map-location-dot"></i> Registration Foyer & Booths</span>
+                  </div>
+                </div>
+
+                <!-- 09:30 - 09:45 -->
+                <div class="agenda-card">
+                  <div class="agenda-card-meta">
+                    <span class="agenda-time-pill">09:30 – 09:45 AM</span>
+                    <span class="agenda-duration-pill">15 mins</span>
+                    <span class="agenda-badge badge-accent">Official Opening</span>
+                  </div>
+                  <h4 class="agenda-card-title">Welcome & Marketplace Opening</h4>
+                  <p class="agenda-card-desc">A short standing welcome introducing the purpose of the Marketplace, participating youth innovator teams, and collaborative engagement pathways for visiting guests.</p>
+                  <div class="agenda-card-footer">
+                    <span><i class="fa-solid fa-bullhorn"></i> Main Stage</span>
+                  </div>
+                </div>
+
+                <!-- 09:45 - 11:15 -->
+                <div class="agenda-card highlight-card">
+                  <div class="agenda-card-meta">
+                    <span class="agenda-time-pill">09:45 – 11:15 AM</span>
+                    <span class="agenda-duration-pill">1h 30m</span>
+                    <span class="agenda-badge badge-yellow">Pitching & Demos</span>
+                  </div>
+                  <h4 class="agenda-card-title">Open Marketplace & Innovation Spotlights</h4>
+                  <p class="agenda-card-desc">Guests move freely between booths. The roving emcee conducts live booth promotions with camera feeds, spotlighting rapid 3- to 5-minute pitches, demonstrations, and interviews directly with delegates.</p>
+                  <div class="agenda-card-footer">
+                    <span><i class="fa-solid fa-video"></i> Exhibition Floor & Live Screen</span>
+                  </div>
+                </div>
+
+                <!-- 11:15 - 11:30 -->
+                <div class="agenda-card">
+                  <div class="agenda-card-meta">
+                    <span class="agenda-time-pill">11:15 – 11:30 AM</span>
+                    <span class="agenda-duration-pill">15 mins</span>
+                    <span class="agenda-badge badge-neutral">Energiser</span>
+                  </div>
+                  <h4 class="agenda-card-title">Marketplace Energiser</h4>
+                  <p class="agenda-card-desc">A short interactive youth-led activity, announcement, and youth performance drawing guests together and spotlighting selected booths and activities to visit.</p>
+                  <div class="agenda-card-footer">
+                    <span><i class="fa-solid fa-music"></i> Hall Center</span>
+                  </div>
+                </div>
+
+                <!-- 11:30 - 12:30 -->
+                <div class="agenda-card">
+                  <div class="agenda-card-meta">
+                    <span class="agenda-time-pill">11:30 AM – 12:30 PM</span>
+                    <span class="agenda-duration-pill">1 hour</span>
+                    <span class="agenda-badge badge-blue">Partner Matchmaking</span>
+                  </div>
+                  <h4 class="agenda-card-title">Open Marketplace & Partner Connections</h4>
+                  <p class="agenda-card-desc">Booth visits continue, with organisers facilitating direct introductions between innovation teams and relevant government, funding, technical, and civil society partners (with dedicated Deal Corner time slots).</p>
+                  <div class="agenda-card-footer">
+                    <span><i class="fa-solid fa-handshake"></i> Booths & The Deal Corner</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- COLUMN 2: AFTERNOON SESSIONS -->
+            <div class="agenda-col">
+              <div class="agenda-col-header">
+                <div class="col-header-icon"><i class="fa-solid fa-users-viewfinder"></i></div>
+                <div>
+                  <h3>Afternoon Sessions</h3>
+                  <span class="col-header-time">12:30 PM – 05:00 PM &bull; Systems Change & Commitments</span>
+                </div>
+              </div>
+
+              <div class="agenda-cards-list">
+                <!-- 12:30 - 01:30 -->
+                <div class="agenda-card">
+                  <div class="agenda-card-meta">
+                    <span class="agenda-time-pill">12:30 – 01:30 PM</span>
+                    <span class="agenda-duration-pill">1 hour</span>
+                    <span class="agenda-badge badge-neutral">Networking</span>
+                  </div>
+                  <h4 class="agenda-card-title">Networking Lunch (Marketplace Open)</h4>
+                  <p class="agenda-card-desc">The Marketplace remains open during lunch. Innovation teams rotate to ensure that all participants have time to eat, rest, and network informally with attending delegates.</p>
+                  <div class="agenda-card-footer">
+                    <span><i class="fa-solid fa-utensils"></i> Diplomatic Hall Foyer</span>
+                  </div>
+                </div>
+
+                <!-- 01:30 - 01:40 -->
+                <div class="agenda-card">
+                  <div class="agenda-card-meta">
+                    <span class="agenda-time-pill">01:30 – 01:40 PM</span>
+                    <span class="agenda-duration-pill">10 mins</span>
+                    <span class="agenda-badge badge-accent">Plenary Orientation</span>
+                  </div>
+                  <h4 class="agenda-card-title">Afternoon Welcome & Highlights</h4>
+                  <p class="agenda-card-desc">A brief standing welcome for new and returning guests, highlighting the high-level dialogue and strategic commitment activities taking place during the afternoon.</p>
+                  <div class="agenda-card-footer">
+                    <span><i class="fa-solid fa-bullhorn"></i> Main Stage</span>
+                  </div>
+                </div>
+
+                <!-- 01:40 - 02:45 -->
+                <div class="agenda-card">
+                  <div class="agenda-card-meta">
+                    <span class="agenda-time-pill">01:40 – 02:45 PM</span>
+                    <span class="agenda-duration-pill">1h 5m</span>
+                    <span class="agenda-badge badge-blue">Live Demos</span>
+                  </div>
+                  <h4 class="agenda-card-title">Open Marketplace & Live Demonstrations</h4>
+                  <p class="agenda-card-desc">Guests continue exploring booths, participating in interactive activities, and viewing deep-dive repeated presentations and live technology tool demonstrations.</p>
+                  <div class="agenda-card-footer">
+                    <span><i class="fa-solid fa-laptop-code"></i> Innovation Booths</span>
+                  </div>
+                </div>
+
+                <!-- 02:45 - 03:15 (Featured Plenary) -->
+                <div class="agenda-card featured-plenary-card">
+                  <div class="agenda-card-meta">
+                    <span class="agenda-time-pill">02:45 – 03:15 PM</span>
+                    <span class="agenda-duration-pill">45 mins total</span>
+                    <span class="agenda-badge badge-featured"><i class="fa-solid fa-star"></i> Featured Plenary</span>
+                  </div>
+                  <h4 class="agenda-card-title">Intergenerational Dialogue: From Youth Innovation to Systems Change</h4>
+                  <p class="agenda-card-desc">A focused high-level dialogue uniting 4 speakers: young innovators, a government representative, and institutional funding/technical partners (KNH, TDH, Plan Asia, Safe Online, WHO). 20 mins panel responses + 25 mins interactive exchange exploring what youth-led initiatives need to influence policy and secure sustainable scale.</p>
+                  <div class="agenda-card-footer">
+                    <span><i class="fa-solid fa-landmark"></i> Main Stage Plenary</span>
+                  </div>
+                </div>
+
+                <!-- 03:15 - 04:15 -->
+                <div class="agenda-card">
+                  <div class="agenda-card-meta">
+                    <span class="agenda-time-pill">03:15 – 04:15 PM</span>
+                    <span class="agenda-duration-pill">1 hour</span>
+                    <span class="agenda-badge badge-blue">Bilateral Matchmaking</span>
+                  </div>
+                  <h4 class="agenda-card-title">Open Marketplace & Partnership Connections</h4>
+                  <p class="agenda-card-desc">Guests return to selected booths for focused conversations on funding allocations, technical support, evidence-building, policy integration, and cross-border collaboration or scale.</p>
+                  <div class="agenda-card-footer">
+                    <span><i class="fa-solid fa-comments"></i> Booths & Deal Corner</span>
+                  </div>
+                </div>
+
+                <!-- 04:15 - 04:30 -->
+                <div class="agenda-card highlight-card">
+                  <div class="agenda-card-meta">
+                    <span class="agenda-time-pill">04:15 – 04:30 PM</span>
+                    <span class="agenda-duration-pill">15 mins</span>
+                    <span class="agenda-badge badge-yellow">Commitments</span>
+                  </div>
+                  <h4 class="agenda-card-title">Commitments & Connections</h4>
+                  <p class="agenda-card-desc">Guests record tangible offers of support, introduction pacts, follow-up bilateral meetings, and expressions of interest through the physical and digital Commitment Wall.</p>
+                  <div class="agenda-card-footer">
+                    <span><i class="fa-solid fa-file-signature"></i> Commitment Wall</span>
+                  </div>
+                </div>
+
+                <!-- 04:30 - 04:45 -->
+                <div class="agenda-card">
+                  <div class="agenda-card-meta">
+                    <span class="agenda-time-pill">04:30 – 04:45 PM</span>
+                    <span class="agenda-duration-pill">15 mins</span>
+                    <span class="agenda-badge badge-accent">Youth Advocacy</span>
+                  </div>
+                  <h4 class="agenda-card-title">Youth Reflections & Call to Action</h4>
+                  <p class="agenda-card-desc">Young innovators share brief reflections from the Marketplace, key lessons from implementing their solutions, and deliver a collective call for sustained investment in youth-led action.</p>
+                  <div class="agenda-card-footer">
+                    <span><i class="fa-solid fa-microphone-lines"></i> Main Stage</span>
+                  </div>
+                </div>
+
+                <!-- 04:45 - 05:00 -->
+                <div class="agenda-card">
+                  <div class="agenda-card-meta">
+                    <span class="agenda-time-pill">04:45 – 05:00 PM</span>
+                    <span class="agenda-duration-pill">15 mins</span>
+                    <span class="agenda-badge badge-neutral">Official Closing</span>
+                  </div>
+                  <h4 class="agenda-card-title">Closing Remarks & Next Steps</h4>
+                  <p class="agenda-card-desc">Closing remarks acknowledge participating teams and partners, summarize key connections and commitments made, and explain how follow-up will be coordinated after the event.</p>
+                  <div class="agenda-card-footer">
+                    <span><i class="fa-solid fa-flag-checkered"></i> Main Stage</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- TAB 2: 14 NOV YOUTH PREPARATION WORKSHOP -->
+        <div class="agenda-tab-pane" id="pane-prep-workshop">
+          <div class="prep-workshop-card">
+            <div class="prep-header">
+              <div class="prep-badge"><i class="fa-solid fa-graduation-cap"></i> PRE-CONFERENCE WORKSHOP</div>
+              <h3>Youth Preparation Workshop: 14 November 2026 (Half Day)</h3>
+              <p>Designed to support young frontline innovators in honing their pitches, mastering stakeholder engagement, and rehearsing demonstrations prior to the Ministerial Conference.</p>
+            </div>
+            <div class="prep-grid">
+              <div class="prep-item">
+                <span class="prep-time">08:30 – 09:00 AM</span>
+                <div class="prep-content">
+                  <h5>Participant Arrival & Check-In</h5>
+                  <p>Informal arrival, badge release, and welcome check-in.</p>
+                </div>
+              </div>
+              <div class="prep-item">
+                <span class="prep-time">09:00 – 09:15 AM</span>
+                <div class="prep-content">
+                  <h5>Welcome & Session Overview</h5>
+                  <p>Introduction to the preparation workshop goals and event programme.</p>
+                </div>
+              </div>
+              <div class="prep-item">
+                <span class="prep-time">09:15 – 09:30 AM</span>
+                <div class="prep-content">
+                  <h5>Safeguarding & Hotel Briefing</h5>
+                  <p>Hotel safety, emergency protocols, and ethical youth safeguarding review.</p>
+                </div>
+              </div>
+              <div class="prep-item highlight-prep">
+                <span class="prep-time">09:30 – 09:50 AM</span>
+                <div class="prep-content">
+                  <h5>Workshop: Telling Your Innovation Story</h5>
+                  <p>Interactive training on structuring concise, engaging 3-minute innovation pitches.</p>
+                </div>
+              </div>
+              <div class="prep-item highlight-prep">
+                <span class="prep-time">09:50 – 10:20 AM</span>
+                <div class="prep-content">
+                  <h5>Workshop: From Networking to Partnership</h5>
+                  <p>Practical guidance on introducing initiatives, communicating asks, and engaging funders.</p>
+                </div>
+              </div>
+              <div class="prep-item">
+                <span class="prep-time">10:20 – 10:35 AM</span>
+                <div class="prep-content">
+                  <h5>Refreshment Break</h5>
+                  <p>Informal networking and group realignment.</p>
+                </div>
+              </div>
+              <div class="prep-item">
+                <span class="prep-time">10:35 – 11:40 AM</span>
+                <div class="prep-content">
+                  <h5>Participant Rehearsals & Peer Feedback</h5>
+                  <p>Teams rehearse booth spotlights, live pitches, and partnership asks in rotating peer groups.</p>
+                </div>
+              </div>
+              <div class="prep-item">
+                <span class="prep-time">11:40 AM – 12:05 PM</span>
+                <div class="prep-content">
+                  <h5>Marketplace Walkthrough & Booth Practice</h5>
+                  <p>Walkthrough of the venue layout, booth locations, presentation flow, and AV setup.</p>
+                </div>
+              </div>
+              <div class="prep-item">
+                <span class="prep-time">12:05 – 12:20 PM</span>
+                <div class="prep-content">
+                  <h5>Team Refinement & Final Preparation</h5>
+                  <p>Final tuning of demonstrations, collateral displays, and event-day responsibilities.</p>
+                </div>
+              </div>
+              <div class="prep-item">
+                <span class="prep-time">12:20 – 12:30 PM</span>
+                <div class="prep-content">
+                  <h5>Closing Check-Out & Next Steps</h5>
+                  <p>Confirmation of event-day logistics, schedule, and team support contacts.</p>
+                </div>
+              </div>
+              <div class="prep-item">
+                <span class="prep-time">12:30 PM onwards</span>
+                <div class="prep-content">
+                  <h5>Participant & Facilitator Lunch</h5>
+                  <p>Informal lunch for participants, facilitators, and organizers.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- TAB 3: PARALLEL DEAL CORNER TRACKS -->
+        <div class="agenda-tab-pane" id="pane-deal-corner">
+          <div class="deal-corner-banner-card">
+            <div class="deal-banner-content">
+              <div class="deal-badge">
+                <i class="fa-solid fa-shuffle"></i> PARALLEL TRACK &bull; 17 NOVEMBER 2026
+              </div>
+              <h3>The Deal Corner: Thematic Matchmaking Schedule</h3>
+              <p>
+                Operating continuously alongside the plenary and open booths, The Deal Corner offers dedicated, private matchmaking slots for youth innovators to pitch directly to bilateral funders, corporate partners, and government directors.
+              </p>
+              <div class="deal-slots">
+                <div class="slot">
+                  <div class="slot-time">10:00 – 11:30 AM</div>
+                  <div class="slot-name">Child Labour Innovations</div>
+                  <p>Focus: Supply chain tracking, community education alternatives, and economic safety nets.</p>
+                </div>
+                <div class="slot">
+                  <div class="slot-time">11:30 AM – 01:00 PM</div>
+                  <div class="slot-name">Corporal Punishment & School Safety</div>
+                  <p>Focus: Positive discipline tools, safe reporting in schools, and restorative justice models.</p>
+                </div>
+                <div class="slot">
+                  <div class="slot-time">01:30 – 03:00 PM</div>
+                  <div class="slot-name">CEFM & Adolescent Bodily Autonomy</div>
+                  <p>Focus: Legal advocacy, girl-led community surveillance, and economic empowerment alternatives.</p>
+                </div>
+                <div class="slot">
+                  <div class="slot-time">03:00 – 04:30 PM</div>
+                  <div class="slot-name">Online Protection & Tech Accountability</div>
+                  <p>Focus: OCSEA reporting platforms, peer digital literacy, and AI/tech accountability protocols.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- WHY ENGAGE SECTION -->
+    <section class="why-engage-section section-padding bg-light" id="why-engage">
+      <div class="container">
+        <div class="section-header text-center">
+          <span class="section-tag">
+            <img src="landing/assets/web/icon-people-clean.png" alt="Icon" class="inline-icon" width="18" height="18"> VALUE MATRIX
+          </span>
+          <h2 class="section-title">Why Engage with the Marketplace?</h2>
+          <p class="section-subtitle">
+            A targeted value proposition tailored for ministers, senior policymakers, international development partners, and civil society.
+          </p>
+        </div>
+
+        <div class="stakeholder-grid">
+          <!-- Pillar 1 -->
+          <div class="stakeholder-card">
+            <div class="card-tag">For Governments</div>
+            <div class="stakeholder-icon"><i class="fa-solid fa-landmark-flag"></i></div>
+            <h3>Ministers & Senior Officials</h3>
+            <ul class="stakeholder-checklist">
+              <li><i class="fa-solid fa-check"></i> <div><strong>Adopt Grounded Interventions:</strong> Identify proven, grassroots models that directly reinforce national EVAC policy frameworks.</div></li>
+              <li><i class="fa-solid fa-check"></i> <div><strong>Deliver on Bogotá Commitments:</strong> Showcase tangible fulfillment of ministerial pledges prioritizing child participation.</div></li>
+              <li><i class="fa-solid fa-check"></i> <div><strong>Direct Youth Insights:</strong> Hear firsthand analysis on emerging risks like online exploitation and school-based violence.</div></li>
+            </ul>
+          </div>
+
+          <!-- Pillar 2 -->
+          <div class="stakeholder-card">
+            <div class="card-tag">For Donors & Multilaterals</div>
+            <div class="stakeholder-icon"><i class="fa-solid fa-coins"></i></div>
+            <h3>Development Partners & Funders</h3>
+            <ul class="stakeholder-checklist">
+              <li><i class="fa-solid fa-check"></i> <div><strong>High-Impact Capital Deployment:</strong> Direct catalytic funding to 20+ pre-vetted youth solutions with six months of piloting data.</div></li>
+              <li><i class="fa-solid fa-check"></i> <div><strong>Co-Financing Opportunities:</strong> Partner with bilateral donors and multilateral funds at the Deal Corner.</div></li>
+              <li><i class="fa-solid fa-check"></i> <div><strong>Sustainable Follow-Up:</strong> Rely on consortium-backed monitoring to track the ROI and impact trajectory.</div></li>
+            </ul>
+          </div>
+
+          <!-- Pillar 3 -->
+          <div class="stakeholder-card">
+            <div class="card-tag">For Advocates & CSOs</div>
+            <div class="stakeholder-icon"><i class="fa-solid fa-network-wired"></i></div>
+            <h3>Civil Society & Youth Coalitions</h3>
+            <ul class="stakeholder-checklist">
+              <li><i class="fa-solid fa-check"></i> <div><strong>Cross-Regional Solidarity:</strong> Forge partnerships between local grassroots groups and international INGO networks.</div></li>
+              <li><i class="fa-solid fa-check"></i> <div><strong>Ethical Participation Benchmark:</strong> Experience safe, dignified child and youth agency in practice.</div></li>
+              <li><i class="fa-solid fa-check"></i> <div><strong>Policy Advocacy Coalitions:</strong> Leverage the collective Call to Action to demand systemic legal reforms.</div></li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SAFEGUARDING SECTION -->
+    <section class="safeguarding-section section-padding bg-light">
+      <div class="container">
+        <div class="safeguarding-box">
+          <div class="safeguarding-icon">
+            <i class="fa-solid fa-shield-heart"></i>
+          </div>
+          <div class="safeguarding-text">
+            <h3>Child Safeguarding & Ethical Participation Protocol</h3>
+            <p>
+              The safety, wellbeing, agency, and dignity of child and youth delegates are non-negotiable. All delegates, organizers, government ministers, and guests are strictly required to uphold and comply with the <strong>Youth Marketplace Safeguarding Policy</strong>.
+            </p>
+            <p>
+              This includes ethical consent protocols for photography and filming, zero-tolerance for any form of harassment, intimidation, or tokenism, and accessible, youth-friendly safeguarding reporting desks throughout the Marriott Hotel venue.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- EVENT CONTACTS & FOOTER -->
+    <section class="contact-section section-padding" id="contact">
+      <div class="container">
+        <div class="section-header text-center">
+          <span class="section-tag">
+            <img src="landing/assets/web/icon-people-clean.png" alt="Icon" class="inline-icon" width="18" height="18"> GET IN TOUCH
+          </span>
+          <h2 class="section-title">Event Contacts & Leadership</h2>
+          <p class="section-subtitle">
+            Reach out directly to the co-convening consortium for inquiries on participation, media, booth applications, or partnerships.
+          </p>
+        </div>
+
+        <div class="contact-cards-grid">
+          <!-- Contact 1 -->
+          <div class="contact-card">
+            <div class="contact-avatar">
+              <i class="fa-solid fa-user-astronaut"></i>
+            </div>
+            <h4>Bryanna Marinas</h4>
+            <span class="contact-role">Founder</span>
+            <span class="contact-org">Global Youth-Led Movement on Ending Violence Against Children</span>
+            <a href="mailto:bryanna.marinas@gmail.com" class="contact-email">
+              <i class="fa-regular fa-envelope"></i> bryanna.marinas@gmail.com
+            </a>
+          </div>
+
+          <!-- Contact 2 -->
+          <div class="contact-card">
+            <div class="contact-avatar">
+              <i class="fa-solid fa-user-tie"></i>
+            </div>
+            <h4>Joe Anna C. Abelinde</h4>
+            <span class="contact-role">Country Director</span>
+            <span class="contact-org">Terre des Hommes Netherlands (TdH NL)</span>
+            <a href="mailto:j.abelinde@tdh.nl" class="contact-email">
+              <i class="fa-regular fa-envelope"></i> j.abelinde@tdh.nl
+            </a>
+          </div>
+
+          <!-- Contact 3 -->
+          <div class="contact-card">
+            <div class="contact-avatar">
+              <i class="fa-solid fa-user-graduate"></i>
+            </div>
+            <h4>Saskia Metz</h4>
+            <span class="contact-role">Advocacy Officer</span>
+            <span class="contact-org">Kindernothilfe (KNH)</span>
+            <a href="mailto:saskia.metz@knh.de" class="contact-email">
+              <i class="fa-regular fa-envelope"></i> saskia.metz@knh.de
+            </a>
+          </div>
+        </div>
+
+        <!-- Venue Card -->
+        <div class="venue-card">
+          <div class="venue-info">
+            <div class="venue-icon"><i class="fa-solid fa-hotel"></i></div>
+            <div>
+              <h4>Event Location & Accessibility</h4>
+              <p><strong>Marriott Hotel Manila &bull; Diplomatic Hall</strong></p>
+              <p>Newport World Resorts, Pasay City, Metro Manila, Philippines</p>
+              <p class="venue-notes"><i class="fa-solid fa-universal-access"></i> Fully wheelchair accessible &bull; English interpretation available &bull; Open entrance</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- FOOTER -->
+  <footer class="main-footer">
+    <div class="container footer-container">
+      <div class="footer-top">
+        <div class="footer-brand">
+          <img src="landing/assets/web/footer-logo-sharp.png" alt="Youth Innovations Marketplace" class="footer-logo" width="220" height="124">
+          <p>
+            Youth Innovations Marketplace: Scalable Solutions to End Violence against Children. Satellite Event of the 2nd Global Ministerial Conference on Ending Violence Against Children (EVAC), Manila 2026.
+          </p>
+        </div>
+
+        <div class="footer-links-col">
+          <h5>Co-Conveners</h5>
+          <ul>
+            <li><a href="https://www.terredeshommes.nl/en" target="_blank" rel="noopener">Terre des Hommes Netherlands</a></li>
+            <li><a href="https://www.kindernothilfe.org" target="_blank" rel="noopener">Kindernothilfe (KNH)</a></li>
+            <li><a href="https://violenceendswithus.com/" target="_blank" rel="noopener">Violence Ends With Us Movement</a></li>
+          </ul>
+        </div>
+
+        <div class="footer-links-col">
+          <h5>Quick Links</h5>
+          <ul>
+            <li><a href="#agenda">View Full Schedule</a></li>
+            <li><a href="#contact">Contact Leadership Team</a></li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="footer-bottom">
+        <p>&copy; 2026 Youth Innovations Marketplace &bull; All Rights Reserved &bull; Co-convened by Global Youth-Led Movement on EVAC, Terre des Hommes Netherlands, and Kindernothilfe.</p>
+      </div>
+    </div>
+  </footer>
+
+  <!-- SUCCESS TOAST NOTIFICATION -->
+  <div class="toast-notification" id="toastNotification">
+    <div class="toast-icon"><i class="fa-solid fa-circle-check"></i></div>
+    <div class="toast-content">
+      <strong id="toastTitle">Thank you!</strong>
+      <p id="toastMessage">Your submission has been recorded.</p>
     </div>
   </div>
 
-  <!-- Booth Detail Modal Dialog -->
-  <div id="booth-modal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="modal-booth-title">
-    <div class="modal-card">
-      <button class="modal-close-btn" data-close="booth-modal" title="Close (Esc)" aria-label="Close">✕</button>
+  <!-- Back to top button -->
+  <a href="#hero" class="back-to-top" id="backToTopBtn" aria-label="Back to top">
+    <i class="fa-solid fa-arrow-up"></i>
+  </a>
 
-      <div class="modal-header">
-        <div class="modal-booth-badge" id="modal-booth-id">01</div>
-        <div class="modal-header-info">
-          <h2 id="modal-booth-title">Youth Clean Energy Hub</h2>
-          <div class="header-pills">
-            <span class="category-pill" id="modal-booth-category">Innovation</span>
-            <span class="category-pill gold-pill hidden" id="modal-quiz-pill">🏅 Quiz passed</span>
-          </div>
-        </div>
-        <button id="modal-heart-btn" class="heart-btn" title="Give a Heart" aria-pressed="false">
-          <span class="heart-icon">❤️</span> <span id="modal-heart-count">12</span>
-        </button>
-      </div>
+  <!-- Floating Virtual Marketplace CTA -->
+  <a href="/game/" class="floating-game-cta" id="floatingGameCta" aria-label="Enter the Virtual 3D Marketplace">
+    <span class="pulse-ring"></span>
+    🎮 Enter 3D Hall
+  </a>
 
-      <!-- Navigation Tabs -->
-      <div class="modal-tabs" role="tablist">
-        <button class="tab-btn active" data-tab="tab-overview" role="tab">Overview</button>
-        <button class="tab-btn" data-tab="tab-media" role="tab">Project Media</button>
-        <button class="tab-btn" data-tab="tab-quiz" role="tab">Quiz <span class="tab-dot" id="quiz-tab-dot" aria-hidden="true"></span></button>
-      </div>
-
-      <!-- Tab Contents -->
-      <div class="tab-content" id="tab-overview">
-        <div class="placeholder-note hidden" id="modal-placeholder-note">
-          🛠️ This exhibitor is still setting up. Full project details, media and team contacts are coming soon.
-        </div>
-        <div class="overview-box">
-          <h3>Project Summary</h3>
-          <p id="modal-overview-text">Loading booth details...</p>
-        </div>
-        <div class="stats-grid" id="modal-stats-grid"></div>
-        <div class="links-box" id="modal-links-box"></div>
-        <div class="socials-box" id="modal-socials-box"></div>
-        <div class="booth-comments" id="booth-comments">
-          <h3 class="booth-comments-title">Visitor notes</h3>
-          <div class="booth-comments-list" id="booth-comments-list"></div>
-          <form class="booth-comment-form" id="booth-comment-form">
-            <label class="sr-only" for="booth-comment-input">Leave a short note</label>
-            <input id="booth-comment-input" type="text" maxlength="200" placeholder="Leave a short note for the team…" autocomplete="off" />
-            <button type="submit" class="secondary-btn btn-xs" id="booth-comment-submit">Post</button>
-          </form>
-          <p class="booth-comment-hint" id="booth-comment-hint"></p>
-        </div>
-      </div>
-
-      <div class="tab-content hidden" id="tab-media">
-        <div class="media-container">
-          <div class="media-video-wrapper tv-wrapper" id="modal-tv-wrapper">
-            <span class="tv-badge">📺 BOOTH TV</span>
-            <video id="modal-tv-video" controls playsinline preload="metadata" aria-label="Booth TV video"></video>
-          </div>
-          <p class="media-caption">Booth TV loop — sound plays only here in the pop-up. Click the TV in the hall to open it playing.</p>
-          <div class="media-video-wrapper hidden" id="modal-video-wrapper">
-            <div id="modal-video-mount"></div>
-          </div>
-          <div class="media-screen" id="modal-media-screen">
-            <img id="modal-screen-img" src="" alt="Booth display terminal" loading="lazy" />
-          </div>
-          <p class="media-caption">Presentation terminal at Booth #<span id="modal-media-id">01</span></p>
-        </div>
-      </div>
-
-      <div class="tab-content hidden" id="tab-quiz">
-        <div class="quiz-container" id="quiz-container">
-          <div class="quiz-header">
-            <h3 id="quiz-title">Booth Challenge</h3>
-            <p class="quiz-desc" id="quiz-desc">Answer the questions about this innovation to earn a gold passport stamp!</p>
-          </div>
-          <div id="quiz-questions-list"></div>
-          <div id="quiz-result" class="quiz-result hidden"></div>
-        </div>
-      </div>
-
-      <div class="modal-footer">
-        <span class="esc-hint desktop-only">Press <strong>Esc</strong> to return to walking</span>
-        <div class="footer-actions">
-          <button id="modal-next-booth-btn" class="secondary-btn accent-btn">🎯 Track next unvisited</button>
-          <button class="secondary-btn" data-close="booth-modal">Close Exhibit</button>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Organizer Booth / Mascot Info Modal (content filled by main.js) -->
-  <div id="org-modal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="org-modal-title">
-    <div class="modal-card">
-      <button class="modal-close-btn" data-close="org-modal" title="Close (Esc)" aria-label="Close">✕</button>
-      <div class="modal-header">
-        <div class="modal-booth-badge org-badge" id="org-modal-badge">TdH</div>
-        <div class="modal-header-info">
-          <h2 id="org-modal-title">Organizer</h2>
-          <div class="header-pills">
-            <span class="category-pill" id="org-modal-kicker">ORGANIZER BOOTH</span>
-            <span class="category-pill gold-pill" id="org-modal-sub"></span>
-          </div>
-        </div>
-      </div>
-      <div class="media-video-wrapper tv-wrapper hidden" id="org-video-wrapper">
-        <span class="tv-badge">📺 BOOTH TV</span>
-        <video id="org-tv-video" controls playsinline preload="metadata" aria-label="Organizer booth TV video"></video>
-      </div>
-      <div class="overview-box">
-        <h3 id="org-modal-heading">About</h3>
-        <p id="org-modal-text"></p>
-      </div>
-      <div id="tutu-faq" class="tutu-faq hidden">
-        <div class="tutu-faq-tabs" id="tutu-faq-tabs" role="tablist" aria-label="Ask Tutu topics"></div>
-        <div class="tutu-faq-list" id="tutu-faq-list"></div>
-      </div>
-      <div class="stats-grid" id="org-modal-stats"></div>
-      <div class="links-box" id="org-modal-links"></div>
-      <div class="modal-footer">
-        <span class="esc-hint desktop-only">Press <strong>Esc</strong> to return to walking</span>
-        <button class="secondary-btn" data-close="org-modal">Back to Walk</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Welcome Desk / Venue Guide Modal -->
-  <div id="desk-modal" class="modal-overlay hidden" role="dialog" aria-modal="true">
-    <div class="modal-card">
-      <button class="modal-close-btn" data-close="desk-modal" title="Close (Esc)" aria-label="Close">✕</button>
-      <div class="modal-header">
-        <div class="modal-booth-badge info-badge">ℹ️</div>
-        <div class="modal-header-info">
-          <h2>Reception &amp; Welcome Desk</h2>
-          <span class="category-pill">Diplomatic Foyer</span>
-        </div>
-      </div>
-      <div class="overview-box">
-        <h3>About the Venue &amp; Event</h3>
-        <p>Welcome to the <strong>Youth Innovations Marketplace</strong> at the Diplomatic Main Hall, Manila Marriott Hotel. This marketplace brings together 20 youth-led satellite innovation teams solving real-world challenges across climate tech, community health, education, and digital inclusion.</p>
-      </div>
-      <div class="venue-guide-grid">
-        <div class="guide-card">
-          <h4>🎪 20 Innovation Booths</h4>
-          <p>Two double-sided booth rows flank the center aisle. Booths 01–05 and 11–15 face the center aisle; walk around to the outer aisles for 06–10 and 16–20.</p>
-        </div>
-        <div class="guide-card">
-          <h4>📺 Booth TVs</h4>
-          <p>Every booth has a TV looping its video silently. Click or tap a TV (or press E while looking at it) to open it in a pop-up with sound.</p>
-        </div>
-        <div class="guide-card">
-          <h4>🏛️ Organizer Booths &amp; Mascots</h4>
-          <p>Terre des hommes, Kindernothilfe and Violence Ends With Us (VEWU) have their stands along the east side of the Pre-Function Foyer. Say hello to Tutu the Tdh elephant and the VEWU lighthouse on the way.</p>
-        </div>
-        <div class="guide-card">
-          <h4>🎤 Stage &amp; Keynote Screen</h4>
-          <p>On the North wall with continuous live presentations. Take a VIP seat to watch with full audio.</p>
-        </div>
-        <div class="guide-card">
-          <h4>📝 Commitment Wall</h4>
-          <p>In the Pre-Function Foyer, across from this desk. Post your pledge for youth leadership and sustainability — it's pinned on the 3D wall for every visitor in the hall.</p>
-        </div>
-        <div class="guide-card">
-          <h4>🌟 Digital Passport</h4>
-          <p>Visit all 20 exhibits and pass their quizzes to complete your passport. Tap a booth on the radar to track it.</p>
-        </div>
-      </div>
-      <div class="modal-footer">
-        <span class="esc-hint desktop-only">Press <strong>Esc</strong> to return to walking</span>
-        <button class="secondary-btn" data-close="desk-modal">Start Exploring</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Commitment Wall Modal -->
-  <div id="pledge-modal" class="modal-overlay hidden" role="dialog" aria-modal="true">
-    <div class="modal-card">
-      <button class="modal-close-btn" data-close="pledge-modal" title="Close (Esc)" aria-label="Close">✕</button>
-      <div class="modal-header">
-        <div class="modal-booth-badge pledge-badge">✍️</div>
-        <div class="modal-header-info">
-          <h2>Youth Commitment &amp; Pledge Wall</h2>
-          <span class="category-pill">Interactive Delegate Wall</span>
-        </div>
-      </div>
-
-      <div class="pledge-form">
-        <label for="pledge-input">Write your commitment or message of support:</label>
-        <textarea id="pledge-input" rows="3" maxlength="160" placeholder="e.g., I commit to mentoring 5 young coders in my community this year!"></textarea>
-        <div class="pledge-meta">
-          <span class="char-count"><span id="pledge-char-count">0</span>/160</span>
-        </div>
-
-        <div class="color-picker-row">
-          <div class="color-options" role="radiogroup" aria-label="Sticky note color">
-            <button class="color-opt active" data-color="#fef08a" style="background:#fef08a" aria-label="Yellow"></button>
-            <button class="color-opt" data-color="#bbf7d0" style="background:#bbf7d0" aria-label="Green"></button>
-            <button class="color-opt" data-color="#fbcfe8" style="background:#fbcfe8" aria-label="Pink"></button>
-            <button class="color-opt" data-color="#bfdbfe" style="background:#bfdbfe" aria-label="Blue"></button>
-            <button class="color-opt" data-color="#fed7aa" style="background:#fed7aa" aria-label="Orange"></button>
-          </div>
-          <button id="submit-pledge-btn" class="primary-btn btn-sm">Post to Wall</button>
-        </div>
-      </div>
-
-      <div class="pledges-board-section">
-        <h3>Live Wall Pledges <span class="count-chip" id="pledge-count">0</span></h3>
-        <p class="pledge-wall-note" id="pledge-wall-note"></p>
-        <div class="pledges-grid" id="pledges-grid"></div>
-      </div>
-
-      <div class="modal-footer">
-        <span class="esc-hint desktop-only">Press <strong>Esc</strong> to return</span>
-        <button class="secondary-btn" data-close="pledge-modal">Back to Walk</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Passport Modal -->
-  <div id="passport-modal" class="modal-overlay hidden" role="dialog" aria-modal="true">
-    <div class="modal-card wide-card">
-      <button class="modal-close-btn" data-close="passport-modal" title="Close (Esc)" aria-label="Close">✕</button>
-      <div class="modal-header">
-        <div class="modal-booth-badge gold-badge">🌟</div>
-        <div class="modal-header-info">
-          <h2>Marketplace Expo Passport</h2>
-          <div class="header-pills">
-            <span class="category-pill" id="passport-progress-pill">0 of 20 Visited</span>
-            <span class="category-pill gold-pill" id="passport-quiz-pill">0 Quizzes passed</span>
-          </div>
-        </div>
-        <button id="passport-next-btn" class="secondary-btn accent-btn btn-xs">🎯 Nearest unvisited</button>
-      </div>
-
-      <div class="passport-progress-bar">
-        <div class="passport-fill" id="passport-bar-fill" style="width: 0%"></div>
-      </div>
-      <p class="passport-legend">Tap any booth to track it on the radar · ⭐ Visited · 🏅 Quiz passed</p>
-
-      <div class="passport-grid" id="passport-grid"></div>
-
-      <div class="modal-footer">
-        <span class="esc-hint desktop-only">Press <strong>Esc</strong> to return</span>
-        <button class="secondary-btn" data-close="passport-modal">Close Passport</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Teleport Quick Jump Menu -->
-  <div id="teleport-modal" class="modal-overlay hidden" role="dialog" aria-modal="true">
-    <div class="modal-card small-card">
-      <button class="modal-close-btn" data-close="teleport-modal" title="Close (Esc)" aria-label="Close">✕</button>
-      <div class="modal-header">
-        <div class="modal-booth-badge jump-badge">🚀</div>
-        <div class="modal-header-info">
-          <h2>Quick Jump Locations</h2>
-          <span class="category-pill">Fast Travel</span>
-        </div>
-      </div>
-
-      <div class="jump-list">
-        <button class="jump-btn" data-pos="9.68,1.45,-2.5" data-yaw="0">
-          <span class="jump-icon">🚪</span>
-          <span class="jump-body"><span class="jump-title">South Entrance</span><span class="jump-sub">Main Hall Arrival (Facing Stage)</span></span>
-        </button>
-        <button class="jump-btn" data-pos="11.6,1.45,-8.96" data-yaw="-1.5708">
-          <span class="jump-icon">🎪</span>
-          <span class="jump-body"><span class="jump-title">Center Aisle · Right (01–05)</span><span class="jump-sub">Innovation Row</span></span>
-        </button>
-        <button class="jump-btn" data-pos="15.9,1.45,-8.96" data-yaw="1.5708">
-          <span class="jump-icon">🌱</span>
-          <span class="jump-body"><span class="jump-title">East Aisle · Right (06–10)</span><span class="jump-sub">GreenTech Row</span></span>
-        </button>
-        <button class="jump-btn" data-pos="8.6,1.45,-8.99" data-yaw="1.5708">
-          <span class="jump-icon">💡</span>
-          <span class="jump-body"><span class="jump-title">Center Aisle · Left (11–15)</span><span class="jump-sub">EdTech &amp; Health Row</span></span>
-        </button>
-        <button class="jump-btn" data-pos="4.4,1.45,-8.99" data-yaw="-1.5708">
-          <span class="jump-icon">🎨</span>
-          <span class="jump-body"><span class="jump-title">West Aisle · Left (16–20)</span><span class="jump-sub">Health &amp; Creative Row</span></span>
-        </button>
-        <button class="jump-btn" data-pos="9.68,1.45,-17.2" data-yaw="0">
-          <span class="jump-icon">🎤</span>
-          <span class="jump-body"><span class="jump-title">Stage &amp; Audience Seating</span><span class="jump-sub">Theater &amp; Keynote Screen</span></span>
-        </button>
-        <button class="jump-btn" data-pos="22.3,1.45,-9.9" data-yaw="-1.5708">
-          <span class="jump-icon">🏛️</span>
-          <span class="jump-body"><span class="jump-title">Organizer Booths</span><span class="jump-sub">Tdh · KNH · VEWU &amp; mascots (Foyer)</span></span>
-        </button>
-        <button class="jump-btn" data-pos="22.5,1.45,-14.0" data-yaw="0">
-          <span class="jump-icon">☕</span>
-          <span class="jump-body"><span class="jump-title">Pre-Function Foyer</span><span class="jump-sub">Welcome Desk &amp; Pledge Wall</span></span>
-        </button>
-      </div>
-
-      <div class="modal-footer">
-        <span class="esc-hint desktop-only">Press <strong>Esc</strong> to close</span>
-        <button class="secondary-btn" data-close="teleport-modal">Cancel</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Stage Screen Theater Modal -->
-  <div id="stage-modal" class="modal-overlay hidden" role="dialog" aria-modal="true">
-    <div class="modal-card wide-card stage-modal-card">
-      <button class="modal-close-btn" data-close="stage-modal" title="Close (Esc)" aria-label="Close">✕</button>
-      <div class="modal-header">
-        <div class="modal-booth-badge live-badge">LIVE</div>
-        <div class="modal-header-info">
-          <h2>Diplomatic Hall Keynote Broadcast</h2>
-          <span class="category-pill">Stage Screen • Shared Live View</span>
-        </div>
-      </div>
-      <div class="stage-theater-body">
-        <div class="theater-video-wrapper">
-          <div id="theater-player-mount"></div>
-        </div>
-        <div class="stage-info-bar">
-          <div class="stage-info-text">
-            <h4>Youth Innovations Marketplace Live Keynote</h4>
-            <p>Everyone in the hall sees this broadcast together. Audio in the 3D hall fades as you walk away from the stage.</p>
-          </div>
-          <form class="stage-url-box" id="stage-url-form">
-            <input type="url" id="custom-yt-input" inputmode="url" placeholder="Paste a YouTube video URL…" aria-label="YouTube video URL" />
-            <button id="change-yt-btn" class="primary-btn btn-sm" type="submit">Load Stream</button>
-          </form>
-        </div>
-      </div>
-      <div class="modal-footer">
-        <span class="esc-hint desktop-only">Press <strong>Esc</strong> to return to walking</span>
-        <button class="secondary-btn" data-close="stage-modal">Close Theater View</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Mobile Virtual Touch Joystick & Action Buttons -->
-  <div id="mobile-controls">
-    <div id="joystick-zone">
-      <div id="joystick-base">
-        <div id="joystick-knob"></div>
-      </div>
-    </div>
-    <div id="mobile-actions">
-      <div class="touch-row">
-        <button id="mobile-stand-btn" class="touch-btn touch-btn-stand hidden" title="Stand Up">🚶</button>
-      </div>
-      <button id="mobile-interact-btn" class="touch-btn touch-btn-primary" title="Interact">🎯</button>
-    </div>
-  </div>
-
-  <script type="module" src="/src/main.js"></script>
+  <!-- Custom JavaScript -->
+  <script src="landing/app.js?v=7"></script>
 </body>
 </html>

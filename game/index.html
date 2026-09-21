@@ -1,0 +1,564 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="theme-color" content="#060911" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <title>Virtual Marketplace | Youth Innovations Marketplace 3D</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23060911'/%3E%3Ccircle cx='32' cy='32' r='18' fill='none' stroke='%2300d4ff' stroke-width='5'/%3E%3Ccircle cx='32' cy='32' r='6' fill='%23f59e0b'/%3E%3C/svg%3E" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/src/style.css" />
+  <script src="https://www.youtube.com/iframe_api"></script>
+</head>
+<body>
+  <!-- 3D Canvas Container (also the touch-look surface on mobile) -->
+  <div id="canvas-container"></div>
+
+  <!-- Center Crosshair -->
+  <div id="crosshair" aria-hidden="true">
+    <div class="cross-dot"></div>
+  </div>
+
+  <!-- Top Header HUD -->
+  <header id="top-hud">
+    <div class="hud-brand">
+      <a href="/" id="back-to-event" class="brand-badge" style="text-decoration:none;color:inherit;cursor:pointer;display:inline-flex;align-items:center;gap:6px;" title="Back to Event Page">
+        <span style="font-size:0.85em;">←</span> Event Page
+      </a>
+      <div class="brand-text">
+        <h1>Diplomatic Main Hall</h1>
+        <p>Youth Innovations Marketplace • Marriott Manila</p>
+      </div>
+    </div>
+    <nav class="hud-stats" aria-label="Hall controls">
+      <div id="multiplayer-badge" class="stat-pill" title="Live Delegates in Hall">
+        <span class="pill-icon">👥</span>
+        <span class="pill-value" id="online-count">1</span>
+        <span class="pill-label">Online</span>
+      </div>
+      <button id="stage-stream-btn" class="stat-pill live-pill clickable" title="Watch Stage Stream in Theater Mode" aria-label="Watch live stage stream">
+        <span class="pill-icon compact-only">📺</span>
+        <span class="pill-label">Live Stage</span>
+      </button>
+      <button id="passport-btn" class="stat-pill clickable" title="Open Expo Passport (P)" aria-label="Open expo passport">
+        <span class="pill-icon">🌟</span>
+        <span class="pill-label">Passport</span>
+        <span class="pill-value"><span id="stamps-count">0</span>/20</span>
+      </button>
+      <button id="teleport-btn" class="stat-pill clickable" title="Quick Jump Locations (T)" aria-label="Quick jump locations">
+        <span class="pill-icon">📍</span>
+        <span class="pill-label">Jump</span>
+      </button>
+      <button id="audio-toggle" class="icon-btn" title="Toggle Sound / Ambience (M)" aria-label="Toggle sound" aria-pressed="true">🔊</button>
+      <button id="fullscreen-btn" class="icon-btn" title="Toggle Fullscreen (F)" aria-label="Toggle fullscreen">⛶</button>
+      <button id="help-btn" class="icon-btn" title="Controls Help (?)" aria-label="Show controls help">❓</button>
+    </nav>
+  </header>
+
+  <!-- Minimap Radar -->
+  <aside id="minimap-container" aria-label="Floor radar">
+    <button class="minimap-header" id="minimap-toggle" title="Collapse / expand radar" aria-expanded="true">
+      <span>FLOOR RADAR</span>
+      <span class="minimap-sub">Tap a booth to track</span>
+      <span class="minimap-chevron" aria-hidden="true">▾</span>
+    </button>
+    <div class="minimap-body">
+      <canvas id="minimap-canvas" width="200" height="200"></canvas>
+      <div class="minimap-legend">
+        <span><span class="legend-dot player"></span> You</span>
+        <span><span class="legend-dot booth"></span> Booth</span>
+        <span><span class="legend-dot visited"></span> Visited</span>
+        <span><span class="legend-dot stage"></span> Stage</span>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Active Waypoint Distance HUD -->
+  <div id="waypoint-hud" class="hidden" role="status">
+    <div class="waypoint-arrow" id="waypoint-arrow" aria-hidden="true">➤</div>
+    <div class="waypoint-text">
+      <span id="waypoint-name">Target: Booth 01</span>
+      <span id="waypoint-dist" class="waypoint-dist">12.4m</span>
+    </div>
+    <button id="waypoint-clear" class="waypoint-close" title="Clear target" aria-label="Clear target">✕</button>
+  </div>
+
+  <!-- Floating Proximity Action Prompt -->
+  <button id="proximity-prompt" class="hidden" type="button" aria-live="polite">
+    <span class="key-badge" id="prompt-key">E</span>
+    <span class="prompt-info">
+      <span class="prompt-title" id="prompt-booth-name">Booth 01</span>
+      <span class="prompt-sub" id="prompt-booth-cat">Press E to interact</span>
+    </span>
+  </button>
+
+  <!-- Sitting Status Banner -->
+  <div id="sitting-hud" class="hidden" role="status">
+    <div class="sitting-badge">🪑 SEATED</div>
+    <div class="sitting-text">
+      <span>Watching Stage Keynote</span>
+      <small class="desktop-only">Press [Space], [W], or [E] to stand up</small>
+      <small class="touch-only">Move the joystick or tap Stand to get up</small>
+    </div>
+    <button id="stand-up-btn" class="stand-btn">Stand Up</button>
+  </div>
+
+  <!-- Toast Notifications -->
+  <div id="toast-stack" aria-live="polite" aria-atomic="false"></div>
+
+  <!-- Start / Pause / Help Overlay -->
+  <div id="blocker" data-mode="welcome">
+    <div id="instructions">
+      <div class="welcome-card">
+        <div class="welcome-badge" id="blocker-badge">FIRST-PERSON 3D EXPO</div>
+        <h2 id="blocker-title">Youth Innovations Marketplace</h2>
+        <p class="venue-subtitle">Diplomatic Main Hall · Marriott Hotel Manila · 17 Nov 2026</p>
+        <p class="welcome-lead" id="blocker-lead">
+          Walk the digital companion hall: visit 20 youth innovation booths, collect passport stamps, ask Tutu about the event &amp; safeguarding, and leave a pledge on the Commitment Wall.
+        </p>
+
+        <div class="welcome-highlights" aria-label="What you can do">
+          <div class="welcome-chip"><span class="welcome-chip-ico" aria-hidden="true">🎪</span><span>20 booths</span></div>
+          <div class="welcome-chip"><span class="welcome-chip-ico" aria-hidden="true">🐘</span><span>Ask Tutu</span></div>
+          <div class="welcome-chip"><span class="welcome-chip-ico" aria-hidden="true">🛂</span><span>Passport</span></div>
+          <div class="welcome-chip"><span class="welcome-chip-ico" aria-hidden="true">🛡️</span><span>Safeguarding</span></div>
+        </div>
+
+        <p class="welcome-section-label desktop-only">Desktop controls</p>
+        <div class="instructions-grid desktop-only" aria-label="Desktop controls">
+          <div class="inst-item">
+            <span class="inst-ico" aria-hidden="true">🚶</span>
+            <span class="inst-key">W A S D</span>
+            <span class="inst-desc">Walk the hall</span>
+          </div>
+          <div class="inst-item">
+            <span class="inst-ico" aria-hidden="true">👀</span>
+            <span class="inst-key">MOUSE</span>
+            <span class="inst-desc">Look around</span>
+          </div>
+          <div class="inst-item">
+            <span class="inst-ico" aria-hidden="true">🤝</span>
+            <span class="inst-key">E</span>
+            <span class="inst-desc">Interact / Ask Tutu</span>
+          </div>
+          <div class="inst-item">
+            <span class="inst-ico" aria-hidden="true">📺</span>
+            <span class="inst-key">CLICK TV</span>
+            <span class="inst-desc">Watch with sound</span>
+          </div>
+          <div class="inst-item">
+            <span class="inst-ico" aria-hidden="true">🛂</span>
+            <span class="inst-key">P · T · M</span>
+            <span class="inst-desc">Passport · Teleport · Mute</span>
+          </div>
+          <div class="inst-item">
+            <span class="inst-ico" aria-hidden="true">⏸️</span>
+            <span class="inst-key">ESC · R · F</span>
+            <span class="inst-desc">Pause · Entrance · Fullscreen</span>
+          </div>
+        </div>
+
+        <p class="welcome-section-label touch-only">Tablet &amp; kiosk controls</p>
+        <div class="instructions-grid touch-only" aria-label="Touch controls">
+          <div class="inst-item">
+            <span class="inst-ico" aria-hidden="true">🕹️</span>
+            <span class="inst-key">JOYSTICK</span>
+            <span class="inst-desc">Walk with left stick</span>
+          </div>
+          <div class="inst-item">
+            <span class="inst-ico" aria-hidden="true">👆</span>
+            <span class="inst-key">DRAG</span>
+            <span class="inst-desc">Look around the hall</span>
+          </div>
+          <div class="inst-item">
+            <span class="inst-ico" aria-hidden="true">🎯</span>
+            <span class="inst-key">TAP</span>
+            <span class="inst-desc">Prompt or 🎯 to interact</span>
+          </div>
+          <div class="inst-item">
+            <span class="inst-ico" aria-hidden="true">📺</span>
+            <span class="inst-key">TV</span>
+            <span class="inst-desc">Tap booth TV for sound</span>
+          </div>
+          <div class="inst-item">
+            <span class="inst-ico" aria-hidden="true">🛂</span>
+            <span class="inst-key">HUD</span>
+            <span class="inst-desc">Passport · Teleport · Mute</span>
+          </div>
+          <div class="inst-item">
+            <span class="inst-ico" aria-hidden="true">🪑</span>
+            <span class="inst-key">SEAT</span>
+            <span class="inst-desc">Sit near stage · Stand to leave</span>
+          </div>
+        </div>
+
+        <div id="load-status" class="load-status" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+          <div class="load-bar"><div class="load-bar-fill" id="load-bar-fill"></div></div>
+          <span class="load-text" id="load-text">Preparing the venue…</span>
+        </div>
+
+        <button id="start-btn" class="primary-btn" disabled>
+          <span id="start-btn-label">LOADING VENUE</span>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+        </button>
+        <p class="click-note desktop-only" id="blocker-note">Click the button or press Enter to lock the cursor and start walking.</p>
+        <p class="click-note touch-only" id="blocker-note-touch">Tip: rotate to landscape and use fullscreen for the best kiosk experience.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Booth Detail Modal Dialog -->
+  <div id="booth-modal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="modal-booth-title">
+    <div class="modal-card">
+      <button class="modal-close-btn" data-close="booth-modal" title="Close (Esc)" aria-label="Close">✕</button>
+
+      <div class="modal-header">
+        <div class="modal-booth-badge" id="modal-booth-id">01</div>
+        <div class="modal-header-info">
+          <h2 id="modal-booth-title">Youth Clean Energy Hub</h2>
+          <div class="header-pills">
+            <span class="category-pill" id="modal-booth-category">Innovation</span>
+            <span class="category-pill gold-pill hidden" id="modal-quiz-pill">🏅 Quiz passed</span>
+          </div>
+        </div>
+        <button id="modal-heart-btn" class="heart-btn" title="Give a Heart" aria-pressed="false">
+          <span class="heart-icon">❤️</span> <span id="modal-heart-count">12</span>
+        </button>
+      </div>
+
+      <!-- Navigation Tabs -->
+      <div class="modal-tabs" role="tablist">
+        <button class="tab-btn active" data-tab="tab-overview" role="tab">Overview</button>
+        <button class="tab-btn" data-tab="tab-media" role="tab">Project Media</button>
+        <button class="tab-btn" data-tab="tab-quiz" role="tab">Quiz <span class="tab-dot" id="quiz-tab-dot" aria-hidden="true"></span></button>
+      </div>
+
+      <!-- Tab Contents -->
+      <div class="tab-content" id="tab-overview">
+        <div class="placeholder-note hidden" id="modal-placeholder-note">
+          🛠️ This exhibitor is still setting up. Full project details, media and team contacts are coming soon.
+        </div>
+        <div class="overview-box">
+          <h3>Project Summary</h3>
+          <p id="modal-overview-text">Loading booth details...</p>
+        </div>
+        <div class="stats-grid" id="modal-stats-grid"></div>
+        <div class="links-box" id="modal-links-box"></div>
+        <div class="socials-box" id="modal-socials-box"></div>
+        <div class="booth-comments" id="booth-comments">
+          <h3 class="booth-comments-title">Visitor notes</h3>
+          <div class="booth-comments-list" id="booth-comments-list"></div>
+          <form class="booth-comment-form" id="booth-comment-form">
+            <label class="sr-only" for="booth-comment-input">Leave a short note</label>
+            <input id="booth-comment-input" type="text" maxlength="200" placeholder="Leave a short note for the team…" autocomplete="off" />
+            <button type="submit" class="secondary-btn btn-xs" id="booth-comment-submit">Post</button>
+          </form>
+          <p class="booth-comment-hint" id="booth-comment-hint"></p>
+        </div>
+      </div>
+
+      <div class="tab-content hidden" id="tab-media">
+        <div class="media-container">
+          <div class="media-video-wrapper tv-wrapper" id="modal-tv-wrapper">
+            <span class="tv-badge">📺 BOOTH TV</span>
+            <video id="modal-tv-video" controls playsinline preload="metadata" aria-label="Booth TV video"></video>
+          </div>
+          <p class="media-caption">Booth TV loop — sound plays only here in the pop-up. Click the TV in the hall to open it playing.</p>
+          <div class="media-video-wrapper hidden" id="modal-video-wrapper">
+            <div id="modal-video-mount"></div>
+          </div>
+          <div class="media-screen" id="modal-media-screen">
+            <img id="modal-screen-img" src="" alt="Booth display terminal" loading="lazy" />
+          </div>
+          <p class="media-caption">Presentation terminal at Booth #<span id="modal-media-id">01</span></p>
+        </div>
+      </div>
+
+      <div class="tab-content hidden" id="tab-quiz">
+        <div class="quiz-container" id="quiz-container">
+          <div class="quiz-header">
+            <h3 id="quiz-title">Booth Challenge</h3>
+            <p class="quiz-desc" id="quiz-desc">Answer the questions about this innovation to earn a gold passport stamp!</p>
+          </div>
+          <div id="quiz-questions-list"></div>
+          <div id="quiz-result" class="quiz-result hidden"></div>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <span class="esc-hint desktop-only">Press <strong>Esc</strong> to return to walking</span>
+        <div class="footer-actions">
+          <button id="modal-next-booth-btn" class="secondary-btn accent-btn">🎯 Track next unvisited</button>
+          <button class="secondary-btn" data-close="booth-modal">Close Exhibit</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Organizer Booth / Mascot Info Modal (content filled by main.js) -->
+  <div id="org-modal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="org-modal-title">
+    <div class="modal-card">
+      <button class="modal-close-btn" data-close="org-modal" title="Close (Esc)" aria-label="Close">✕</button>
+      <div class="modal-header">
+        <div class="modal-booth-badge org-badge" id="org-modal-badge">TdH</div>
+        <div class="modal-header-info">
+          <h2 id="org-modal-title">Organizer</h2>
+          <div class="header-pills">
+            <span class="category-pill" id="org-modal-kicker">ORGANIZER BOOTH</span>
+            <span class="category-pill gold-pill" id="org-modal-sub"></span>
+          </div>
+        </div>
+      </div>
+      <div class="media-video-wrapper tv-wrapper hidden" id="org-video-wrapper">
+        <span class="tv-badge">📺 BOOTH TV</span>
+        <video id="org-tv-video" controls playsinline preload="metadata" aria-label="Organizer booth TV video"></video>
+      </div>
+      <div class="overview-box">
+        <h3 id="org-modal-heading">About</h3>
+        <p id="org-modal-text"></p>
+      </div>
+      <div id="tutu-faq" class="tutu-faq hidden">
+        <div class="tutu-faq-tabs" id="tutu-faq-tabs" role="tablist" aria-label="Ask Tutu topics"></div>
+        <div class="tutu-faq-list" id="tutu-faq-list"></div>
+      </div>
+      <div class="stats-grid" id="org-modal-stats"></div>
+      <div class="links-box" id="org-modal-links"></div>
+      <div class="modal-footer">
+        <span class="esc-hint desktop-only">Press <strong>Esc</strong> to return to walking</span>
+        <button class="secondary-btn" data-close="org-modal">Back to Walk</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Welcome Desk / Venue Guide Modal -->
+  <div id="desk-modal" class="modal-overlay hidden" role="dialog" aria-modal="true">
+    <div class="modal-card">
+      <button class="modal-close-btn" data-close="desk-modal" title="Close (Esc)" aria-label="Close">✕</button>
+      <div class="modal-header">
+        <div class="modal-booth-badge info-badge">ℹ️</div>
+        <div class="modal-header-info">
+          <h2>Reception &amp; Welcome Desk</h2>
+          <span class="category-pill">Diplomatic Foyer</span>
+        </div>
+      </div>
+      <div class="overview-box">
+        <h3>About the Venue &amp; Event</h3>
+        <p>Welcome to the <strong>Youth Innovations Marketplace</strong> at the Diplomatic Main Hall, Manila Marriott Hotel. This marketplace brings together 20 youth-led satellite innovation teams solving real-world challenges across climate tech, community health, education, and digital inclusion.</p>
+      </div>
+      <div class="venue-guide-grid">
+        <div class="guide-card">
+          <h4>🎪 20 Innovation Booths</h4>
+          <p>Two double-sided booth rows flank the center aisle. Booths 01–05 and 11–15 face the center aisle; walk around to the outer aisles for 06–10 and 16–20.</p>
+        </div>
+        <div class="guide-card">
+          <h4>📺 Booth TVs</h4>
+          <p>Every booth has a TV looping its video silently. Click or tap a TV (or press E while looking at it) to open it in a pop-up with sound.</p>
+        </div>
+        <div class="guide-card">
+          <h4>🏛️ Organizer Booths &amp; Mascots</h4>
+          <p>Terre des hommes, Kindernothilfe and Violence Ends With Us (VEWU) have their stands along the east side of the Pre-Function Foyer. Say hello to Tutu the Tdh elephant and the VEWU lighthouse on the way.</p>
+        </div>
+        <div class="guide-card">
+          <h4>🎤 Stage &amp; Keynote Screen</h4>
+          <p>On the North wall with continuous live presentations. Take a VIP seat to watch with full audio.</p>
+        </div>
+        <div class="guide-card">
+          <h4>📝 Commitment Wall</h4>
+          <p>In the Pre-Function Foyer, across from this desk. Post your pledge for youth leadership and sustainability — it's pinned on the 3D wall for every visitor in the hall.</p>
+        </div>
+        <div class="guide-card">
+          <h4>🌟 Digital Passport</h4>
+          <p>Visit all 20 exhibits and pass their quizzes to complete your passport. Tap a booth on the radar to track it.</p>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <span class="esc-hint desktop-only">Press <strong>Esc</strong> to return to walking</span>
+        <button class="secondary-btn" data-close="desk-modal">Start Exploring</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Commitment Wall Modal -->
+  <div id="pledge-modal" class="modal-overlay hidden" role="dialog" aria-modal="true">
+    <div class="modal-card">
+      <button class="modal-close-btn" data-close="pledge-modal" title="Close (Esc)" aria-label="Close">✕</button>
+      <div class="modal-header">
+        <div class="modal-booth-badge pledge-badge">✍️</div>
+        <div class="modal-header-info">
+          <h2>Youth Commitment &amp; Pledge Wall</h2>
+          <span class="category-pill">Interactive Delegate Wall</span>
+        </div>
+      </div>
+
+      <div class="pledge-form">
+        <label for="pledge-input">Write your commitment or message of support:</label>
+        <textarea id="pledge-input" rows="3" maxlength="160" placeholder="e.g., I commit to mentoring 5 young coders in my community this year!"></textarea>
+        <div class="pledge-meta">
+          <span class="char-count"><span id="pledge-char-count">0</span>/160</span>
+        </div>
+
+        <div class="color-picker-row">
+          <div class="color-options" role="radiogroup" aria-label="Sticky note color">
+            <button class="color-opt active" data-color="#fef08a" style="background:#fef08a" aria-label="Yellow"></button>
+            <button class="color-opt" data-color="#bbf7d0" style="background:#bbf7d0" aria-label="Green"></button>
+            <button class="color-opt" data-color="#fbcfe8" style="background:#fbcfe8" aria-label="Pink"></button>
+            <button class="color-opt" data-color="#bfdbfe" style="background:#bfdbfe" aria-label="Blue"></button>
+            <button class="color-opt" data-color="#fed7aa" style="background:#fed7aa" aria-label="Orange"></button>
+          </div>
+          <button id="submit-pledge-btn" class="primary-btn btn-sm">Post to Wall</button>
+        </div>
+      </div>
+
+      <div class="pledges-board-section">
+        <h3>Live Wall Pledges <span class="count-chip" id="pledge-count">0</span></h3>
+        <p class="pledge-wall-note" id="pledge-wall-note"></p>
+        <div class="pledges-grid" id="pledges-grid"></div>
+      </div>
+
+      <div class="modal-footer">
+        <span class="esc-hint desktop-only">Press <strong>Esc</strong> to return</span>
+        <button class="secondary-btn" data-close="pledge-modal">Back to Walk</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Passport Modal -->
+  <div id="passport-modal" class="modal-overlay hidden" role="dialog" aria-modal="true">
+    <div class="modal-card wide-card">
+      <button class="modal-close-btn" data-close="passport-modal" title="Close (Esc)" aria-label="Close">✕</button>
+      <div class="modal-header">
+        <div class="modal-booth-badge gold-badge">🌟</div>
+        <div class="modal-header-info">
+          <h2>Marketplace Expo Passport</h2>
+          <div class="header-pills">
+            <span class="category-pill" id="passport-progress-pill">0 of 20 Visited</span>
+            <span class="category-pill gold-pill" id="passport-quiz-pill">0 Quizzes passed</span>
+          </div>
+        </div>
+        <button id="passport-next-btn" class="secondary-btn accent-btn btn-xs">🎯 Nearest unvisited</button>
+      </div>
+
+      <div class="passport-progress-bar">
+        <div class="passport-fill" id="passport-bar-fill" style="width: 0%"></div>
+      </div>
+      <p class="passport-legend">Tap any booth to track it on the radar · ⭐ Visited · 🏅 Quiz passed</p>
+
+      <div class="passport-grid" id="passport-grid"></div>
+
+      <div class="modal-footer">
+        <span class="esc-hint desktop-only">Press <strong>Esc</strong> to return</span>
+        <button class="secondary-btn" data-close="passport-modal">Close Passport</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Teleport Quick Jump Menu -->
+  <div id="teleport-modal" class="modal-overlay hidden" role="dialog" aria-modal="true">
+    <div class="modal-card small-card">
+      <button class="modal-close-btn" data-close="teleport-modal" title="Close (Esc)" aria-label="Close">✕</button>
+      <div class="modal-header">
+        <div class="modal-booth-badge jump-badge">🚀</div>
+        <div class="modal-header-info">
+          <h2>Quick Jump Locations</h2>
+          <span class="category-pill">Fast Travel</span>
+        </div>
+      </div>
+
+      <div class="jump-list">
+        <button class="jump-btn" data-pos="9.68,1.45,-2.5" data-yaw="0">
+          <span class="jump-icon">🚪</span>
+          <span class="jump-body"><span class="jump-title">South Entrance</span><span class="jump-sub">Main Hall Arrival (Facing Stage)</span></span>
+        </button>
+        <button class="jump-btn" data-pos="11.6,1.45,-8.96" data-yaw="-1.5708">
+          <span class="jump-icon">🎪</span>
+          <span class="jump-body"><span class="jump-title">Center Aisle · Right (01–05)</span><span class="jump-sub">Innovation Row</span></span>
+        </button>
+        <button class="jump-btn" data-pos="15.9,1.45,-8.96" data-yaw="1.5708">
+          <span class="jump-icon">🌱</span>
+          <span class="jump-body"><span class="jump-title">East Aisle · Right (06–10)</span><span class="jump-sub">GreenTech Row</span></span>
+        </button>
+        <button class="jump-btn" data-pos="8.6,1.45,-8.99" data-yaw="1.5708">
+          <span class="jump-icon">💡</span>
+          <span class="jump-body"><span class="jump-title">Center Aisle · Left (11–15)</span><span class="jump-sub">EdTech &amp; Health Row</span></span>
+        </button>
+        <button class="jump-btn" data-pos="4.4,1.45,-8.99" data-yaw="-1.5708">
+          <span class="jump-icon">🎨</span>
+          <span class="jump-body"><span class="jump-title">West Aisle · Left (16–20)</span><span class="jump-sub">Health &amp; Creative Row</span></span>
+        </button>
+        <button class="jump-btn" data-pos="9.68,1.45,-17.2" data-yaw="0">
+          <span class="jump-icon">🎤</span>
+          <span class="jump-body"><span class="jump-title">Stage &amp; Audience Seating</span><span class="jump-sub">Theater &amp; Keynote Screen</span></span>
+        </button>
+        <button class="jump-btn" data-pos="22.3,1.45,-9.9" data-yaw="-1.5708">
+          <span class="jump-icon">🏛️</span>
+          <span class="jump-body"><span class="jump-title">Organizer Booths</span><span class="jump-sub">Tdh · KNH · VEWU &amp; mascots (Foyer)</span></span>
+        </button>
+        <button class="jump-btn" data-pos="22.5,1.45,-14.0" data-yaw="0">
+          <span class="jump-icon">☕</span>
+          <span class="jump-body"><span class="jump-title">Pre-Function Foyer</span><span class="jump-sub">Welcome Desk &amp; Pledge Wall</span></span>
+        </button>
+      </div>
+
+      <div class="modal-footer">
+        <span class="esc-hint desktop-only">Press <strong>Esc</strong> to close</span>
+        <button class="secondary-btn" data-close="teleport-modal">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Stage Screen Theater Modal -->
+  <div id="stage-modal" class="modal-overlay hidden" role="dialog" aria-modal="true">
+    <div class="modal-card wide-card stage-modal-card">
+      <button class="modal-close-btn" data-close="stage-modal" title="Close (Esc)" aria-label="Close">✕</button>
+      <div class="modal-header">
+        <div class="modal-booth-badge live-badge">LIVE</div>
+        <div class="modal-header-info">
+          <h2>Diplomatic Hall Keynote Broadcast</h2>
+          <span class="category-pill">Stage Screen • Shared Live View</span>
+        </div>
+      </div>
+      <div class="stage-theater-body">
+        <div class="theater-video-wrapper">
+          <div id="theater-player-mount"></div>
+        </div>
+        <div class="stage-info-bar">
+          <div class="stage-info-text">
+            <h4>Youth Innovations Marketplace Live Keynote</h4>
+            <p>Everyone in the hall sees this broadcast together. Audio in the 3D hall fades as you walk away from the stage.</p>
+          </div>
+          <form class="stage-url-box" id="stage-url-form">
+            <input type="url" id="custom-yt-input" inputmode="url" placeholder="Paste a YouTube video URL…" aria-label="YouTube video URL" />
+            <button id="change-yt-btn" class="primary-btn btn-sm" type="submit">Load Stream</button>
+          </form>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <span class="esc-hint desktop-only">Press <strong>Esc</strong> to return to walking</span>
+        <button class="secondary-btn" data-close="stage-modal">Close Theater View</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Mobile Virtual Touch Joystick & Action Buttons -->
+  <div id="mobile-controls">
+    <div id="joystick-zone">
+      <div id="joystick-base">
+        <div id="joystick-knob"></div>
+      </div>
+    </div>
+    <div id="mobile-actions">
+      <div class="touch-row">
+        <button id="mobile-stand-btn" class="touch-btn touch-btn-stand hidden" title="Stand Up">🚶</button>
+      </div>
+      <button id="mobile-interact-btn" class="touch-btn touch-btn-primary" title="Interact">🎯</button>
+    </div>
+  </div>
+
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>

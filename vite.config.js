@@ -24,6 +24,24 @@ function copyTexturesPlugin() {
   };
 }
 
+/**
+ * Copy the landing page static assets (styles, JS, images) into the dist folder.
+ * The landing page is pure HTML/CSS/JS with no Vite processing needed for its assets.
+ */
+function copyLandingAssetsPlugin() {
+  return {
+    name: 'copy-landing-assets',
+    apply: 'build',
+    closeBundle() {
+      const src = resolve(rootDir, 'landing');
+      const dest = resolve(rootDir, 'dist', 'landing');
+      if (existsSync(src)) {
+        cpSync(src, dest, { recursive: true });
+      }
+    },
+  };
+}
+
 const presencePort = process.env.PRESENCE_PORT || '8787';
 
 // Same-origin `/presence` is forwarded to the presence server (start it with `npm run server`,
@@ -57,7 +75,7 @@ const presenceProxy = {
 };
 
 export default defineConfig({
-  plugins: [copyTexturesPlugin()],
+  plugins: [copyTexturesPlugin(), copyLandingAssetsPlugin()],
   define: {
     // Lets the client fall back to a direct connection when the dev proxy isn't in front of it
     // (e.g. `vite preview`, or a phone opening the LAN URL while the proxy target is down).
@@ -67,6 +85,7 @@ export default defineConfig({
     rollupOptions: {
       input: {
         main: resolve(rootDir, 'index.html'),
+        game: resolve(rootDir, 'game/index.html'),
         analytics: resolve(rootDir, 'analytics.html'),
       },
     },
