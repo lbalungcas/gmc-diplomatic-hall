@@ -5,8 +5,11 @@ import { CSS3DRenderer, CSS3DObject } from 'three/examples/jsm/renderers/CSS3DRe
 import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
 import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js';
-import { FXAAShader } from 'three/examples/jsm/shaders/FXAAShader.js';
 import { RectAreaLightUniformsLib } from 'three/examples/jsm/lights/RectAreaLightUniformsLib.js';
+import { SMAAPass } from 'three/examples/jsm/postprocessing/SMAAPass.js';
+import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
+import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
+import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
 import boothsData from './data/booths.json';
 import organizersData from './data/organizers.json';
 import mascotsData from './data/mascots.json';
@@ -16,6 +19,8 @@ import { track } from './modules/analytics.js';
 import { buildOrganizerBooth, organizerObstacles, TV_W, TV_H } from './modules/organizers.js';
 import { createMascots } from './modules/mascots3d.js';
 import { buildWelcomeDesk } from './modules/welcomeDesk.js';
+import { createPerfHud, isPerfHudEnabled } from './modules/perfHud.js';
+import { createAdaptiveQuality } from './modules/adaptiveQuality.js';
 
 // --- State Variables ---
 let scene, camera, renderer, clock;
@@ -34,6 +39,12 @@ const openModals = new Set();
 
 // Post-processing (desktop only)
 let composer = null;
+
+// Dev-only perf overlay (?stats=1) — see src/modules/perfHud.js
+let perfHud = null;
+
+// Measures delivered frame time and steps quality down/up — see src/modules/adaptiveQuality.js
+let quality = null;
 
 // Ambient dust mote particles (desktop only)
 let dustParticles = null;
@@ -432,7 +443,9 @@ function init() {
   renderer.shadowMap.enabled = !isLowPowerDevice;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 0.85;
+  // Re-tuned upwards: with the ambient flood removed the scene has real dynamic range again,
+  // and ACES needs more headroom to land the highlights.
+  renderer.toneMappingExposure = 1.15;
   renderer.domElement.id = 'webgl-canvas';
   Object.assign(renderer.domElement.style, {
     position: 'absolute', top: '0', left: '0', width: '100%', height: '100%',
@@ -444,21 +457,24 @@ function init() {
   container.appendChild(cssRenderer.domElement);
   container.appendChild(renderer.domElement);
 
-  // Post-processing (desktop only): subtle vignette + FXAA for cleaner edges
+  // Post-processing (desktop only).
+  //
+  // Three things were wrong with the previous chain. EffectComposer builds its render targets
+  // without a `samples` count, so the renderer's `antialias: true` was silently discarded the
+  // moment the composer path was taken and only FXAA remained. Tone mapping ran inside
+  // RenderPass (three applies it per-material), so the vignette was multiplying already
+  // tone-mapped values instead of linear light. And there was no OutputPass, so the chain had
+  // no single place where HDR became display-referred.
+  //
+  // Now: MSAA on the target, every pass operates on linear HDR, and OutputPass applies ACES
+  // and the sRGB transfer once, at the end.
   if (!isLowPowerDevice) {
     composer = new EffectComposer(renderer);
+    composer.renderTarget1.samples = 4;
+    composer.renderTarget2.samples = 4;
     composer.addPass(new RenderPass(scene, camera));
 
-    // FXAA pass — catches sub-pixel shimmer on thin geometry & booth panel edges
-    const fxaaPass = new ShaderPass(FXAAShader);
-    const pixelRatio = renderer.getPixelRatio();
-    fxaaPass.material.uniforms['resolution'].value.set(
-      1 / (window.innerWidth * pixelRatio),
-      1 / (window.innerHeight * pixelRatio)
-    );
-    composer.addPass(fxaaPass);
-
-    // Subtle vignette pass — darkens edges ~8–10% for cinematic depth focus
+    // Vignette, applied in linear space ahead of tone mapping.
     const VignetteShader = {
       uniforms: {
         tDiffuse: { value: null },
@@ -484,9 +500,16 @@ function init() {
     vignettePass.material.uniforms['offset'].value = 0.95;
     vignettePass.material.uniforms['darkness'].value = 1.15;
     composer.addPass(vignettePass);
+
+    // SMAA reconstructs edges rather than blurring across them the way FXAA does, which the
+    // hall's long booth-panel and door-frame lines show up immediately.
+    const pr = renderer.getPixelRatio();
+    composer.addPass(new SMAAPass(window.innerWidth * pr, window.innerHeight * pr));
+
+    composer.addPass(new OutputPass());
   }
 
-  // Procedural environment cubemap for realistic tile/metal reflections
+  // Image-based lighting. Needs `renderer`, so it must come after the renderer exists.
   generateEnvMap();
 
   addVenueLighting();
@@ -496,6 +519,7 @@ function init() {
   createOrganizerBooths();
   createHallMascots();
   createWelcomeDesk();
+  createContactShadows();
   setupStageYouTubeScreen();
   setupPolicyWall();
   initMultiplayer();
@@ -507,6 +531,16 @@ function init() {
   window.addEventListener('orientationchange', () => setTimeout(onWindowResize, 150));
   if (window.visualViewport) window.visualViewport.addEventListener('resize', onWindowResize);
 
+  // Start from whatever the static heuristics chose, then let measured frame time take over.
+  quality = createAdaptiveQuality(renderer, composer, {
+    targetFps: 60,
+    maxPixelRatio: Math.min(window.devicePixelRatio, isLowPowerDevice ? 1.5 : 2),
+    minPixelRatio: 0.75,
+    onChange: (cfg) => console.info(`[quality] ${cfg.label} (dpr ${cfg.pixelRatio.toFixed(2)})`),
+  });
+
+  if (isPerfHudEnabled()) perfHud = createPerfHud(renderer);
+
   setupControls();
   setupMobileControls();
   setupHUD();
@@ -516,40 +550,31 @@ function init() {
   animate();
 }
 
-/** Generates a simple procedural environment cubemap for specular reflections. */
+/**
+ * Builds the image-based lighting environment.
+ *
+ * The previous implementation assembled a CubeTexture from six *identical* flat vertical
+ * gradients and never ran it through PMREM, so polished marble, the metal trim and the TV
+ * bezels had no real specular response to reflect — they just picked up a constant tint. It
+ * also allocated a WebGLCubeRenderTarget it never used.
+ *
+ * RoomEnvironment is a small box-lit room rendered once and prefiltered by PMREMGenerator into
+ * a proper roughness mip chain. Assigning it to `scene.environment` gives every PBR material
+ * in the venue plausible indirect light and reflections for one render at start-up, which is
+ * what lets the ambient flood below be turned down to almost nothing.
+ */
 function generateEnvMap() {
-  const size = 64;
-  const data = new Uint8Array(size * size * 4);
-  // Warm interior gradient: darker below, lighter above with soft warm tint
-  for (let y = 0; y < size; y++) {
-    for (let x = 0; x < size; x++) {
-      const i = (y * size + x) * 4;
-      const ny = y / size;
-      const r = Math.round(20 + ny * 40);
-      const g = Math.round(18 + ny * 35);
-      const b = Math.round(30 + ny * 55);
-      data[i] = r; data[i + 1] = g; data[i + 2] = b; data[i + 3] = 255;
-    }
-  }
-  const cubeTextures = [];
-  for (let face = 0; face < 6; face++) {
-    const tex = new THREE.DataTexture(data.slice(), size, size, THREE.RGBAFormat);
-    tex.needsUpdate = true;
-    cubeTextures.push(tex);
-  }
-  const cubeRT = new THREE.WebGLCubeRenderTarget(size);
-  // Build a cube texture from the 6 faces
-  const cubeTexture = new THREE.CubeTexture(cubeTextures.map(t => {
-    const canvas = document.createElement('canvas');
-    canvas.width = canvas.height = size;
-    const ctx = canvas.getContext('2d');
-    const imgData = ctx.createImageData(size, size);
-    imgData.data.set(data);
-    ctx.putImageData(imgData, 0, 0);
-    return canvas;
-  }));
-  cubeTexture.needsUpdate = true;
-  envMap = cubeTexture;
+  const pmrem = new THREE.PMREMGenerator(renderer);
+  pmrem.compileEquirectangularShader();
+
+  const room = new RoomEnvironment();
+  envMap = pmrem.fromScene(room, 0.04).texture;
+
+  scene.environment = envMap;
+  scene.environmentIntensity = isLowPowerDevice ? 0.70 : 0.85;
+
+  room.dispose();
+  pmrem.dispose();
 }
 
 /** Floating translucent dust motes drifting near the ceiling. */
@@ -601,11 +626,15 @@ function applyResponsiveFov() {
 
 // --- Enhanced Venue Lighting & Ceiling Illumination ---
 function addVenueLighting() {
-  const ambientLight = new THREE.AmbientLight(0xf8f2e6, isLowPowerDevice ? 0.85 : 0.80);
+  // Ambient and hemisphere used to run at 0.80 / 0.90 on top of fourteen point lights. That
+  // much uniform fill lands on every surface at the same strength regardless of orientation,
+  // which flattens exactly the shading gradients that read as depth. With `scene.environment`
+  // now carrying the indirect light (see generateEnvMap), these only need to lift the deepest
+  // shadows off pure black.
+  const ambientLight = new THREE.AmbientLight(0xf8f2e6, isLowPowerDevice ? 0.12 : 0.07);
   scene.add(ambientLight);
 
-  // Warmer ground color for softer indirect bounce light
-  const hemiLight = new THREE.HemisphereLight(0xfff6ea, 0x3a3648, isLowPowerDevice ? 0.95 : 0.90);
+  const hemiLight = new THREE.HemisphereLight(0xfff6ea, 0x2b2838, isLowPowerDevice ? 0.34 : 0.26);
   scene.add(hemiLight);
 
   const ceilingFixtures = [
@@ -616,10 +645,12 @@ function addVenueLighting() {
     [9.68, 3.4, -22.5],
   ];
 
-  // On low-power devices thin out the point lights (every other fixture) - fewer per-fragment lights.
+  // Every point light costs a per-fragment lighting term on every surface it reaches, and
+  // fourteen of them was the largest single shader cost in the hall. With the environment
+  // providing fill, a thinned set of brighter fixtures reads better *and* renders faster.
   ceilingFixtures.forEach(([x, y, z], idx) => {
     if (isLowPowerDevice && idx % 2 === 1) return;
-    const light = new THREE.PointLight(0xffedd5, isLowPowerDevice ? 1.4 : 1.25, isLowPowerDevice ? 14 : 12, 1.2);
+    const light = new THREE.PointLight(0xffe8cc, isLowPowerDevice ? 5.0 : 4.2, isLowPowerDevice ? 16 : 14, 1.6);
     light.position.set(x, y, z);
     scene.add(light);
   });
@@ -659,141 +690,86 @@ function addVenueLighting() {
   }
 }
 
-// --- Load GLB with PBR Material Enhancement ---
+// --- Load the venue GLB ---
+//
+// Everything about the materials now comes from the GLB itself. The previous version
+// re-downloaded nine normal and roughness PNGs with THREE.TextureLoader and assigned them by
+// matching substrings of material names — even though the very same images were already
+// embedded in the model. That was roughly 10 MB of redundant decode and a second copy of every
+// map in GPU memory. scripts/build_venue.py now bakes correct world-scale UVs and packed
+// ORM maps into the export, so the runtime's only job is to set filtering and shadow flags.
 function loadHallModel() {
-  const textureLoader = new THREE.TextureLoader();
-  
-  // Normal maps
-  const carpetNormal = textureLoader.load('/textures/carpet_normal.png');
-  carpetNormal.wrapS = carpetNormal.wrapT = THREE.RepeatWrapping;
-  carpetNormal.repeat.set(8, 10);
-  carpetNormal.anisotropy = 4;
-
-  const tileNormal = textureLoader.load('/textures/tile_normal.png');
-  tileNormal.wrapS = tileNormal.wrapT = THREE.RepeatWrapping;
-  tileNormal.repeat.set(4, 10);
-  tileNormal.anisotropy = 4;
-
-  const wallNormal = textureLoader.load('/textures/wall_normal.png');
-  wallNormal.wrapS = wallNormal.wrapT = THREE.RepeatWrapping;
-  wallNormal.repeat.set(6, 2);
-  wallNormal.anisotropy = 4;
-
-  const ceilingNormal = textureLoader.load('/textures/ceiling_normal.png');
-  ceilingNormal.wrapS = ceilingNormal.wrapT = THREE.RepeatWrapping;
-  ceilingNormal.repeat.set(16, 16);
-  ceilingNormal.anisotropy = 4;
-
-  const woodNormal = textureLoader.load('/textures/wood_stage_normal.png');
-  woodNormal.wrapS = woodNormal.wrapT = THREE.RepeatWrapping;
-  woodNormal.repeat.set(4, 4);
-
-  // Roughness maps
-  const carpetRoughness = textureLoader.load('/textures/carpet_roughness.png');
-  carpetRoughness.wrapS = carpetRoughness.wrapT = THREE.RepeatWrapping;
-  carpetRoughness.repeat.set(8, 10);
-
-  const tileRoughness = textureLoader.load('/textures/tile_roughness.png');
-  tileRoughness.wrapS = tileRoughness.wrapT = THREE.RepeatWrapping;
-  tileRoughness.repeat.set(4, 10);
-
-  const wallRoughness = textureLoader.load('/textures/wall_roughness.png');
-  wallRoughness.wrapS = wallRoughness.wrapT = THREE.RepeatWrapping;
-  wallRoughness.repeat.set(6, 2);
-
-  const ceilingRoughness = textureLoader.load('/textures/ceiling_roughness.png');
-  ceilingRoughness.wrapS = ceilingRoughness.wrapT = THREE.RepeatWrapping;
-  ceilingRoughness.repeat.set(16, 16);
-
-  const woodRoughness = textureLoader.load('/textures/wood_stage_roughness.png');
-  woodRoughness.wrapS = woodRoughness.wrapT = THREE.RepeatWrapping;
-  woodRoughness.repeat.set(4, 4);
-
-  setLoadProgress(null, 'Downloading venue model…');
+  setLoadProgress(null, 'Downloading venue…');
 
   const loader = new GLTFLoader();
+  // Geometry ships meshopt-compressed (see the export settings in scripts/build_venue.py).
+  loader.setMeshoptDecoder(MeshoptDecoder);
+
+  const maxAniso = renderer.capabilities.getMaxAnisotropy();
+
   loader.load('/models/diplomatic_hall.glb', (gltf) => {
     hallModel = gltf.scene;
 
-    const lightsToRemove = [];
-    hallModel.traverse((child) => {
-      if (child.isLight) lightsToRemove.push(child);
-    });
-    lightsToRemove.forEach(l => l.parent && l.parent.remove(l));
+    // The GLB is exported without lights or cameras now, but a stale model should still not be
+    // able to inject a second lighting rig on top of addVenueLighting().
+    const strays = [];
+    hallModel.traverse((child) => { if (child.isLight || child.isCamera) strays.push(child); });
+    strays.forEach(l => l.parent && l.parent.remove(l));
 
-    // Foyer furniture that is replaced at runtime
+    // Meshes the runtime replaces with its own procedural versions. build_venue.py drops these
+    // from the export, so this is now a guard against an older GLB rather than the mechanism.
     const HIDE_NODE_RE = /^(Table_C_Dressed|T_Desk(\.?001)?$|Welcome_Desk$|Commitment_Wall$)/;
     const SCREEN_MAT_RE = /^Mat_Booth_\d+_Screen$/;
-    let hiddenTables = 0;
-    hallModel.traverse((child) => {
-      if (HIDE_NODE_RE.test(child.name || '')) {
-        child.visible = false;
-        hiddenTables++;
-      }
-    });
-    if (hiddenTables === 0) console.warn('Snack tables not found in GLB — names may have changed.');
+
+    // Only props should cast shadows. Setting castShadow on the walls, floor and ceiling made
+    // the shadow pass re-render the entire hall every frame to light a single spot.
+    const NO_CAST_RE = /^(Hall_Floor|Corridor_Floor|Venue_Ceiling|Venue_Walls)$/;
+
+    const seen = new Set();
+    let meshes = 0;
 
     hallModel.traverse((child) => {
-      if (child.isMesh) {
-        child.castShadow = !isLowPowerDevice;
-        child.receiveShadow = true;
+      if (HIDE_NODE_RE.test(child.name || '')) child.visible = false;
+      if (!child.isMesh) return;
+      meshes++;
 
-        if (child.material) {
-          const mat = child.material;
-          const matName = (mat.name || '').toLowerCase();
-          const nodeName = (child.name || '').toLowerCase();
+      child.castShadow = !isLowPowerDevice && !NO_CAST_RE.test(child.parent?.name || child.name || '');
+      child.receiveShadow = true;
 
-          if (SCREEN_MAT_RE.test(mat.name || '')) {
-            child.visible = false;
-            return;
-          }
+      const mats = Array.isArray(child.material) ? child.material : [child.material];
+      for (const mat of mats) {
+        if (!mat || seen.has(mat.uuid)) continue;
+        seen.add(mat.uuid);
 
-          if (matName.includes('carpet')) {
-            mat.normalMap = carpetNormal;
-            mat.normalScale.set(0.6, 0.6);
-            mat.roughnessMap = carpetRoughness;
-            mat.roughness = Math.max(mat.roughness || 0, 0.88);
-          } else if (matName.includes('tile') || matName.includes('corridor')) {
-            mat.normalMap = tileNormal;
-            mat.normalScale.set(0.8, 0.8);
-            mat.roughnessMap = tileRoughness;
-            mat.roughness = 0.22;
-            mat.envMap = envMap;
-            mat.envMapIntensity = 1.2;
-            mat.metalness = 0.1;
-          } else if (matName.includes('wall') && !matName.includes('stage')) {
-            mat.normalMap = wallNormal;
-            mat.normalScale.set(0.7, 0.7);
-            mat.roughnessMap = wallRoughness;
-            mat.roughness = Math.max(mat.roughness || 0, 0.6);
-          } else if (matName.includes('stage') && matName.includes('wood')) {
-            mat.normalMap = woodNormal;
-            mat.normalScale.set(0.8, 0.8);
-            mat.roughnessMap = woodRoughness;
-            mat.roughness = 0.4;
-            mat.envMap = envMap;
-            mat.envMapIntensity = 0.5;
-            mat.metalness = 0.05;
-          }
+        if (SCREEN_MAT_RE.test(mat.name || '')) {
+          child.visible = false;
+          continue;
+        }
 
-          if (nodeName.includes('ceil') || matName.includes('ceil')) {
-            mat.side = THREE.DoubleSide;
-            mat.normalMap = ceilingNormal;
-            mat.normalScale.set(1.0, 1.0);
-            mat.roughnessMap = ceilingRoughness;
-            mat.roughness = 0.82;
-            mat.emissive = new THREE.Color(0x35312b);
-            mat.emissiveIntensity = 0.32;
-          }
-
-          if (mat.emissiveIntensity > 0.6 && !matName.includes('ceil')) {
-            mat.emissiveIntensity = Math.min(mat.emissiveIntensity, 0.4);
+        // Anisotropic filtering matters enormously here: the floors are large planes viewed at
+        // a grazing angle, which is the exact case trilinear mipmapping blurs into mush.
+        for (const key of ['map', 'normalMap', 'roughnessMap', 'metalnessMap', 'aoMap', 'emissiveMap']) {
+          const tex = mat[key];
+          if (tex) {
+            tex.anisotropy = maxAniso;
+            tex.needsUpdate = true;
           }
         }
+
+        // The ceiling plane is single-sided and faces down; it is also the only surface the
+        // player can end up looking at from above while teleporting.
+        if (/ceil/i.test(mat.name || '')) mat.side = THREE.DoubleSide;
       }
     });
 
     scene.add(hallModel);
+
+    // The venue never moves, so its shadow map only has to be rendered once rather than at
+    // every frame for the life of the session.
+    renderer.shadowMap.autoUpdate = false;
+    renderer.shadowMap.needsUpdate = true;
+
+    console.info(`[venue] ${meshes} meshes, ${seen.size} materials`);
     markVenueLoaded(true);
   }, (xhr) => {
     if (xhr && xhr.total) {
@@ -892,6 +868,70 @@ function createGlowTexture() {
   return new THREE.CanvasTexture(canvas);
 }
 const markerGlowTex = createGlowTexture();
+
+/** Soft radial falloff used for the ambient-occlusion discs under furniture. */
+function createContactShadowTexture() {
+  const canvas = document.createElement('canvas');
+  canvas.width = canvas.height = 128;
+  const ctx = canvas.getContext('2d');
+  const grad = ctx.createRadialGradient(64, 64, 0, 64, 64, 64);
+  // Flat in the middle, then a long tail: a hard-edged blob reads as a decal, not as shade.
+  grad.addColorStop(0.0, 'rgba(0,0,0,0.55)');
+  grad.addColorStop(0.45, 'rgba(0,0,0,0.34)');
+  grad.addColorStop(1.0, 'rgba(0,0,0,0)');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, 128, 128);
+  return new THREE.CanvasTexture(canvas);
+}
+
+let contactShadowMat = null;
+
+/**
+ * Lays a soft shadow disc on the floor. `w`/`d` are the footprint in metres.
+ * All discs share one geometry and material, so the whole set is a handful of draw calls.
+ */
+function addContactShadow(x, z, w, d, { y = 0.015, rotation = 0 } = {}) {
+  if (!contactShadowMat) {
+    contactShadowMat = new THREE.MeshBasicMaterial({
+      map: createContactShadowTexture(),
+      transparent: true,
+      depthWrite: false,
+      // Without a polygon offset these z-fight with the floor at grazing angles.
+      polygonOffset: true,
+      polygonOffsetFactor: -1,
+      polygonOffsetUnits: -1,
+    });
+  }
+  const mesh = new THREE.Mesh(_contactShadowGeo, contactShadowMat);
+  mesh.scale.set(w, d, 1);
+  mesh.rotation.x = -Math.PI / 2;
+  mesh.rotation.z = rotation;
+  mesh.position.set(x, y, z);
+  mesh.renderOrder = -1;
+  mesh.matrixAutoUpdate = false;
+  mesh.updateMatrix();
+  scene.add(mesh);
+  return mesh;
+}
+
+const _contactShadowGeo = new THREE.PlaneGeometry(1, 1);
+
+/** Grounds the booth stands, the welcome desk and the commitment wall. */
+function createContactShadows() {
+  for (const b of Object.values(BOOTH_POSITIONS)) {
+    // One disc per physical stand, not per booth: booths pair up back to back on one panel.
+    if (b.facing !== 1) continue;
+    addContactShadow(b.x, b.z, 4.6, 2.9);
+  }
+  for (const box of [WELCOME_DESK_BOX, COMMITMENT_WALL_BOX]) {
+    const cx = (box.minX + box.maxX) / 2;
+    const cz = (box.minZ + box.maxZ) / 2;
+    addContactShadow(cx, cz, (box.maxX - box.minX) + 2.0, (box.maxZ - box.minZ) + 1.6);
+  }
+  for (const { org } of organizerBooths.values()) {
+    addContactShadow(org.x, org.z, 4.4, 3.4);
+  }
+}
 
 function createHolographicMarkers() {
   const markerGeo = new THREE.ConeGeometry(0.22, 0.42, 4);
@@ -1809,7 +1849,10 @@ function setupControls() {
   // While the cursor is locked, a left click on a TV opens its pop-up (with sound).
   document.addEventListener('mousedown', (e) => {
     if (!isPointerLocked || e.button !== 0 || openModals.size > 0 || player.isSitting) return;
-    if (aimedTV) openTV(aimedTV);
+    // Re-raycast instead of reading the cached `aimedTV`: that cache refreshes at 20 Hz, and a
+    // click landing between refreshes while the player turns would open the wrong TV.
+    const tv = pickTV(0, 0) || aimedTV;
+    if (tv) openTV(tv);
   });
 
   window.addEventListener('keydown', (e) => {
@@ -2126,6 +2169,9 @@ const _right = new THREE.Vector3();
 const _inputDir = new THREE.Vector3();
 const _euler = new THREE.Euler(0, 0, 0, 'YXZ');
 
+const _resolved = new THREE.Vector3();
+let lastPresenceSend = 0;
+
 function updatePlayer(delta) {
   const canMove = (isPointerLocked || isTouchDevice) && openModals.size === 0 && !isBlockerVisible();
 
@@ -2196,7 +2242,9 @@ function updatePlayer(delta) {
   player.roll += (targetRoll - player.roll) * Math.min(1.0, 10.0 * delta);
 
   // Resolve X then Z so you slide along walls instead of tunneling into corners.
-  const resolved = player.pos.clone();
+  // `_resolved` is reused rather than cloned each frame — this runs 60 times a second for the
+  // whole session and the garbage it produced showed up as periodic collection hitches.
+  const resolved = _resolved.copy(player.pos);
   resolved.x += player.vel.x * delta;
   checkCollision(resolved);
   resolved.z = player.pos.z + player.vel.z * delta;
@@ -2204,8 +2252,14 @@ function updatePlayer(delta) {
   player.pos.x = resolved.x;
   player.pos.z = resolved.z;
 
+  // 10 Hz is plenty for remote avatars, which interpolate towards the last known pose anyway.
+  // Sending every frame meant ~60 websocket messages a second per walking visitor.
   if (presence && (isMoving || player.vel.lengthSq() > 0.01)) {
-    presence.sendMove(player.pos.x, player.pos.y, player.pos.z, player.yaw);
+    const nowMs = performance.now();
+    if (nowMs - lastPresenceSend > 100) {
+      lastPresenceSend = nowMs;
+      presence.sendMove(player.pos.x, player.pos.y, player.pos.z, player.yaw);
+    }
   }
 
   // Composite head bob for more natural footstep feel
@@ -2244,13 +2298,45 @@ function updatePlayer(delta) {
 // --- Proximity & Hotspot Detection ---
 function actionVerb() { return isTouchDevice ? 'Tap to' : 'Press E to'; }
 
-function checkProximity() {
-  const promptEl = $('proximity-prompt');
-  const promptTitle = $('prompt-booth-name');
-  const promptSub = $('prompt-booth-cat');
-  const promptKey = $('prompt-key');
-  const crosshair = $('crosshair');
-  const interactBtn = $('mobile-interact-btn');
+// Walking speed is 4.6 m/s, so 20 Hz means the prompt can be at most 23 cm late — well inside
+// the 2.2 m interaction radius, and imperceptible. At 60 Hz this function was doing six DOM
+// lookups, two Object.entries allocations and a linear search through booths.json every frame,
+// plus a raycast against every TV in the hall.
+const PROXIMITY_HZ = 20;
+let proximityNextRun = 0;
+
+// Resolved once: querying the DOM by id on every frame for elements that never change is pure
+// overhead, and `boothsData.find()` per booth per frame is a quadratic scan of static data.
+let promptEls = null;
+const BOOTH_LIST = Object.entries(BOOTH_POSITIONS).map(([idStr, booth]) => {
+  const id = parseInt(idStr);
+  const info = boothsData.find(b => b.id === id);
+  return {
+    id,
+    booth,
+    name: info && info.name && info.name !== booth.title
+      ? `${booth.title} • ${info.name}`
+      : `${booth.title} • ${booth.category}`,
+  };
+});
+const HOTSPOT_LIST = Object.entries(HOTSPOTS).map(([key, spot]) => ({ key, spot }));
+
+function checkProximity(force = false) {
+  const now = performance.now();
+  if (!force && now < proximityNextRun) return;
+  proximityNextRun = now + 1000 / PROXIMITY_HZ;
+
+  if (!promptEls) {
+    promptEls = {
+      promptEl: $('proximity-prompt'),
+      promptTitle: $('prompt-booth-name'),
+      promptSub: $('prompt-booth-cat'),
+      promptKey: $('prompt-key'),
+      crosshair: $('crosshair'),
+      interactBtn: $('mobile-interact-btn'),
+    };
+  }
+  const { promptEl, promptTitle, promptSub, promptKey, crosshair, interactBtn } = promptEls;
 
   const previousKey = activeTarget ? activeTarget.key : null;
   activeTarget = null;
@@ -2270,13 +2356,10 @@ function checkProximity() {
     }
   }
 
-  for (const [idStr, booth] of Object.entries(BOOTH_POSITIONS)) {
-    const id = parseInt(idStr);
+  for (const { id, booth, name } of BOOTH_LIST) {
     const dist = Math.hypot(player.pos.x - booth.ax, player.pos.z - booth.az);
     if (dist < BOOTH_INTERACT_RADIUS && dist < closestDist) {
       closestDist = dist;
-      const info = boothsData.find(b => b.id === id);
-      const name = info && info.name && info.name !== booth.title ? `${booth.title} • ${info.name}` : `${booth.title} • ${booth.category}`;
       const visited = visitedBooths.has(id);
       activeTarget = {
         type: 'booth', key: `booth-${id}`, id,
@@ -2286,7 +2369,7 @@ function checkProximity() {
     }
   }
 
-  for (const [key, spot] of Object.entries(HOTSPOTS)) {
+  for (const { key, spot } of HOTSPOT_LIST) {
     const dist = Math.hypot(player.pos.x - spot.x, player.pos.z - spot.z);
     if (dist < spot.radius && dist < closestDist) {
       closestDist = dist;
@@ -3461,17 +3544,23 @@ function setupMinimapCanvas() {
   canvas.height = MAP_SIZE * mapDpr;
 }
 
-let minimapFrame = 0;
-function drawMinimap() {
-  const container = $('minimap-container');
-  if (container.classList.contains('collapsed')) return;
-  // Minimap doesn't need to run at 60fps on phones.
-  if (isLowPowerDevice && (minimapFrame++ % 2 === 1)) return;
+// The minimap is two layers. Everything architectural — perimeter, divider, stage, stairs,
+// desk footprints, hotspots, chairs, booth stands and their labels — never changes, but the
+// previous version re-rasterised all of it on every animation frame, at 60 Hz, along with a
+// fresh getContext('2d') call each time. It is now drawn once into an offscreen canvas and
+// blitted, with only the moving marks redrawn on top.
+let mapStatic = null;       // OffscreenCanvas/HTMLCanvasElement holding the baked layer
+let mapCtx = null;          // cached 2D context for the visible canvas
+let mapNextDraw = 0;        // next timestamp (ms) the dynamic layer is allowed to redraw
 
-  const canvas = $('minimap-canvas');
+const MAP_HZ = 15;          // the player marker is smooth enough at 15 Hz and costs a quarter
+
+function buildMinimapStatic() {
+  const canvas = document.createElement('canvas');
+  canvas.width = MAP_SIZE * mapDpr;
+  canvas.height = MAP_SIZE * mapDpr;
   const ctx = canvas.getContext('2d');
   ctx.setTransform(mapDpr, 0, 0, mapDpr, 0, 0);
-  ctx.clearRect(0, 0, MAP_SIZE, MAP_SIZE);
 
   // Main Hall perimeter
   ctx.strokeStyle = 'rgba(0, 212, 255, 0.45)';
@@ -3507,8 +3596,8 @@ function drawMinimap() {
   // Hotspots
   ctx.fillStyle = 'rgba(245, 158, 11, 0.8)';
   for (const key of ['welcomeDesk', 'commitmentWall', 'mediaHub']) {
-    const s = HOTSPOTS[key];
-    ctx.fillRect(mapX(s.x) - 3, mapZ(s.z) - 3, 6, 6);
+    const spot = HOTSPOTS[key];
+    ctx.fillRect(mapX(spot.x) - 3, mapZ(spot.z) - 3, 6, 6);
   }
 
   // Organizer booths (brand-coloured stands along the foyer's east side)
@@ -3522,7 +3611,7 @@ function drawMinimap() {
   }
   ctx.textAlign = 'left';
 
-  // Mascots
+  // Mascots sit at fixed stations, so they belong to the static layer too.
   if (mascots) {
     for (const m of mascots.list) {
       ctx.fillStyle = brandHighlight(organizersData.find(o => o.mascot === m.cfg.id));
@@ -3551,7 +3640,34 @@ function drawMinimap() {
     ctx.stroke();
   }
 
-  // Booths (interaction anchors)
+  mapStatic = canvas;
+}
+
+/** Forces the baked layer to be rebuilt — call when its inputs change (resize, organizers load). */
+function invalidateMinimapStatic() {
+  mapStatic = null;
+}
+
+function drawMinimap(force = false) {
+  const container = $('minimap-container');
+  if (container.classList.contains('collapsed')) return;
+
+  const now = performance.now();
+  if (!force && now < mapNextDraw) return;
+  mapNextDraw = now + 1000 / (isLowPowerDevice ? MAP_HZ / 2 : MAP_HZ);
+
+  const canvas = $('minimap-canvas');
+  if (!mapCtx || mapCtx.canvas !== canvas) mapCtx = canvas.getContext('2d');
+  const ctx = mapCtx;
+
+  if (!mapStatic || mapStatic.width !== MAP_SIZE * mapDpr) buildMinimapStatic();
+
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.drawImage(mapStatic, 0, 0);
+  ctx.setTransform(mapDpr, 0, 0, mapDpr, 0, 0);
+
+  // --- dynamic layer -------------------------------------------------------------------
   for (const [idStr, b] of Object.entries(BOOTH_POSITIONS)) {
     const id = parseInt(idStr);
     const bx = mapX(b.ax);
@@ -3577,6 +3693,7 @@ function drawMinimap() {
       ctx.font = 'bold 9px sans-serif';
       ctx.textAlign = 'center';
       ctx.fillText(pad2(id), bx, bz - 9);
+      ctx.textAlign = 'left';
     }
   }
 
@@ -3614,15 +3731,26 @@ function onWindowResize() {
   applyResponsiveFov();
   renderer.setSize(window.innerWidth, window.innerHeight);
   if (cssRenderer) cssRenderer.setSize(window.innerWidth, window.innerHeight);
+  if (composer) composer.setSize(window.innerWidth, window.innerHeight);
   setupMinimapCanvas();
+  invalidateMinimapStatic();
 }
 
 // --- Animation Loop ---
 const _lookDir = new THREE.Vector3();
 let lastPresenceHeartbeat = 0;
+let lastFrameMs = 0;
 
 function animate() {
   requestAnimationFrame(animate);
+
+  if (perfHud) perfHud.beginFrame();
+
+  // Wall-clock frame time, separate from the clamped simulation delta below: the governor has
+  // to see a 300 ms stall as 300 ms, not as the 100 ms the physics step is allowed to assume.
+  const nowMs = performance.now();
+  const frameMs = lastFrameMs ? nowMs - lastFrameMs : 16.7;
+  lastFrameMs = nowMs;
 
   const delta = Math.min(clock.getDelta(), 0.1);
   const t = clock.getElapsedTime();
@@ -3694,11 +3822,14 @@ function animate() {
     cssRenderer.domElement.style.display = 'none';
   }
 
-  if (composer && !isLowPowerDevice) {
+  if (composer && quality.usePost) {
     composer.render();
   } else {
     renderer.render(scene, camera);
   }
+
+  if (perfHud) perfHud.update();
+  quality.sample(frameMs, nowMs);
 }
 
 // Global debug & test hooks
@@ -3720,6 +3851,8 @@ window.__diplomaticGame = {
   get organizerBooths() { return organizerBooths; },
   get presence() { return presence; },
   get hallModel() { return hallModel; },
+  get perfHud() { return perfHud; },
+  get quality() { return quality; },
   get welcomeDesk() { return welcomeDesk; },
   get policyWallGroup() { return policyWallGroup; },
   get policyCanvas() { return policyCanvas; },
@@ -3739,6 +3872,7 @@ window.__diplomaticGame = {
   openTV,
   pickTV,
   checkCollision,
+  checkProximity,
   setWaypoint,
   clearWaypoint,
   showToast,

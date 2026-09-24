@@ -29,3 +29,12 @@ __pycache__/
 *.docx
 (Draft)*.docx
 Youth Innovations Marketplace - SGMC*.docx
+backup/
+
+# Generated PBR source maps. `scripts/generate_textures.py` and `generate_graphics.py` produce
+# these deterministically from fixed seeds, and `scripts/build_venue.py` bakes them into
+# public/models/diplomatic_hall.glb (which IS committed). Tracking ~21 MB of regenerable
+# binaries would bloat history for nothing. Re-create them with `npm run textures`.
+# The booth pop-up posters are the exception: src/main.js fetches those over HTTP.
+textures/*
+!textures/booth_*_screen.png

@@ -1,15 +1,21 @@
 import { defineConfig } from 'vite';
-import { cpSync, existsSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, readdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { resolve } from 'node:path';
 
 const rootDir = fileURLToPath(new URL('.', import.meta.url));
 
 /**
- * The `textures/` folder is shared with the Blender pipeline (scripts/*.py) so it lives at the
- * repo root rather than in `public/`. Vite's dev server already serves it from the root; this
- * plugin makes sure the production build ships it too (booth screen images + PBR normal maps).
+ * The `textures/` folder is the *source* art for the Blender pipeline (scripts/*.py), living at
+ * the repo root rather than in `public/` because both the generators and Blender read it.
+ *
+ * Almost none of it belongs in a deploy: every PBR map is baked into `diplomatic_hall.glb` by
+ * scripts/build_venue.py, so copying the folder wholesale shipped ~21 MB that no browser ever
+ * requested. The only files fetched over HTTP are the booth pop-up video posters
+ * (`openBoothModal` in src/main.js), so that is all this copies.
  */
+const RUNTIME_TEXTURES = /^booth_\d\d_screen\.png$/i;
+
 function copyTexturesPlugin() {
   return {
     name: 'copy-root-textures',
@@ -17,9 +23,15 @@ function copyTexturesPlugin() {
     closeBundle() {
       const src = resolve(rootDir, 'textures');
       const dest = resolve(rootDir, 'dist', 'textures');
-      if (existsSync(src)) {
-        cpSync(src, dest, { recursive: true, filter: (p) => !/\.(blend1?|py)$/i.test(p) });
+      if (!existsSync(src)) return;
+      let copied = 0;
+      for (const name of readdirSync(src)) {
+        if (!RUNTIME_TEXTURES.test(name)) continue;
+        mkdirSync(dest, { recursive: true });
+        cpSync(resolve(src, name), resolve(dest, name));
+        copied++;
       }
+      this.info?.(`copied ${copied} runtime texture(s); PBR maps ship inside the GLB`);
     },
   };
 }
