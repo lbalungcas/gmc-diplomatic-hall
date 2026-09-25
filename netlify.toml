@@ -16,6 +16,17 @@
   to = "/game/index.html"
   status = 200
 
+# Ensure /innovator-guidelines/ route serves innovator-guidelines/index.html
+[[redirects]]
+  from = "/innovator-guidelines"
+  to = "/innovator-guidelines/index.html"
+  status = 200
+
+[[redirects]]
+  from = "/innovator-guidelines/"
+  to = "/innovator-guidelines/index.html"
+  status = 200
+
 # Headers for performance & security
 [[headers]]
   for = "/*"

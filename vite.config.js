@@ -99,6 +99,7 @@ export default defineConfig({
         main: resolve(rootDir, 'index.html'),
         game: resolve(rootDir, 'game/index.html'),
         analytics: resolve(rootDir, 'analytics.html'),
+        innovatorGuidelines: resolve(rootDir, 'innovator-guidelines/index.html'),
       },
     },
   },
