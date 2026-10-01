@@ -38,3 +38,8 @@ backup/
 # The booth pop-up posters are the exception: src/main.js fetches those over HTTP.
 textures/*
 !textures/booth_*_screen.png
+
+# Raw source assets downloaded to repo root
+/Organizer and Support Logo.png
+/Tutu and YIM Logo (no Bg).png
+
