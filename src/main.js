@@ -14,6 +14,7 @@ import boothsData from './data/booths.json';
 import organizersData from './data/organizers.json';
 import mascotsData from './data/mascots.json';
 import tutuFaqs from './data/tutuFaqs.json';
+import hallLayout from './data/hallLayout.json';
 import { createPresence, getVisitorInfo, colorFromId } from './modules/presence.js';
 import { track } from './modules/analytics.js';
 import { buildOrganizerBooth, organizerObstacles, TV_W, TV_H } from './modules/organizers.js';
@@ -21,6 +22,7 @@ import { createMascots } from './modules/mascots3d.js';
 import { buildWelcomeDesk } from './modules/welcomeDesk.js';
 import { createPerfHud, isPerfHudEnabled } from './modules/perfHud.js';
 import { createAdaptiveQuality } from './modules/adaptiveQuality.js';
+import { computeBoothPositions, createBoothClusters, clusterObstacles } from './modules/boothClusters.js';
 
 // --- State Variables ---
 let scene, camera, renderer, clock;
@@ -84,11 +86,12 @@ let aimedTV = null;                // userData of the TV the crosshair is on
 // Organizer booths & mascots (Pre-Function Foyer)
 const organizerBooths = new Map(); // id -> { org, group }
 let mascots = null;
+let boothClusters = null;          // live booth dressing — src/modules/boothClusters.js
 const staticBoxes = [];            // world AABBs the player can't walk through
 
 // Player Locomotion & Physics (Normalized realistic height: 1.45m eye level)
 const player = {
-  pos: new THREE.Vector3(9.68, 1.45, -2.5),
+  pos: new THREE.Vector3(9.68, 1.45, -1.6),
   vel: new THREE.Vector3(0, 0, 0),
   desiredVel: new THREE.Vector3(0, 0, 0),
   pitch: 0,
@@ -120,53 +123,34 @@ let lookTouchId = null;
 let touchLookLastX = 0, touchLookLastY = 0;
 const joystickVec = { x: 0, y: 0 };
 
-// 10 Audience Chairs (5 Left, 5 Right facing Stage)
-const CHAIR_LOCATIONS = [
-  { id: 1, x: 6.00,  z: -18.50, label: "VIP Chair L1" },
-  { id: 2, x: 6.70,  z: -18.50, label: "VIP Chair L2" },
-  { id: 3, x: 7.40,  z: -18.50, label: "VIP Chair L3" },
-  { id: 4, x: 8.10,  z: -18.50, label: "VIP Chair L4" },
-  { id: 5, x: 8.80,  z: -18.50, label: "VIP Chair L5" },
-  { id: 6,  x: 10.60, z: -18.50, label: "VIP Chair R1" },
-  { id: 7,  x: 11.30, z: -18.50, label: "VIP Chair R2" },
-  { id: 8,  x: 12.00, z: -18.50, label: "VIP Chair R3" },
-  { id: 9,  x: 12.70, z: -18.50, label: "VIP Chair R4" },
-  { id: 10, x: 13.40, z: -18.50, label: "VIP Chair R5" },
-];
+// Audience seating: two blocks either side of the centre aisle, rows A (front) to D, facing the
+// stage. Generated from src/data/hallLayout.json — the same table scripts/venue_set.py bakes the
+// chairs into the GLB from.
+const SEATING = hallLayout.seating;
+const CHAIR_LOCATIONS = [];
+SEATING.rows.forEach((z, ri) => {
+  let n = 1;
+  for (const blk of SEATING.blocks) {
+    for (let k = 0; k < blk.count; k++, n++) {
+      CHAIR_LOCATIONS.push({
+        id: CHAIR_LOCATIONS.length + 1,
+        x: blk.x0 + k * SEATING.pitch,
+        z,
+        label: `Seat ${String.fromCharCode(65 + ri)}${n}`,
+      });
+    }
+  }
+});
 
-// Booth Positions in 3D (X, Z) - Exact glTF coordinates.
-// Booths are double-sided panels: two booths share one physical stand and face opposite
-// directions. `facing` is the direction (along X) the booth graphic faces, so the
-// interaction anchor sits in front of the correct side.
-const BOOTH_POSITIONS = {
-  1:  { x: 13.75, z: -4.96,  facing: -1, title: "Booth 01", category: "Innovation" },
-  2:  { x: 13.75, z: -6.96,  facing: -1, title: "Booth 02", category: "Innovation" },
-  3:  { x: 13.75, z: -8.96,  facing: -1, title: "Booth 03", category: "Innovation" },
-  4:  { x: 13.75, z: -10.96, facing: -1, title: "Booth 04", category: "Innovation" },
-  5:  { x: 13.75, z: -12.96, facing: -1, title: "Booth 05", category: "Innovation" },
-  6:  { x: 13.76, z: -4.96,  facing: 1,  title: "Booth 06", category: "GreenTech" },
-  7:  { x: 13.76, z: -6.96,  facing: 1,  title: "Booth 07", category: "GreenTech" },
-  8:  { x: 13.76, z: -8.96,  facing: 1,  title: "Booth 08", category: "GreenTech" },
-  9:  { x: 13.76, z: -10.96, facing: 1,  title: "Booth 09", category: "GreenTech" },
-  10: { x: 13.76, z: -12.96, facing: 1,  title: "Booth 10", category: "GreenTech" },
-  11: { x: 6.54,  z: -8.99,  facing: 1,  title: "Booth 11", category: "EdTech" },
-  12: { x: 6.54,  z: -10.98, facing: 1,  title: "Booth 12", category: "EdTech" },
-  13: { x: 6.58,  z: -7.00,  facing: 1,  title: "Booth 13", category: "EdTech" },
-  14: { x: 6.52,  z: -12.98, facing: 1,  title: "Booth 14", category: "EdTech" },
-  15: { x: 6.58,  z: -4.99,  facing: 1,  title: "Booth 15", category: "Health" },
-  16: { x: 6.53,  z: -4.99,  facing: -1, title: "Booth 16", category: "Health" },
-  17: { x: 6.53,  z: -6.99,  facing: -1, title: "Booth 17", category: "Health" },
-  18: { x: 6.49,  z: -9.00,  facing: -1, title: "Booth 18", category: "Creative" },
-  19: { x: 6.50,  z: -10.99, facing: -1, title: "Booth 19", category: "Creative" },
-  20: { x: 6.46,  z: -12.99, facing: -1, title: "Booth 20", category: "Creative" }
-};
-
-// Interaction anchor: 1.0m in front of the booth graphic
-const BOOTH_ANCHOR_OFFSET = 1.0;
+// 24 booths in eight theme clusters of three (C1–C8). Each booth is one bay of a three-panel
+// cluster; `x/z` is its counter, `ax/az` where a visitor stands, `dirX/dirZ` the way the bay
+// opens. Booths keep their official numbers, so a cluster can hold e.g. 11, 13 and 24.
+const BOOTH_POSITIONS = computeBoothPositions(hallLayout);
 for (const b of Object.values(BOOTH_POSITIONS)) {
-  b.ax = b.x + b.facing * BOOTH_ANCHOR_OFFSET;
-  b.az = b.z;
+  const info = boothsData.find(x => x.id === b.id);
+  if (info && info.category) b.category = info.category;
 }
+const CLUSTER_OBSTACLES = clusterObstacles(hallLayout);
 
 const BOOTH_INTERACT_RADIUS = 2.2;
 const TOTAL_BOOTHS = Object.keys(BOOTH_POSITIONS).length;
@@ -175,6 +159,9 @@ const TOTAL_BOOTHS = Object.keys(BOOTH_POSITIONS).length;
 // Stair_Landing, Stair_Rail) sits along the south wall at x 11.5–19.35 / z -1.85–0; without this
 // the player could walk straight into the treads.
 const STAIRS_BOX = { minX: 11.45, maxX: 19.4, minZ: -1.9, maxZ: 0.2, label: 'stairs' };
+const STAGE = hallLayout.stage;
+const LED = hallLayout.led;
+const HALL_NORTH_Z = hallLayout.hall.northWallZ;
 // The welcome desk box is refined from the procedural desk's real bounds in createWelcomeDesk().
 const WELCOME_DESK_BOX = { minX: 21.6, maxX: 22.7, minZ: -18.9, maxZ: -15.75, label: 'welcome desk' };
 const COMMITMENT_WALL_BOX = { minX: 19.4, maxX: 20.05, minZ: -17.3, maxZ: -13.3, label: 'commitment wall' };
@@ -185,12 +172,38 @@ const DIV_HALF = 0.28;
 const DIVIDER_SEGMENTS = [
   { minX: DIV_X - DIV_HALF, maxX: DIV_X + DIV_HALF, minZ: -7.0, maxZ: 0.25, label: 'divider-n' },
   { minX: DIV_X - DIV_HALF, maxX: DIV_X + DIV_HALF, minZ: -11.4, maxZ: -8.8, label: 'divider-m' },
-  { minX: DIV_X - DIV_HALF, maxX: DIV_X + DIV_HALF, minZ: -20.95, maxZ: -13.2, label: 'divider-s' },
+  { minX: DIV_X - DIV_HALF, maxX: DIV_X + DIV_HALF, minZ: HALL_NORTH_Z + 4.2, maxZ: -13.2, label: 'divider-s' },
 ];
-// Foyer L-cutout: block walking into the south exterior corner mesh (x>19.35, z<-20.8).
-const FOYER_NOTCH_BOX = { minX: 19.2, maxX: 27.4, minZ: -25.4, maxZ: -20.55, label: 'foyer-notch' };
-// Stage apron — solid so you cannot slide onto the platform from the sides.
-const STAGE_BOX = { minX: 4.55, maxX: 14.8, minZ: -25.2, maxZ: -21.7, label: 'stage' };
+// Foyer L-cutout: block walking past the foyer's north wall (which moved north with the hall).
+const FOYER_NOTCH_BOX = { minX: 19.2, maxX: 27.4, minZ: HALL_NORTH_Z - 0.3, maxZ: HALL_NORTH_Z + 4.6, label: 'foyer-notch' };
+// Stage platform plus its side steps — solid so you cannot walk onto the set.
+const STAGE_BOX = { minX: STAGE.x0 - 0.62, maxX: STAGE.x1 + 0.62, minZ: STAGE.zBack - 0.2, maxZ: STAGE.zFront + 0.02, label: 'stage' };
+// Floor speaker stacks either side of the stage (scripts/venue_set.py build_stage).
+const SPEAKER_BOXES = [STAGE.x0 - 0.65, STAGE.x1 + 0.65].map((x) => (
+  { minX: x - 0.3, maxX: x + 0.3, minZ: -27.58, maxZ: -27.02, label: 'speaker' }
+));
+// Chair backs: one thin box per row per block. The lane between two rows stays walkable, so any
+// seat can be reached, but you can't stride through the backrests.
+const SEAT_ROW_BOXES = [];
+for (const z of SEATING.rows) {
+  for (const blk of SEATING.blocks) {
+    SEAT_ROW_BOXES.push({
+      minX: blk.x0 - 0.24, maxX: blk.x0 + (blk.count - 1) * SEATING.pitch + 0.24,
+      minZ: z + 0.15, maxZ: z + 0.22, label: 'seat-row',
+    });
+  }
+}
+// The chamfered stage-end corners of the hall, as wall segments (three.js x/z).
+const CHAMFER_WALLS = [
+  { ax: 0.0, az: HALL_NORTH_Z + 4.07, bx: 4.07, bz: HALL_NORTH_Z },
+  { ax: 15.28, az: HALL_NORTH_Z, bx: 19.35, bz: HALL_NORTH_Z + 4.07 },
+];
+// Round obstacles: the set plants at the stage corners and the boat / lighthouse standees.
+const ROUND_PROPS = [
+  { x: STAGE.x0 - 0.5, z: -24.45, r: 0.35 },
+  { x: STAGE.x1 + 0.5, z: -24.45, r: 0.35 },
+  ...Object.values(hallLayout.standees).map((s) => ({ x: s.x, z: s.z, r: 0.55 })),
+];
 
 staticBoxes.push(
   STAIRS_BOX,
@@ -198,19 +211,21 @@ staticBoxes.push(
   COMMITMENT_WALL_BOX,
   FOYER_NOTCH_BOX,
   STAGE_BOX,
+  ...SPEAKER_BOXES,
+  ...SEAT_ROW_BOXES,
   ...DIVIDER_SEGMENTS,
 );
 
 /** Inner playable bounds (kept slightly inside the GLB wall faces so the camera never sits in mesh). */
-const WORLD_BOUNDS = { minX: 1.05, maxX: 26.55, minZ: -24.55, maxZ: -1.05 };
+const WORLD_BOUNDS = { minX: 1.05, maxX: 26.55, minZ: HALL_NORTH_Z + 0.6, maxZ: -1.05 };
 
 // Interactive Venue Hotspots
 const HOTSPOTS = {
   welcomeDesk: { x: 22.16, z: -17.31, radius: 2.5, title: "Welcome & Information Desk", action: "Open venue guide", modal: "desk-modal" },
   commitmentWall: { x: 19.43, z: -15.14, radius: 2.8, title: "Commitment & Pledge Wall", action: "Post a pledge", modal: "pledge-modal" },
   mediaHub: { x: 20.16, z: -4.39, radius: 2.5, title: "Media Hub & Press Lounge", action: "Open venue guide", modal: "desk-modal" },
-  podium: { x: 8.0, z: -22.8, radius: 2.0, title: "Keynote Speaker Lectern", action: "View from the stage", modal: "podium" },
-  stageScreen: { x: 9.68, z: -23.5, radius: 3.5, title: "Main Stage Live Stream", action: "Open theater view", modal: "stage-modal" },
+  podium: { x: 4.2, z: -24.0, radius: 1.4, title: "Speaker Lectern", action: "Step up to the lectern", modal: "podium" },
+  stageScreen: { x: LED.cx, z: STAGE.zFront + 0.6, radius: 3.0, title: "Main Stage LED Wall", action: "Open theater view", modal: "stage-modal" },
 };
 
 let activeTarget = null;
@@ -335,7 +350,7 @@ function showBlocker(mode) {
     title.textContent = 'Youth Innovations Marketplace';
     label.textContent = venueLoaded ? 'ENTER THE HALL' : 'LOADING VENUE';
     if (lead) {
-      lead.textContent = 'Walk the digital companion hall: visit 20 youth innovation booths, collect passport stamps, ask Tutu about the event & safeguarding, and leave a pledge on the Commitment Wall.';
+      lead.textContent = `Walk the digital companion hall: visit ${TOTAL_BOOTHS} youth innovation booths, collect passport stamps, ask Tutu about the event & safeguarding, and leave a pledge on the Commitment Wall.`;
     }
     if (note) note.textContent = 'Click the button or press Enter to lock the cursor and start walking.';
     if (noteTouch) noteTouch.textContent = 'Tip: rotate to landscape and use fullscreen for the best kiosk experience.';
@@ -421,17 +436,21 @@ function init() {
   cssRenderer = new CSS3DRenderer();
   cssRenderer.setSize(window.innerWidth, window.innerHeight);
   cssRenderer.domElement.id = 'css-canvas';
+  // The CSS layer sits *under* the WebGL canvas. The LED wall mesh writes transparent pixels
+  // (see createStageSet), so the YouTube iframe shows through exactly where the wall is visible
+  // and anything standing in front of it — booth panels, people, the lectern — still covers it.
   Object.assign(cssRenderer.domElement.style, {
     position: 'absolute', top: '0', left: '0', width: '100%', height: '100%',
-    zIndex: '2', pointerEvents: 'none',
+    zIndex: '0', pointerEvents: 'none',
   });
 
   // 2. WebGL Scene & Renderer (Layer 1 - 3D venue, characters, booths, lighting)
   scene = new THREE.Scene();
   scene.background = null;
 
-  // Atmospheric depth fog — warm navy, subtle enough to not obscure booths
-  scene.fog = new THREE.FogExp2(0x08101e, isLowPowerDevice ? 0.012 : 0.016);
+  // Atmospheric depth fog — a warm haze rather than the old navy murk, light enough that the
+  // LED wall still reads from the back of the 29 m hall.
+  scene.fog = new THREE.FogExp2(0x2a2430, isLowPowerDevice ? 0.008 : 0.011);
 
   camera = new THREE.PerspectiveCamera(65, window.innerWidth / window.innerHeight, 0.1, 100);
   camera.position.copy(player.pos);
@@ -445,7 +464,9 @@ function init() {
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   // Re-tuned upwards: with the ambient flood removed the scene has real dynamic range again,
   // and ACES needs more headroom to land the highlights.
-  renderer.toneMappingExposure = 1.15;
+  // Pulled back from 1.15: with the light terrazzo floor and white booth fabric the hall read
+  // as over-lit and flat; a slightly lower exposure keeps highlights and gives the space depth.
+  renderer.toneMappingExposure = 0.92;
   renderer.domElement.id = 'webgl-canvas';
   Object.assign(renderer.domElement.style, {
     position: 'absolute', top: '0', left: '0', width: '100%', height: '100%',
@@ -571,7 +592,7 @@ function generateEnvMap() {
   envMap = pmrem.fromScene(room, 0.04).texture;
 
   scene.environment = envMap;
-  scene.environmentIntensity = isLowPowerDevice ? 0.70 : 0.85;
+  scene.environmentIntensity = isLowPowerDevice ? 0.58 : 0.66;
 
   room.dispose();
   pmrem.dispose();
@@ -637,55 +658,59 @@ function addVenueLighting() {
   const hemiLight = new THREE.HemisphereLight(0xfff6ea, 0x2b2838, isLowPowerDevice ? 0.34 : 0.26);
   scene.add(hemiLight);
 
+  // The ceiling is 7 m now, so the general fixtures sit high with a long reach, and each booth
+  // cluster gets its own warm pool from the clip spots on its panels. That pool is what makes
+  // the clusters read as lit islands rather than props on an evenly lit floor.
   const ceilingFixtures = [
-    [9.68, 3.35, -4.5], [9.68, 3.35, -9.5], [9.68, 3.35, -14.5], [9.68, 3.35, -19.5],
-    [6.5, 3.35, -6.0], [6.5, 3.35, -11.0], [6.5, 3.35, -16.0],
-    [13.8, 3.35, -6.0], [13.8, 3.35, -11.0], [13.8, 3.35, -16.0],
-    [22.5, 3.35, -5.0], [22.5, 3.35, -10.0], [22.5, 3.35, -15.0],
-    [9.68, 3.4, -22.5],
+    [5.0, 6.6, -7.8], [14.4, 6.6, -7.8], [5.0, 6.6, -16.0], [14.4, 6.6, -16.0],
+    [9.68, 6.6, -21.5],
+    [22.5, 6.6, -6.0], [22.5, 6.6, -16.0],
   ];
-
-  // Every point light costs a per-fragment lighting term on every surface it reaches, and
-  // fourteen of them was the largest single shader cost in the hall. With the environment
-  // providing fill, a thinned set of brighter fixtures reads better *and* renders faster.
   ceilingFixtures.forEach(([x, y, z], idx) => {
     if (isLowPowerDevice && idx % 2 === 1) return;
-    const light = new THREE.PointLight(0xffe8cc, isLowPowerDevice ? 5.0 : 4.2, isLowPowerDevice ? 16 : 14, 1.6);
+    const light = new THREE.PointLight(0xffe9d0, isLowPowerDevice ? 13 : 10, 20, 1.5);
     light.position.set(x, y, z);
     scene.add(light);
   });
 
-  const spotStage = new THREE.SpotLight(0xf0eaff, 2.2, 18, Math.PI / 5, 0.4, 1.2);
-  spotStage.position.set(9.68, 3.8, -19.5);
-  spotStage.target.position.set(9.68, 0.8, -23.5);
+  for (const cl of hallLayout.clusters.list) {
+    if (isLowPowerDevice) break;   // phones rely on the baked emissive lamp heads + env light
+    const pool = new THREE.PointLight(0xffd6a0, 2.6, 5.5, 1.4);
+    pool.position.set(cl.x, 2.9, cl.z);
+    scene.add(pool);
+  }
+
+  // Stage wash from the truss, plus two side fills, all aimed at the set rather than the LED
+  // wall (the LED is emissive and would only wash out).
+  const stageMid = new THREE.Vector3(LED.cx, STAGE.height + 1.0, (STAGE.zFront + STAGE.zBack) / 2);
+  const spotStage = new THREE.SpotLight(0xfff0e0, 4.5, 16, Math.PI / 4.2, 0.45, 1.2);
+  spotStage.position.set(LED.cx, 6.3, STAGE.zFront + 1.5);
+  spotStage.target.position.copy(stageMid);
   spotStage.castShadow = !isLowPowerDevice;
   spotStage.shadow.mapSize.width = 1024;
   spotStage.shadow.mapSize.height = 1024;
   scene.add(spotStage); scene.add(spotStage.target);
 
-  const stageFillL = new THREE.SpotLight(0xffeedd, 0.7, 14, Math.PI / 4, 0.5, 1.5);
-  stageFillL.position.set(5.5, 3.4, -21.0);
-  stageFillL.target.position.set(8.0, 1.0, -23.5);
-  scene.add(stageFillL); scene.add(stageFillL.target);
+  for (const sx of [STAGE.x0 + 0.5, STAGE.x1 - 0.5]) {
+    const fill = new THREE.SpotLight(0xffe6c8, 4.0, 14, Math.PI / 4, 0.5, 1.4);
+    fill.position.set(sx, 6.0, STAGE.zFront + 0.4);
+    fill.target.position.set(LED.cx + (sx < LED.cx ? -1.5 : 1.5), STAGE.height + 0.8, -26.6);
+    scene.add(fill); scene.add(fill.target);
+  }
 
-  const stageFillR = new THREE.SpotLight(0xffeedd, 0.7, 14, Math.PI / 4, 0.5, 1.5);
-  stageFillR.position.set(14.0, 3.4, -21.0);
-  stageFillR.target.position.set(11.0, 1.0, -23.5);
-  scene.add(stageFillR); scene.add(stageFillR.target);
-
-  const entranceLight = new THREE.SpotLight(0xfff5e6, 0.8, 12, Math.PI / 3, 0.7, 1.8);
-  entranceLight.position.set(9.68, 3.35, -1.2);
+  const entranceLight = new THREE.SpotLight(0xfff5e6, 1.6, 12, Math.PI / 3, 0.7, 1.8);
+  entranceLight.position.set(9.68, 6.5, -1.2);
   entranceLight.target.position.set(9.68, 0, -2.5);
   scene.add(entranceLight); scene.add(entranceLight.target);
 
-  // Soft rectangular backlight wash behind the stage screen (desktop only)
+  // Soft blue spill from the LED wall onto the stage and the front rows (desktop only).
   if (!isLowPowerDevice) {
     try {
       RectAreaLightUniformsLib.init();
-      const stageGlow = new THREE.RectAreaLight(0x8090ff, 1.2, 7.0, 3.5);
-      stageGlow.position.set(9.68, 2.3, -24.8);
-      stageGlow.lookAt(9.68, 2.3, -20.0);
-      scene.add(stageGlow);
+      const ledGlow = new THREE.RectAreaLight(0x8fb4ff, 1.4, LED.width, LED.height);
+      ledGlow.position.set(LED.cx, LED.bottom + LED.height / 2, LED.z + 0.05);
+      ledGlow.lookAt(LED.cx, LED.bottom + LED.height / 2, 0);
+      scene.add(ledGlow);
     } catch (e) { /* RectAreaLight not critical */ }
   }
 }
@@ -707,7 +732,8 @@ function loadHallModel() {
 
   const maxAniso = renderer.capabilities.getMaxAnisotropy();
 
-  loader.load('/models/diplomatic_hall.glb', (gltf) => {
+  // `?v=` is the GLB's content hash (vite.config.js) so a rebuilt venue is never served stale.
+  loader.load(`/models/diplomatic_hall.glb?v=${__VENUE_VERSION__}`, (gltf) => {
     hallModel = gltf.scene;
 
     // The GLB is exported without lights or cameras now, but a stale model should still not be
@@ -819,11 +845,11 @@ function createBoothLabelTexture(booth, state) {
   ctx.textBaseline = 'alphabetic';
   ctx.fillStyle = '#ffffff';
   ctx.font = 'bold 34px sans-serif';
-  ctx.fillText((booth.name || booth.title).slice(0, 14), 128, 60);
+  ctx.fillText((booth.name || booth.title).slice(0, 22), 128, 60, 238);
   ctx.fillStyle = accent;
   ctx.font = 'bold 22px sans-serif';
   const statusText = state === 'visited' ? '✓ VISITED' : state === 'target' ? '◎ TRACKING' : (booth.category || '').toUpperCase();
-  ctx.fillText(statusText, 128, 96);
+  ctx.fillText(statusText, 128, 96, 238);
 
   const tex = new THREE.CanvasTexture(canvas);
   tex.colorSpace = THREE.SRGBColorSpace;
@@ -918,10 +944,8 @@ const _contactShadowGeo = new THREE.PlaneGeometry(1, 1);
 
 /** Grounds the booth stands, the welcome desk and the commitment wall. */
 function createContactShadows() {
-  for (const b of Object.values(BOOTH_POSITIONS)) {
-    // One disc per physical stand, not per booth: booths pair up back to back on one panel.
-    if (b.facing !== 1) continue;
-    addContactShadow(b.x, b.z, 4.6, 2.9);
+  for (const cl of hallLayout.clusters.list) {
+    addContactShadow(cl.x, cl.z, 3.0, 3.0);
   }
   for (const box of [WELCOME_DESK_BOX, COMMITMENT_WALL_BOX]) {
     const cx = (box.minX + box.maxX) / 2;
@@ -960,9 +984,11 @@ function createHolographicMarkers() {
     
     marker.add(core, wire, glow);
     
-    const mx = b.x + b.facing * 0.55;
-    marker.position.set(mx, 2.45, b.z);
-    marker.userData = { boothId: id, initialY: 2.45, state, facing: b.facing, panelX: b.x, core, wire, glow };
+    // Hover over the counter, just outside the panels, so it reads as belonging to this bay.
+    const mx = b.x + b.dirX * 0.25;
+    const mz = b.z + b.dirZ * 0.25;
+    marker.position.set(mx, 2.45, mz);
+    marker.userData = { boothId: id, initialY: 2.45, state, cx: b.cx, cz: b.cz, dirX: b.dirX, dirZ: b.dirZ, core, wire, glow };
     scene.add(marker);
     boothMarkers.push(marker);
 
@@ -971,8 +997,8 @@ function createHolographicMarkers() {
     const spriteMat = new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: true, depthWrite: false });
     const label = new THREE.Sprite(spriteMat);
     label.scale.set(1.32, 0.44, 1);
-    label.position.set(mx, 2.85, b.z);
-    label.userData = { boothId: id, facing: b.facing, panelX: b.x };
+    label.position.set(mx, 2.85, mz);
+    label.userData = { boothId: id, cx: b.cx, cz: b.cz, dirX: b.dirX, dirZ: b.dirZ };
     scene.add(label);
     boothLabels.set(id, label);
   }
@@ -1018,12 +1044,13 @@ function getSharedVideo(src) {
  * Builds a wall-mounted TV (bezel + video screen) and parents it at `localPos`.
  * `meta` is stored on the screen mesh so a raycast hit knows which pop-up to open.
  */
-function attachTV(parent, localPos, meta) {
+function attachTV(parent, localPos, meta, { w = TV_W, h = TV_H } = {}) {
   const group = new THREE.Group();
   group.name = `TV_${meta.key}`;
+  const bezelPad = w < 1 ? 0.05 : 0.09;
 
   const bezel = new THREE.Mesh(
-    new THREE.BoxGeometry(TV_W + 0.09, TV_H + 0.09, 0.06),
+    new THREE.BoxGeometry(w + bezelPad, h + bezelPad, w < 1 ? 0.035 : 0.06),
     new THREE.MeshStandardMaterial({ color: 0x05070a, roughness: 0.15, metalness: 0.8 })
   );
   bezel.castShadow = false;
@@ -1038,10 +1065,10 @@ function attachTV(parent, localPos, meta) {
   tex.generateMipmaps = false;
 
   const screen = new THREE.Mesh(
-    new THREE.PlaneGeometry(TV_W, TV_H),
+    new THREE.PlaneGeometry(w, h),
     new THREE.MeshBasicMaterial({ map: tex, toneMapped: false })
   );
-  screen.position.z = 0.031;
+  screen.position.z = w < 1 ? 0.0185 : 0.031;
   screen.userData = { ...meta, isTV: true };
   group.add(screen);
 
@@ -1050,7 +1077,7 @@ function attachTV(parent, localPos, meta) {
     new THREE.CircleGeometry(0.012, 12),
     new THREE.MeshBasicMaterial({ color: 0x00d4ff })
   );
-  led.position.set(TV_W / 2 - 0.03, -TV_H / 2 - 0.025, 0.031);
+  led.position.set(w / 2 - 0.03, -h / 2 - bezelPad / 4, screen.position.z);
   group.add(led);
 
   group.position.copy(localPos);
@@ -1059,22 +1086,20 @@ function attachTV(parent, localPos, meta) {
   return group;
 }
 
+/** Booth graphics, counter fascias, cluster signs, floor rings and one TV per booth. */
 function createBoothTVs() {
-  for (const [idStr, b] of Object.entries(BOOTH_POSITIONS)) {
-    const id = parseInt(idStr);
-    const info = boothsData.find(x => x.id === id) || {};
-    const mount = new THREE.Group();
-    // Panel is 0.05m thick; its graphic sits at 0.045m in front of the panel centre.
-    mount.position.set(b.x + b.facing * 0.045, 1.55, b.z);
-    mount.rotation.y = b.facing === -1 ? -Math.PI / 2 : Math.PI / 2;
-    scene.add(mount);
-    attachTV(mount, new THREE.Vector3(0, 0, 0.03), {
-      key: `booth-${id}`,
-      boothId: id,
-      label: info.name && info.name !== b.title ? `${b.title} • ${info.name}` : b.title,
-      src: boothScreenVideoSrc(id),
-    });
-  }
+  boothClusters = createBoothClusters(scene, hallLayout, BOOTH_POSITIONS, boothsData, {
+    lowPower: isLowPowerDevice,
+    attachTV: (parent, localPos, b, size) => {
+      const info = boothsData.find(x => x.id === b.id) || {};
+      attachTV(parent, localPos, {
+        key: `booth-${b.id}`,
+        boothId: b.id,
+        label: info.name && info.name !== b.title ? `${b.title} • ${info.name}` : b.title,
+        src: boothScreenVideoSrc(b.id),
+      }, size);
+    },
+  });
 }
 
 const _raycaster = new THREE.Raycaster();
@@ -1188,20 +1213,85 @@ export function extractYouTubeId(src) {
   }
 }
 
-// --- Front Stage Screen (Real YouTube Video in 3D + Depth Occlusion + Proximity Audio) ---
+// --- Stage LED wall (YouTube in 3D + depth occlusion + proximity audio) ---
+//
+// Three layers at the LED position:
+//  1. `ledIdle`  — WebGL plane with the branded idle slide. Seen whenever the CSS layer is off.
+//  2. `ledHole`  — WebGL plane that writes alpha 0 with NoBlending. While the CSS layer is on it
+//                  cuts a window through the WebGL canvas, depth-tested like any other mesh, so
+//                  only the parts of the wall that are actually visible let the video through.
+//  3. the CSS3D iframe, under the WebGL canvas, whose own background is the same idle slide.
+let ledHole = null;
+
+function createStageSet() {
+  const cy = LED.bottom + LED.height / 2;
+  const tex = new THREE.TextureLoader().load('/stage/led_idle.png');
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.anisotropy = 4;
+  const idle = new THREE.Mesh(
+    new THREE.PlaneGeometry(LED.width, LED.height),
+    new THREE.MeshBasicMaterial({ map: tex, toneMapped: false, fog: false }),
+  );
+  idle.position.set(LED.cx, cy, LED.z);
+  idle.name = 'Stage_LED_Idle';
+  scene.add(idle);
+
+  ledHole = new THREE.Mesh(
+    new THREE.PlaneGeometry(LED.width, LED.height),
+    new THREE.MeshBasicMaterial({
+      color: 0x000000, transparent: true, opacity: 0, blending: THREE.NoBlending, fog: false,
+    }),
+  );
+  ledHole.position.set(LED.cx, cy, LED.z + 0.005);
+  ledHole.name = 'Stage_LED_Window';
+  ledHole.visible = false;
+  scene.add(ledHole);
+
+  // Boat-with-elephant and lighthouse cut-outs from the stage design, on the floor either side
+  // of the stage so they frame the LED wall without covering any of it.
+  for (const [key, st] of Object.entries(hallLayout.standees)) {
+    const src = key === 'boat' ? '/stage/boat_elephant.png' : '/stage/lighthouse.png';
+    new THREE.TextureLoader().load(src, (t) => {
+      t.colorSpace = THREE.SRGBColorSpace;
+      t.anisotropy = 4;
+      const w = st.height * t.image.width / t.image.height;
+      const g = new THREE.Group();
+      g.position.set(st.x, 0, st.z);
+      g.rotation.y = st.yaw;
+      const front = new THREE.Mesh(
+        new THREE.PlaneGeometry(w, st.height),
+        new THREE.MeshStandardMaterial({ map: t, alphaTest: 0.5, roughness: 0.7, side: THREE.DoubleSide }),
+      );
+      front.position.y = st.height / 2;
+      front.castShadow = !isLowPowerDevice;
+      g.add(front);
+      // A foam-board foot so it reads as a standee rather than a floating decal.
+      const foot = new THREE.Mesh(
+        new THREE.BoxGeometry(Math.min(w * 0.6, 1.0), 0.04, 0.45),
+        new THREE.MeshStandardMaterial({ color: 0xf2efe8, roughness: 0.6 }),
+      );
+      foot.position.set(0, 0.02, -0.18);
+      g.add(foot);
+      g.name = `Standee_${key}`;
+      scene.add(g);
+    });
+  }
+}
+
 function setupStageYouTubeScreen() {
+  createStageSet();
+
   const mount = document.createElement('div');
   mount.id = 'stage-yt-mount';
   Object.assign(mount.style, {
-    width: '1280px', height: '720px', backgroundColor: '#000000', pointerEvents: 'none',
-    boxSizing: 'border-box', border: '10px solid #0f172a', boxShadow: '0 0 35px rgba(0, 212, 255, 0.45)',
-    borderRadius: '6px', overflow: 'hidden',
+    width: '1280px', height: '720px', pointerEvents: 'none', overflow: 'hidden',
+    background: '#1B2D5C url(/stage/led_idle.png) center / cover no-repeat',
   });
   mount.innerHTML = `<div id="stage-yt-player" style="width: 100%; height: 100%;"></div>`;
 
   stageCSSObject = new CSS3DObject(mount);
-  stageCSSObject.position.set(9.68, 2.30, -24.95);
-  stageCSSObject.scale.set(7.0 / 1280, 3.9375 / 720, 1);
+  stageCSSObject.position.set(LED.cx, LED.bottom + LED.height / 2, LED.z);
+  stageCSSObject.scale.set(LED.width / 1280, LED.height / 720, 1);
   cssScene.add(stageCSSObject);
 
   if (cssRenderer) cssRenderer.render(cssScene, camera);
@@ -1252,19 +1342,19 @@ function initYouTubePlayer() {
   tryInit();
 }
 
-const STAGE_AUDIO_POS = new THREE.Vector3(9.68, 2.2, -25.0);
+const STAGE_AUDIO_POS = new THREE.Vector3(LED.cx, LED.bottom + LED.height / 2, LED.z);
 let lastStageVolume = -1;
 
 function updateStageVolume() {
   if (!ytStagePlayer || typeof ytStagePlayer.setVolume !== 'function') return;
   try {
     const distToStage = camera.position.distanceTo(STAGE_AUDIO_POS);
-    const inDifferentRoom = (player.pos.x > 19.35) || (player.pos.z < -24.9);
+    const inDifferentRoom = (player.pos.x > 19.35);
 
     let vol = 0;
     if (soundEnabled && !inDifferentRoom && !isPopupVideoPlaying()) {
-      const maxDist = 22.0;
-      const minDist = 7.0;
+      const maxDist = 26.0;
+      const minDist = 9.0;
       const norm = Math.max(0, Math.min(1, 1 - (distToStage - minDist) / (maxDist - minDist)));
       vol = Math.round(norm * norm * 100);
     }
@@ -1773,26 +1863,40 @@ function updateOnlineCount(count) {
 }
 
 // --- Sitting & Standing Mechanics ---
+// The lectern works like a seat: the player is parked on the stage looking out at the hall
+// (the stage collider would otherwise push them straight back off the platform).
+const LECTERN_SPOT = {
+  id: 'lectern', x: 5.35, z: -25.35, y: STAGE.height + player.eyeHeight + 0.05, yaw: Math.PI, pitch: -0.08,
+  label: 'the speaker lectern', exit: { x: 4.2, z: -24.0 },
+};
+
 function sitDownOnChair(chair) {
   player.isSitting = true;
   player.sittingChairId = chair.id;
-  player.pos.set(chair.x, 0.95, chair.z);
+  player.pos.set(chair.x, chair.y ?? 0.95, chair.z);
   player.vel.set(0, 0, 0);
-  player.yaw = 0;
-  player.pitch = 0.05;
+  player.yaw = chair.yaw ?? 0;
+  player.pitch = chair.pitch ?? 0.05;
 
   $('sitting-hud').classList.remove('hidden');
   $('mobile-stand-btn').classList.remove('hidden');
   $('proximity-prompt').classList.add('hidden');
-  showToast(`Seated at ${chair.label}. Enjoy the keynote!`, { icon: '🪑' });
+  if (chair.id === 'lectern') showToast('You are at the speaker lectern. Wave to the hall!', { icon: '🎤' });
+  else showToast(`Seated at ${chair.label}. Enjoy the show on the LED wall!`, { icon: '🪑' });
 }
 
 function standUp() {
   if (!player.isSitting) return;
+  const wasLectern = player.sittingChairId === 'lectern';
   player.isSitting = false;
   player.sittingChairId = null;
   player.pos.y = player.eyeHeight;
-  player.pos.z += 0.45;
+  if (wasLectern) {
+    player.pos.x = LECTERN_SPOT.exit.x;
+    player.pos.z = LECTERN_SPOT.exit.z;
+  } else {
+    player.pos.z -= 0.36;  // step out into the lane in front of the seat
+  }
 
   $('sitting-hud').classList.add('hidden');
   $('mobile-stand-btn').classList.add('hidden');
@@ -2141,19 +2245,31 @@ function resolveSolids(p, r) {
   if (mascots) {
     for (const o of mascots.obstacles) pushOutOfCircle(p, o.x, o.z, o.r, r);
   }
-  const boothRadius = 0.95;
-  for (const b of Object.values(BOOTH_POSITIONS)) {
-    pushOutOfCircle(p, b.x, b.z, boothRadius, r);
-  }
-  const chairRadius = 0.32;
-  for (const c of CHAIR_LOCATIONS) {
-    if (player.isSitting && player.sittingChairId === c.id) continue;
-    pushOutOfCircle(p, c.x, c.z, chairRadius, r);
-  }
+  for (const o of CLUSTER_OBSTACLES) pushOutOfCircle(p, o.x, o.z, o.r, r);
+  for (const o of ROUND_PROPS) pushOutOfCircle(p, o.x, o.z, o.r, r);
+  for (const w of CHAMFER_WALLS) pushOutOfSegment(p, w, r);
   // Circles can shove the player back into a wall — re-apply walls + world clamp.
   clampWorld(p, r);
   for (const box of staticBoxes) pushOutOfBox(p, box, r);
   clampWorld(p, r);
+}
+
+/** Keeps the player `r` away from a wall segment (used for the chamfered stage-end corners). */
+function pushOutOfSegment(p, w, r) {
+  const dx = w.bx - w.ax, dz = w.bz - w.az;
+  const len2 = dx * dx + dz * dz;
+  const t = Math.max(0, Math.min(1, ((p.x - w.ax) * dx + (p.z - w.az) * dz) / len2));
+  const cx = w.ax + dx * t, cz = w.az + dz * t;
+  // Inward normal: whichever side faces the middle of the hall.
+  let nx = -dz, nz = dx;
+  const len = Math.hypot(nx, nz);
+  nx /= len; nz /= len;
+  if ((9.68 - cx) * nx + (-14 - cz) * nz < 0) { nx = -nx; nz = -nz; }
+  const side = (p.x - cx) * nx + (p.z - cz) * nz;
+  if (side < r) {
+    p.x += nx * (r - side);
+    p.z += nz * (r - side);
+  }
 }
 
 function checkCollision(nextPos) {
@@ -2349,8 +2465,8 @@ function checkProximity(force = false) {
         closestDist = dist;
         activeTarget = {
           type: 'chair', key: `chair-${c.id}`, chair: c,
-          title: `${c.label} • VIP Audience Seat`,
-          sub: `${actionVerb()} sit down & watch the keynote`,
+          title: `${c.label} • Audience Seat`,
+          sub: `${actionVerb()} sit down & watch the stage`,
         };
       }
     }
@@ -2466,8 +2582,7 @@ function handleInteract() {
     openBoothModal(activeTarget.id);
   } else if (activeTarget.type === 'hotspot') {
     if (activeTarget.modal === 'podium') {
-      teleportPlayer(8.0, 1.8, -22.8, Math.PI);
-      showToast('Now viewing the hall from the speaker lectern.', { icon: '🎤' });
+      sitDownOnChair(LECTERN_SPOT);
     } else if (activeTarget.modal === 'pledge-modal') {
       renderPledges();
       openModal('pledge-modal');
@@ -2867,7 +2982,7 @@ function openBoothModal(boothId, { tab = 'tab-overview', playWithSound = false }
 
   $('modal-booth-id').textContent = pad2(boothId);
   $('modal-booth-title').textContent = boothInfo.name || boothMeta.title;
-  $('modal-booth-category').textContent = boothInfo.category && boothInfo.category !== 'Innovation' ? boothInfo.category : boothMeta.category;
+  $('modal-booth-category').textContent = [boothInfo.organization && boothInfo.organization !== boothInfo.name ? boothInfo.organization : null, boothInfo.theme || boothMeta.category].filter(Boolean).join(' · ');
   $('modal-overview-text').textContent = boothInfo.overview && !boothInfo.placeholder
     ? boothInfo.overview
     : "This youth-led satellite innovation team delivers scalable solutions tackling systemic environmental and social challenges. Full project details will appear here once the exhibitor publishes them.";
@@ -2905,7 +3020,7 @@ function openBoothModal(boothId, { tab = 'tab-overview', playWithSound = false }
   if (firstVisit) {
     const count = visitedBooths.size;
     if (count === TOTAL_BOOTHS) {
-      showToast('🏆 Passport complete — all 20 booths visited!', { icon: '🌟', type: 'gold', duration: 4500 });
+      showToast(`🏆 Passport complete — all ${TOTAL_BOOTHS} booths visited!`, { icon: '🌟', type: 'gold', duration: 4500 });
       maybeEmitPassportComplete();
     } else {
       showToast(`Stamp collected! ${count}/${TOTAL_BOOTHS} booths visited.`, { icon: '⭐', type: 'success' });
@@ -3534,8 +3649,10 @@ function updateVisitedHUD() {
 // --- Minimap Radar ---
 const MAP_SIZE = 200;
 let mapDpr = 1;
-const mapX = (x) => 12 + (x / 28.0) * (MAP_SIZE - 24);
-const mapZ = (z) => 12 + ((25.0 + z) / 25.0) * (MAP_SIZE - 24);
+// One scale for both axes so the hall keeps its proportions; 29.5 m covers hall + stage end.
+const MAP_SPAN = 29.5;
+const mapX = (x) => 12 + (x / MAP_SPAN) * (MAP_SIZE - 24);
+const mapZ = (z) => 12 + ((MAP_SPAN + z) / MAP_SPAN) * (MAP_SIZE - 24);
 
 function setupMinimapCanvas() {
   const canvas = $('minimap-canvas');
@@ -3562,26 +3679,37 @@ function buildMinimapStatic() {
   const ctx = canvas.getContext('2d');
   ctx.setTransform(mapDpr, 0, 0, mapDpr, 0, 0);
 
-  // Main Hall perimeter
+  // Main Hall perimeter, with the chamfered stage-end corners
   ctx.strokeStyle = 'rgba(0, 212, 255, 0.45)';
   ctx.lineWidth = 2;
-  ctx.strokeRect(mapX(0.8), mapZ(-24.8), mapX(19.35) - mapX(0.8), mapZ(0.0) - mapZ(-24.8));
+  ctx.beginPath();
+  ctx.moveTo(mapX(0), mapZ(0));
+  ctx.lineTo(mapX(0), mapZ(CHAMFER_WALLS[0].az));
+  ctx.lineTo(mapX(CHAMFER_WALLS[0].bx), mapZ(HALL_NORTH_Z));
+  ctx.lineTo(mapX(CHAMFER_WALLS[1].ax), mapZ(HALL_NORTH_Z));
+  ctx.lineTo(mapX(19.35), mapZ(CHAMFER_WALLS[1].bz));
+  ctx.lineTo(mapX(19.35), mapZ(0));
+  ctx.closePath();
+  ctx.stroke();
 
   // Foyer perimeter
+  const foyerN = HALL_NORTH_Z + 4.0;
   ctx.strokeStyle = 'rgba(245, 158, 11, 0.45)';
-  ctx.strokeRect(mapX(19.35), mapZ(-20.8), mapX(26.8) - mapX(19.35), mapZ(0.0) - mapZ(-20.8));
+  ctx.strokeRect(mapX(19.35), mapZ(foyerN), mapX(26.8) - mapX(19.35), mapZ(0.0) - mapZ(foyerN));
 
   // Divider wall with doors
   ctx.strokeStyle = 'rgba(255, 255, 255, 0.35)';
   ctx.beginPath();
   ctx.moveTo(mapX(19.35), mapZ(0.0)); ctx.lineTo(mapX(19.35), mapZ(-7.0));
   ctx.moveTo(mapX(19.35), mapZ(-8.8)); ctx.lineTo(mapX(19.35), mapZ(-11.4));
-  ctx.moveTo(mapX(19.35), mapZ(-13.2)); ctx.lineTo(mapX(19.35), mapZ(-20.8));
+  ctx.moveTo(mapX(19.35), mapZ(-13.2)); ctx.lineTo(mapX(19.35), mapZ(foyerN));
   ctx.stroke();
 
-  // Stage
+  // Stage + LED wall
   ctx.fillStyle = 'rgba(168, 85, 247, 0.45)';
-  ctx.fillRect(mapX(4.68), mapZ(-24.8), mapX(14.68) - mapX(4.68), mapZ(-21.75) - mapZ(-24.8));
+  ctx.fillRect(mapX(STAGE.x0), mapZ(STAGE.zBack), mapX(STAGE.x1) - mapX(STAGE.x0), mapZ(STAGE.zFront) - mapZ(STAGE.zBack));
+  ctx.fillStyle = 'rgba(125, 211, 252, 0.95)';
+  ctx.fillRect(mapX(LED.cx - LED.width / 2), mapZ(LED.z) - 1.5, mapX(LED.cx + LED.width / 2) - mapX(LED.cx - LED.width / 2), 3);
 
   // Staircase (solid)
   ctx.fillStyle = 'rgba(255, 255, 255, 0.18)';
@@ -3621,24 +3749,30 @@ function buildMinimapStatic() {
     }
   }
 
-  // Chairs
-  ctx.fillStyle = 'rgba(245, 158, 11, 0.7)';
-  for (const c of CHAIR_LOCATIONS) {
-    ctx.beginPath();
-    ctx.arc(mapX(c.x), mapZ(c.z), 2.2, 0, Math.PI * 2);
-    ctx.fill();
+  // Seats (one row strip per block reads better than 80 dots at this scale)
+  ctx.fillStyle = 'rgba(245, 158, 11, 0.55)';
+  for (const r of SEAT_ROW_BOXES) {
+    ctx.fillRect(mapX(r.minX), mapZ(r.minZ - 0.45), mapX(r.maxX) - mapX(r.minX), 2.2);
   }
 
-  // Booth stands (draw the physical panel as a short line so the two faces read as one stand)
-  ctx.strokeStyle = 'rgba(255, 255, 255, 0.25)';
+  // Booth clusters: the three panels as a "Y", in the cluster colour, with the C-number.
+  const clusters = hallLayout.clusters;
   ctx.lineWidth = 2;
-  for (const b of Object.values(BOOTH_POSITIONS)) {
-    if (b.facing !== 1) continue;
+  ctx.font = 'bold 7px sans-serif';
+  ctx.textAlign = 'center';
+  for (const cl of clusters.list) {
+    ctx.strokeStyle = cl.color;
     ctx.beginPath();
-    ctx.moveTo(mapX(b.x), mapZ(b.z - 0.9));
-    ctx.lineTo(mapX(b.x), mapZ(b.z + 0.9));
+    for (const a of clusters.panelAngles) {
+      const t = a * Math.PI / 180;
+      ctx.moveTo(mapX(cl.x), mapZ(cl.z));
+      ctx.lineTo(mapX(cl.x + Math.cos(t) * clusters.panelLength), mapZ(cl.z + Math.sin(t) * clusters.panelLength));
+    }
     ctx.stroke();
+    ctx.fillStyle = cl.color;
+    ctx.fillText(cl.id, mapX(cl.x), mapZ(cl.z - clusters.panelLength) - 3);
   }
+  ctx.textAlign = 'left';
 
   mapStatic = canvas;
 }
@@ -3768,13 +3902,20 @@ function animate() {
   }
 
   // Animate holographic markers & labels. A booth's marker/label is only shown to players
-  // standing on the side of the stand that booth faces, so the back-side booth never
-  // "leaks" above the panel (tracked targets stay visible from anywhere as a beacon).
+  // standing roughly in front of that booth's bay, so the two booths round the back of a
+  // cluster never "leak" over the panels (tracked targets stay visible from anywhere).
   const camX = camera.position.x;
+  const camZ = camera.position.z;
+  const inFrontOfBay = (u) => {
+    const dx = camX - u.cx, dz = camZ - u.cz;
+    return dx * u.dirX + dz * u.dirZ > 0.35 * Math.hypot(dx, dz);
+  };
+  // Markers and labels only appear within conversational range, so the hall reads as a real
+  // venue from a distance instead of a cloud of floating tags.
+  const near = (u, range) => Math.hypot(camX - u.cx, camZ - u.cz) < range;
   boothMarkers.forEach(m => {
     const isTarget = m.userData.state === 'target';
-    const onFacingSide = (camX - m.userData.panelX) * m.userData.facing > -0.35;
-    m.visible = isTarget || onFacingSide;
+    m.visible = isTarget || (inFrontOfBay(m.userData) && near(m.userData, 6.5));
     if (!m.visible) return;
     
     m.rotation.y = t * (isTarget ? 3.0 : 1.5);
@@ -3793,7 +3934,7 @@ function animate() {
   });
   for (const label of boothLabels.values()) {
     const isTarget = activeWaypointId === label.userData.boothId;
-    label.visible = isTarget || (camX - label.userData.panelX) * label.userData.facing > -0.35;
+    label.visible = isTarget || (inFrontOfBay(label.userData) && near(label.userData, 9.0));
   }
 
   if (dustParticles) {
@@ -3811,16 +3952,20 @@ function animate() {
   }
 
   // Render CSS3D stage screen only when it could be visible
-  const inMainHall = player.pos.x <= 19.35 && player.pos.z > -25.0;
+  const inMainHall = player.pos.x <= 19.35;
   camera.getWorldDirection(_lookDir);
   const facingStage = _lookDir.z < 0.2;
+  const showStream = inMainHall && facingStage && !!cssRenderer;
 
-  if (inMainHall && facingStage && cssRenderer) {
+  if (showStream) {
     cssRenderer.domElement.style.display = 'block';
     cssRenderer.render(cssScene, camera);
   } else if (cssRenderer) {
     cssRenderer.domElement.style.display = 'none';
   }
+  // The LED window only opens while the iframe underneath is actually being drawn; otherwise
+  // the idle slide behind it shows.
+  if (ledHole) ledHole.visible = showStream;
 
   if (composer && quality.usePost) {
     composer.render();

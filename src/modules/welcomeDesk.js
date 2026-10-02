@@ -189,7 +189,7 @@ function createTabletTexture() {
   ctx.fillText('Passport', 36, 164);
   ctx.fillStyle = 'rgba(226,232,240,0.7)';
   ctx.font = '500 18px "Plus Jakarta Sans", sans-serif';
-  ctx.fillText('Visit all 20 booths • collect stamps', 36, 212);
+  ctx.fillText('Visit all 24 booths • collect stamps', 36, 212);
   return tex(canvas);
 }
 

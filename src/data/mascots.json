@@ -12,26 +12,71 @@
     "interactRange": 2.2,
     "roam": true,
     "walkSpeed": 1.05,
-    "pauseSec": [2.2, 4.5],
+    "pauseSec": [
+      2.2,
+      4.5
+    ],
     "waypoints": [
-      { "x": 24.4, "z": -4.55 },
-      { "x": 22.2, "z": -7.8 },
-      { "x": 18.2, "z": -7.8 },
-      { "x": 14.5, "z": -7.8 },
-      { "x": 9.68, "z": -6.0 },
-      { "x": 9.68, "z": -10.5 },
-      { "x": 9.68, "z": -14.5 },
-      { "x": 4.6, "z": -12.5 },
-      { "x": 4.6, "z": -7.0 },
-      { "x": 9.68, "z": -5.5 },
-      { "x": 14.5, "z": -7.8 },
-      { "x": 18.2, "z": -12.2 },
-      { "x": 22.0, "z": -12.2 },
-      { "x": 24.2, "z": -9.5 },
-      { "x": 24.4, "z": -6.5 }
+      {
+        "x": 24.4,
+        "z": -4.55
+      },
+      {
+        "x": 22.2,
+        "z": -7.8
+      },
+      {
+        "x": 18.2,
+        "z": -7.8
+      },
+      {
+        "x": 9.68,
+        "z": -8.3
+      },
+      {
+        "x": 9.68,
+        "z": -14.1
+      },
+      {
+        "x": 6.83,
+        "z": -14.1
+      },
+      {
+        "x": 6.83,
+        "z": -19.8
+      },
+      {
+        "x": 12.53,
+        "z": -19.8
+      },
+      {
+        "x": 12.53,
+        "z": -14.1
+      },
+      {
+        "x": 18.2,
+        "z": -12.3
+      },
+      {
+        "x": 22.0,
+        "z": -12.2
+      },
+      {
+        "x": 24.2,
+        "z": -9.5
+      },
+      {
+        "x": 24.4,
+        "z": -6.5
+      }
     ],
     "lines": {
-      "enter": ["Hi there!", "Welcome!", "I'm Tutu!", "Ask me anything!"],
+      "enter": [
+        "Hi there!",
+        "Welcome!",
+        "I'm Tutu!",
+        "Ask me anything!"
+      ],
       "idle": [
         "What is the Marketplace?",
         "Ask me about safeguarding",
@@ -46,9 +91,18 @@
       "subtitle": "Event FAQ & safeguarding",
       "overview": "Tutu welcomes you to the Youth Innovations Marketplace. Ask about the event overview, what to expect on 17 November, or safeguarding — Tutu is here to help.",
       "stats": [
-        { "value": "20", "label": "Satellite booths" },
-        { "value": "Nov 17", "label": "Marriott Manila" },
-        { "value": "Safe", "label": "Safeguarding first" }
+        {
+          "value": "24",
+          "label": "Innovation booths"
+        },
+        {
+          "value": "Nov 17",
+          "label": "Marriott Manila"
+        },
+        {
+          "value": "Safe",
+          "label": "Safeguarding first"
+        }
       ]
     }
   },
@@ -64,8 +118,18 @@
     "bubbleRange": 4.5,
     "interactRange": 2.2,
     "lines": {
-      "enter": ["I am the LIGHT", "Welcome, Lightkeeper!", "Over here!"],
-      "idle": ["Violence ends with us", "Be a Lightkeeper", "Join the movement", "It's time to shine", "Follow the light"]
+      "enter": [
+        "I am the LIGHT",
+        "Welcome, Lightkeeper!",
+        "Over here!"
+      ],
+      "idle": [
+        "Violence ends with us",
+        "Be a Lightkeeper",
+        "Join the movement",
+        "It's time to shine",
+        "Follow the light"
+      ]
     },
     "modal": {
       "kicker": "VEWU MASCOT",
@@ -73,9 +137,18 @@
       "subtitle": "Violence Ends With Us",
       "overview": "The Lighthouse is the guiding light of Violence Ends With Us — a youth-led movement across the Asia-Pacific whose members call themselves Lightkeepers. It stands beside the VEWU booth to guide you through the Marketplace: collect passport stamps, watch the booth TVs, try the quizzes, and leave a pledge on the Commitment Wall. I am the LIGHT — it's time for you to shine.",
       "stats": [
-        { "value": "20+", "label": "Countries" },
-        { "value": "500+", "label": "Lightkeepers" },
-        { "value": "Passport", "label": "Collect stamps" }
+        {
+          "value": "20+",
+          "label": "Countries"
+        },
+        {
+          "value": "500+",
+          "label": "Lightkeepers"
+        },
+        {
+          "value": "Passport",
+          "label": "Collect stamps"
+        }
       ]
     }
   }

@@ -105,6 +105,22 @@ Up to **4** supporting photos or graphics for future gallery use.
 | Format | JPG or PNG |
 | Consent | Youth faces only with documented consent (see §6) |
 
+### D. Booth panel artwork (**optional**)
+Each booth is one bay of a three-booth cluster: two 1.0 × 2.4 m fabric panels meet in a V behind
+your counter. Until you send artwork, both panels show the hall's placeholder design (your booth
+number, cluster colour and name).
+
+| Spec | Requirement |
+|------|-------------|
+| Panels | **Two** images — panel A (poster) and panel B (TV panel) |
+| Printable area | 0.915 m wide × 2.305 m tall per panel |
+| Size | **1000 × 2520 px** (portrait, ~0.4 : 1) |
+| Panel B TV zone | Leave the band **1.33–1.77 m above the floor** (the TV covers it) free of text |
+| Format | PNG or JPG, under 2 MB each |
+
+In `src/data/booths.json` the files go in `"panelArt": ["/booths/<id>-a.png", "/booths/<id>-b.png"]`
+(files under `public/booths/`).
+
 ---
 
 ## 4. Video guidelines (Booth TV)

@@ -38,7 +38,7 @@ INSERT INTO hall_analytics_totals (id) VALUES (1)
 
 -- Hearts: one row per visitor per booth
 CREATE TABLE IF NOT EXISTS booth_hearts (
-  booth_id   INTEGER NOT NULL CHECK (booth_id BETWEEN 1 AND 20),
+  booth_id   INTEGER NOT NULL CHECK (booth_id BETWEEN 1 AND 24),
   visitor_id TEXT NOT NULL,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   PRIMARY KEY (booth_id, visitor_id)
@@ -49,7 +49,7 @@ CREATE INDEX IF NOT EXISTS booth_hearts_booth_idx ON booth_hearts (booth_id);
 -- Comments left on booths
 CREATE TABLE IF NOT EXISTS booth_comments (
   id         TEXT PRIMARY KEY,
-  booth_id   INTEGER NOT NULL CHECK (booth_id BETWEEN 1 AND 20),
+  booth_id   INTEGER NOT NULL CHECK (booth_id BETWEEN 1 AND 24),
   visitor_id TEXT,
   name       TEXT NOT NULL,
   body       TEXT NOT NULL,
@@ -64,3 +64,22 @@ ALTER TABLE analytics_events ENABLE ROW LEVEL SECURITY;
 ALTER TABLE hall_analytics_totals ENABLE ROW LEVEL SECURITY;
 ALTER TABLE booth_hearts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE booth_comments ENABLE ROW LEVEL SECURITY;
+
+-- Migration: the hall grew from 20 booths to 24 (eight clusters of three). Databases created from
+-- an older copy of this file still carry the 1..20 CHECK, which would silently reject hearts and
+-- comments on booths 21-24. Safe to re-run.
+DO $$
+DECLARE c record;
+BEGIN
+  FOR c IN
+    SELECT conrelid::regclass AS tbl, conname
+    FROM pg_constraint
+    WHERE conrelid IN ('booth_hearts'::regclass, 'booth_comments'::regclass)
+      AND contype = 'c'
+      AND pg_get_constraintdef(oid) ILIKE '%booth_id%'
+      AND pg_get_constraintdef(oid) NOT ILIKE '%<= 24)%'
+  LOOP
+    EXECUTE format('ALTER TABLE %s DROP CONSTRAINT %I', c.tbl, c.conname);
+    EXECUTE format('ALTER TABLE %s ADD CONSTRAINT %I CHECK (booth_id BETWEEN 1 AND 24)', c.tbl, c.conname);
+  END LOOP;
+END $$;

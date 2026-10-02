@@ -1,5 +1,6 @@
 import { defineConfig } from 'vite';
-import { cpSync, existsSync, mkdirSync, readdirSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { resolve } from 'node:path';
 
@@ -56,6 +57,19 @@ function copyLandingAssetsPlugin() {
 
 const presencePort = process.env.PRESENCE_PORT || '8787';
 
+/**
+ * Content hash of the venue GLB. public/ files keep a fixed URL, so without this a browser that
+ * cached an older build keeps rendering the old hall (old seating, old booths) under new code.
+ * main.js appends it as `?v=` so every rebuild of the model gets a fresh URL.
+ */
+function venueVersion() {
+  try {
+    return createHash('sha1').update(readFileSync(resolve(rootDir, 'public', 'models', 'diplomatic_hall.glb'))).digest('hex').slice(0, 10);
+  } catch {
+    return String(Date.now());
+  }
+}
+
 // Same-origin `/presence` is forwarded to the presence server (start it with `npm run server`,
 // or use `npm run dev` which launches both). Errors are swallowed: the client shows an
 // "Offline" pill and keeps retrying with back-off instead of spamming the terminal.
@@ -92,6 +106,7 @@ export default defineConfig({
     // Lets the client fall back to a direct connection when the dev proxy isn't in front of it
     // (e.g. `vite preview`, or a phone opening the LAN URL while the proxy target is down).
     __PRESENCE_PORT__: JSON.stringify(presencePort),
+    __VENUE_VERSION__: JSON.stringify(venueVersion()),
   },
   build: {
     rollupOptions: {

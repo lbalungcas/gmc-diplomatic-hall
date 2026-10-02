@@ -1,11 +1,11 @@
 [
   {
     "id": 1,
-    "name": "Booth 01",
-    "category": "Innovation",
+    "name": "Gain Line",
+    "category": "Child Labour",
     "logo": "",
     "images": [],
-    "overview": "This exhibit is still being prepared.",
+    "overview": "Gain Line by Violence Ends With Us. Theme: Child Labour. Full exhibit details are still being prepared.",
     "introVideo": "https://www.youtube.com/watch?v=-EE0W5Lg738",
     "stats": [],
     "links": [],
@@ -27,9 +27,9 @@
         {
           "prompt": "How many booths are on the floor?",
           "choices": [
-            "5",
-            "10",
-            "20"
+            "8",
+            "20",
+            "24"
           ],
           "correctIndex": 2
         },
@@ -43,15 +43,17 @@
           "correctIndex": 0
         }
       ]
-    }
+    },
+    "organization": "Violence Ends With Us",
+    "theme": "Child Labour"
   },
   {
     "id": 2,
-    "name": "Booth 02",
-    "category": "Innovation",
+    "name": "SAFE Steps",
+    "category": "Child Labour",
     "logo": "",
     "images": [],
-    "overview": "This exhibit is still being prepared.",
+    "overview": "SAFE Steps by Violence Ends With Us. Theme: Child Labour. Full exhibit details are still being prepared.",
     "introVideo": "https://www.youtube.com/watch?v=-EE0W5Lg738",
     "stats": [],
     "links": [],
@@ -73,9 +75,9 @@
         {
           "prompt": "How many booths are on the floor?",
           "choices": [
-            "5",
-            "10",
-            "20"
+            "8",
+            "20",
+            "24"
           ],
           "correctIndex": 2
         },
@@ -89,15 +91,17 @@
           "correctIndex": 0
         }
       ]
-    }
+    },
+    "organization": "Violence Ends With Us",
+    "theme": "Child Labour"
   },
   {
     "id": 3,
-    "name": "Booth 03",
-    "category": "Innovation",
+    "name": "Voice 4 Change",
+    "category": "Child Marriage",
     "logo": "",
     "images": [],
-    "overview": "This exhibit is still being prepared.",
+    "overview": "Voice 4 Change by Violence Ends With Us. Theme: Child Marriage. Full exhibit details are still being prepared.",
     "introVideo": "https://www.youtube.com/watch?v=-EE0W5Lg738",
     "stats": [],
     "links": [],
@@ -119,9 +123,9 @@
         {
           "prompt": "How many booths are on the floor?",
           "choices": [
-            "5",
-            "10",
-            "20"
+            "8",
+            "20",
+            "24"
           ],
           "correctIndex": 2
         },
@@ -135,15 +139,17 @@
           "correctIndex": 0
         }
       ]
-    }
+    },
+    "organization": "Violence Ends With Us",
+    "theme": "Child Marriage"
   },
   {
     "id": 4,
-    "name": "Booth 04",
-    "category": "Innovation",
+    "name": "Her Life, Her Choice",
+    "category": "Child Marriage",
     "logo": "",
     "images": [],
-    "overview": "This exhibit is still being prepared.",
+    "overview": "Her Life, Her Choice by Violence Ends With Us. Theme: Child Marriage. Full exhibit details are still being prepared.",
     "introVideo": "https://www.youtube.com/watch?v=-EE0W5Lg738",
     "stats": [],
     "links": [],
@@ -165,9 +171,9 @@
         {
           "prompt": "How many booths are on the floor?",
           "choices": [
-            "5",
-            "10",
-            "20"
+            "8",
+            "20",
+            "24"
           ],
           "correctIndex": 2
         },
@@ -181,15 +187,17 @@
           "correctIndex": 0
         }
       ]
-    }
+    },
+    "organization": "Violence Ends With Us",
+    "theme": "Child Marriage"
   },
   {
     "id": 5,
-    "name": "Booth 05",
-    "category": "Innovation",
+    "name": "PAUSE",
+    "category": "Corporal Punishment",
     "logo": "",
     "images": [],
-    "overview": "This exhibit is still being prepared.",
+    "overview": "PAUSE by Violence Ends With Us. Theme: Corporal Punishment. Full exhibit details are still being prepared.",
     "introVideo": "https://www.youtube.com/watch?v=-EE0W5Lg738",
     "stats": [],
     "links": [],
@@ -211,9 +219,9 @@
         {
           "prompt": "How many booths are on the floor?",
           "choices": [
-            "5",
-            "10",
-            "20"
+            "8",
+            "20",
+            "24"
           ],
           "correctIndex": 2
         },
@@ -227,15 +235,17 @@
           "correctIndex": 0
         }
       ]
-    }
+    },
+    "organization": "Violence Ends With Us",
+    "theme": "Corporal Punishment"
   },
   {
     "id": 6,
-    "name": "Booth 06",
-    "category": "Innovation",
+    "name": "Hearts On, Hands Off",
+    "category": "Corporal Punishment",
     "logo": "",
     "images": [],
-    "overview": "This exhibit is still being prepared.",
+    "overview": "Hearts On, Hands Off by Violence Ends With Us. Theme: Corporal Punishment. Full exhibit details are still being prepared.",
     "introVideo": "https://www.youtube.com/watch?v=-EE0W5Lg738",
     "stats": [],
     "links": [],
@@ -257,9 +267,9 @@
         {
           "prompt": "How many booths are on the floor?",
           "choices": [
-            "5",
-            "10",
-            "20"
+            "8",
+            "20",
+            "24"
           ],
           "correctIndex": 2
         },
@@ -273,15 +283,17 @@
           "correctIndex": 0
         }
       ]
-    }
+    },
+    "organization": "Violence Ends With Us",
+    "theme": "Corporal Punishment"
   },
   {
     "id": 7,
-    "name": "Booth 07",
-    "category": "Innovation",
+    "name": "D-KAWACH",
+    "category": "OCSEA",
     "logo": "",
     "images": [],
-    "overview": "This exhibit is still being prepared.",
+    "overview": "D-KAWACH by Violence Ends With Us. Theme: OCSEA. Full exhibit details are still being prepared.",
     "introVideo": "https://www.youtube.com/watch?v=-EE0W5Lg738",
     "stats": [],
     "links": [],
@@ -303,9 +315,9 @@
         {
           "prompt": "How many booths are on the floor?",
           "choices": [
-            "5",
-            "10",
-            "20"
+            "8",
+            "20",
+            "24"
           ],
           "correctIndex": 2
         },
@@ -319,15 +331,17 @@
           "correctIndex": 0
         }
       ]
-    }
+    },
+    "organization": "Violence Ends With Us",
+    "theme": "OCSEA"
   },
   {
     "id": 8,
-    "name": "Booth 08",
-    "category": "Innovation",
+    "name": "ScreenSafe Stories",
+    "category": "OCSEA",
     "logo": "",
     "images": [],
-    "overview": "This exhibit is still being prepared.",
+    "overview": "ScreenSafe Stories by Violence Ends With Us. Theme: OCSEA. Full exhibit details are still being prepared.",
     "introVideo": "https://www.youtube.com/watch?v=-EE0W5Lg738",
     "stats": [],
     "links": [],
@@ -349,9 +363,9 @@
         {
           "prompt": "How many booths are on the floor?",
           "choices": [
-            "5",
-            "10",
-            "20"
+            "8",
+            "20",
+            "24"
           ],
           "correctIndex": 2
         },
@@ -365,15 +379,17 @@
           "correctIndex": 0
         }
       ]
-    }
+    },
+    "organization": "Violence Ends With Us",
+    "theme": "OCSEA"
   },
   {
     "id": 9,
-    "name": "Booth 09",
-    "category": "Innovation",
+    "name": "Secure Shield",
+    "category": "OCSEA",
     "logo": "",
     "images": [],
-    "overview": "This exhibit is still being prepared.",
+    "overview": "Secure Shield by Kindernothilfe / PKPA. Theme: OCSEA. Full exhibit details are still being prepared.",
     "introVideo": "https://www.youtube.com/watch?v=-EE0W5Lg738",
     "stats": [],
     "links": [],
@@ -395,9 +411,9 @@
         {
           "prompt": "How many booths are on the floor?",
           "choices": [
-            "5",
-            "10",
-            "20"
+            "8",
+            "20",
+            "24"
           ],
           "correctIndex": 2
         },
@@ -411,15 +427,17 @@
           "correctIndex": 0
         }
       ]
-    }
+    },
+    "organization": "Kindernothilfe / PKPA",
+    "theme": "OCSEA"
   },
   {
     "id": 10,
-    "name": "Booth 10",
-    "category": "Innovation",
+    "name": "Project SAFE",
+    "category": "OCSEA",
     "logo": "",
     "images": [],
-    "overview": "This exhibit is still being prepared.",
+    "overview": "Project SAFE by Kindernothilfe / CPTSA. Theme: OCSEA. Full exhibit details are still being prepared.",
     "introVideo": "https://www.youtube.com/watch?v=-EE0W5Lg738",
     "stats": [],
     "links": [],
@@ -441,9 +459,9 @@
         {
           "prompt": "How many booths are on the floor?",
           "choices": [
-            "5",
-            "10",
-            "20"
+            "8",
+            "20",
+            "24"
           ],
           "correctIndex": 2
         },
@@ -457,15 +475,17 @@
           "correctIndex": 0
         }
       ]
-    }
+    },
+    "organization": "Kindernothilfe / CPTSA",
+    "theme": "OCSEA"
   },
   {
     "id": 11,
-    "name": "Booth 11",
-    "category": "Innovation",
+    "name": "Child-led Advocacy: From Voices to Action",
+    "category": "Child Exploitation & Trafficking",
     "logo": "",
     "images": [],
-    "overview": "This exhibit is still being prepared.",
+    "overview": "Child-led Advocacy: From Voices to Action by Terre des Hommes Netherlands. Theme: Sexual Exploitation of Children, Child Marriage, Child Trafficking. Full exhibit details are still being prepared.",
     "introVideo": "https://www.youtube.com/watch?v=-EE0W5Lg738",
     "stats": [],
     "links": [],
@@ -487,9 +507,9 @@
         {
           "prompt": "How many booths are on the floor?",
           "choices": [
-            "5",
-            "10",
-            "20"
+            "8",
+            "20",
+            "24"
           ],
           "correctIndex": 2
         },
@@ -503,15 +523,17 @@
           "correctIndex": 0
         }
       ]
-    }
+    },
+    "organization": "Terre des Hommes Netherlands",
+    "theme": "Sexual Exploitation of Children, Child Marriage, Child Trafficking"
   },
   {
     "id": 12,
-    "name": "Booth 12",
-    "category": "Innovation",
+    "name": "Children-led District Network",
+    "category": "Child Labour",
     "logo": "",
     "images": [],
-    "overview": "This exhibit is still being prepared.",
+    "overview": "Children-led District Network by Terre des Hommes Netherlands. Theme: Child Labour. Full exhibit details are still being prepared.",
     "introVideo": "https://www.youtube.com/watch?v=-EE0W5Lg738",
     "stats": [],
     "links": [],
@@ -533,9 +555,9 @@
         {
           "prompt": "How many booths are on the floor?",
           "choices": [
-            "5",
-            "10",
-            "20"
+            "8",
+            "20",
+            "24"
           ],
           "correctIndex": 2
         },
@@ -549,15 +571,17 @@
           "correctIndex": 0
         }
       ]
-    }
+    },
+    "organization": "Terre des Hommes Netherlands",
+    "theme": "Child Labour"
   },
   {
     "id": 13,
-    "name": "Booth 13",
-    "category": "Innovation",
+    "name": "YOUNG Hands",
+    "category": "Child Exploitation & Trafficking",
     "logo": "",
     "images": [],
-    "overview": "This exhibit is still being prepared.",
+    "overview": "YOUNG Hands by Terre des Hommes Netherlands. Theme: Child Labour. Full exhibit details are still being prepared.",
     "introVideo": "https://www.youtube.com/watch?v=-EE0W5Lg738",
     "stats": [],
     "links": [],
@@ -579,9 +603,9 @@
         {
           "prompt": "How many booths are on the floor?",
           "choices": [
-            "5",
-            "10",
-            "20"
+            "8",
+            "20",
+            "24"
           ],
           "correctIndex": 2
         },
@@ -595,15 +619,17 @@
           "correctIndex": 0
         }
       ]
-    }
+    },
+    "organization": "Terre des Hommes Netherlands",
+    "theme": "Child Labour"
   },
   {
     "id": 14,
-    "name": "Booth 14",
-    "category": "Innovation",
+    "name": "Tiger - Empower Chatbot",
+    "category": "Child Exploitation & ASRH",
     "logo": "",
     "images": [],
-    "overview": "This exhibit is still being prepared.",
+    "overview": "Tiger - Empower Chatbot by Terre des Hommes Netherlands. Theme: Child Exploitation, Adolescent Sexual and Reproductive Health and Rights. Full exhibit details are still being prepared.",
     "introVideo": "https://www.youtube.com/watch?v=-EE0W5Lg738",
     "stats": [],
     "links": [],
@@ -625,9 +651,9 @@
         {
           "prompt": "How many booths are on the floor?",
           "choices": [
-            "5",
-            "10",
-            "20"
+            "8",
+            "20",
+            "24"
           ],
           "correctIndex": 2
         },
@@ -641,15 +667,17 @@
           "correctIndex": 0
         }
       ]
-    }
+    },
+    "organization": "Terre des Hommes Netherlands",
+    "theme": "Child Exploitation, Adolescent Sexual and Reproductive Health and Rights"
   },
   {
     "id": 15,
-    "name": "Booth 15",
-    "category": "Innovation",
+    "name": "Simba - Our Voices Matter",
+    "category": "Child Exploitation & ASRH",
     "logo": "",
     "images": [],
-    "overview": "This exhibit is still being prepared.",
+    "overview": "Simba - Our Voices Matter by Terre des Hommes Netherlands. Theme: Child Exploitation, Adolescent Sexual and Reproductive Health and Rights. Full exhibit details are still being prepared.",
     "introVideo": "https://www.youtube.com/watch?v=-EE0W5Lg738",
     "stats": [],
     "links": [],
@@ -671,9 +699,9 @@
         {
           "prompt": "How many booths are on the floor?",
           "choices": [
-            "5",
-            "10",
-            "20"
+            "8",
+            "20",
+            "24"
           ],
           "correctIndex": 2
         },
@@ -687,15 +715,17 @@
           "correctIndex": 0
         }
       ]
-    }
+    },
+    "organization": "Terre des Hommes Netherlands",
+    "theme": "Child Exploitation, Adolescent Sexual and Reproductive Health and Rights"
   },
   {
     "id": 16,
-    "name": "Booth 16",
-    "category": "Innovation",
+    "name": "Red Ant Youth Movement",
+    "category": "Child Exploitation & ASRH",
     "logo": "",
     "images": [],
-    "overview": "This exhibit is still being prepared.",
+    "overview": "Red Ant Youth Movement by Terre des Hommes Netherlands. Theme: Child Exploitation, Adolescent Sexual and Reproductive Health and Rights. Full exhibit details are still being prepared.",
     "introVideo": "https://www.youtube.com/watch?v=-EE0W5Lg738",
     "stats": [],
     "links": [],
@@ -717,9 +747,9 @@
         {
           "prompt": "How many booths are on the floor?",
           "choices": [
-            "5",
-            "10",
-            "20"
+            "8",
+            "20",
+            "24"
           ],
           "correctIndex": 2
         },
@@ -733,15 +763,17 @@
           "correctIndex": 0
         }
       ]
-    }
+    },
+    "organization": "Terre des Hommes Netherlands",
+    "theme": "Child Exploitation, Adolescent Sexual and Reproductive Health and Rights"
   },
   {
     "id": 17,
-    "name": "Booth 17",
-    "category": "Innovation",
+    "name": "Zero Harm Tracker (CONEC Youth Advisory Group)",
+    "category": "OCSEA",
     "logo": "",
     "images": [],
-    "overview": "This exhibit is still being prepared.",
+    "overview": "Zero Harm Tracker (CONEC Youth Advisory Group) by Terre des Hommes Netherlands. Theme: Online Child Sexual Exploitation and Abuse. Full exhibit details are still being prepared.",
     "introVideo": "https://www.youtube.com/watch?v=-EE0W5Lg738",
     "stats": [],
     "links": [],
@@ -763,9 +795,9 @@
         {
           "prompt": "How many booths are on the floor?",
           "choices": [
-            "5",
-            "10",
-            "20"
+            "8",
+            "20",
+            "24"
           ],
           "correctIndex": 2
         },
@@ -779,15 +811,17 @@
           "correctIndex": 0
         }
       ]
-    }
+    },
+    "organization": "Terre des Hommes Netherlands",
+    "theme": "Online Child Sexual Exploitation and Abuse"
   },
   {
     "id": 18,
-    "name": "Booth 18",
-    "category": "Innovation",
+    "name": "STEPS and RESPOND",
+    "category": "Climate & Environment",
     "logo": "",
     "images": [],
-    "overview": "This exhibit is still being prepared.",
+    "overview": "STEPS and RESPOND by EDUCO Philippines / TDH. Theme: Climate & Environment. Full exhibit details are still being prepared.",
     "introVideo": "https://www.youtube.com/watch?v=-EE0W5Lg738",
     "stats": [],
     "links": [],
@@ -809,9 +843,9 @@
         {
           "prompt": "How many booths are on the floor?",
           "choices": [
-            "5",
-            "10",
-            "20"
+            "8",
+            "20",
+            "24"
           ],
           "correctIndex": 2
         },
@@ -825,15 +859,17 @@
           "correctIndex": 0
         }
       ]
-    }
+    },
+    "organization": "EDUCO Philippines / TDH",
+    "theme": "Climate & Environment"
   },
   {
     "id": 19,
-    "name": "Booth 19",
-    "category": "Innovation",
+    "name": "Eco-Scouts",
+    "category": "Climate & Environment",
     "logo": "",
     "images": [],
-    "overview": "This exhibit is still being prepared.",
+    "overview": "Eco-Scouts by ChildFund Philippines. Theme: Climate & Child Rights. Full exhibit details are still being prepared.",
     "introVideo": "https://www.youtube.com/watch?v=-EE0W5Lg738",
     "stats": [],
     "links": [],
@@ -855,9 +891,9 @@
         {
           "prompt": "How many booths are on the floor?",
           "choices": [
-            "5",
-            "10",
-            "20"
+            "8",
+            "20",
+            "24"
           ],
           "correctIndex": 2
         },
@@ -871,15 +907,17 @@
           "correctIndex": 0
         }
       ]
-    }
+    },
+    "organization": "ChildFund Philippines",
+    "theme": "Climate & Child Rights"
   },
   {
     "id": 20,
-    "name": "Booth 20",
-    "category": "Innovation",
+    "name": "Positive Discipline Champions",
+    "category": "Corporal Punishment",
     "logo": "",
     "images": [],
-    "overview": "This exhibit is still being prepared.",
+    "overview": "Positive Discipline Champions by ChildFund International. Theme: Corporal Punishment. Full exhibit details are still being prepared.",
     "introVideo": "https://www.youtube.com/watch?v=-EE0W5Lg738",
     "stats": [],
     "links": [],
@@ -901,9 +939,9 @@
         {
           "prompt": "How many booths are on the floor?",
           "choices": [
-            "5",
-            "10",
-            "20"
+            "8",
+            "20",
+            "24"
           ],
           "correctIndex": 2
         },
@@ -917,6 +955,200 @@
           "correctIndex": 0
         }
       ]
-    }
+    },
+    "organization": "ChildFund International",
+    "theme": "Corporal Punishment"
+  },
+  {
+    "id": 21,
+    "name": "Strengthening Local Accountability through Youth Engagement",
+    "category": "Child Marriage",
+    "logo": "",
+    "images": [],
+    "overview": "Strengthening Local Accountability through Youth Engagement by Plan International. Theme: Child Marriage, Gender-Based Violence, SRSH. Full exhibit details are still being prepared.",
+    "introVideo": "https://www.youtube.com/watch?v=-EE0W5Lg738",
+    "stats": [],
+    "links": [],
+    "socials": {},
+    "contact": {},
+    "placeholder": true,
+    "quiz": {
+      "title": "Quick quiz",
+      "passScore": 2,
+      "questions": [
+        {
+          "prompt": "What is this marketplace showcasing?",
+          "choices": [
+            "Youth-led satellite innovations",
+            "Only government projects"
+          ],
+          "correctIndex": 0
+        },
+        {
+          "prompt": "How many booths are on the floor?",
+          "choices": [
+            "8",
+            "20",
+            "24"
+          ],
+          "correctIndex": 2
+        },
+        {
+          "prompt": "Where can you leave a heart?",
+          "choices": [
+            "On a numbered booth",
+            "Only at reception",
+            "Nowhere"
+          ],
+          "correctIndex": 0
+        }
+      ]
+    },
+    "organization": "Plan International",
+    "theme": "Child Marriage, Gender-Based Violence, SRSH"
+  },
+  {
+    "id": 22,
+    "name": "SAFE Together",
+    "category": "OCSEA",
+    "logo": "",
+    "images": [],
+    "overview": "SAFE Together by Asia Joining Forces. Theme: OCSEA. Full exhibit details are still being prepared.",
+    "introVideo": "https://www.youtube.com/watch?v=-EE0W5Lg738",
+    "stats": [],
+    "links": [],
+    "socials": {},
+    "contact": {},
+    "placeholder": true,
+    "quiz": {
+      "title": "Quick quiz",
+      "passScore": 2,
+      "questions": [
+        {
+          "prompt": "What is this marketplace showcasing?",
+          "choices": [
+            "Youth-led satellite innovations",
+            "Only government projects"
+          ],
+          "correctIndex": 0
+        },
+        {
+          "prompt": "How many booths are on the floor?",
+          "choices": [
+            "8",
+            "20",
+            "24"
+          ],
+          "correctIndex": 2
+        },
+        {
+          "prompt": "Where can you leave a heart?",
+          "choices": [
+            "On a numbered booth",
+            "Only at reception",
+            "Nowhere"
+          ],
+          "correctIndex": 0
+        }
+      ]
+    },
+    "organization": "Asia Joining Forces",
+    "theme": "OCSEA"
+  },
+  {
+    "id": 23,
+    "name": "World Vision",
+    "category": "Climate & Environment",
+    "logo": "",
+    "images": [],
+    "overview": "World Vision. Full exhibit details are still being prepared.",
+    "introVideo": "https://www.youtube.com/watch?v=-EE0W5Lg738",
+    "stats": [],
+    "links": [],
+    "socials": {},
+    "contact": {},
+    "placeholder": true,
+    "quiz": {
+      "title": "Quick quiz",
+      "passScore": 2,
+      "questions": [
+        {
+          "prompt": "What is this marketplace showcasing?",
+          "choices": [
+            "Youth-led satellite innovations",
+            "Only government projects"
+          ],
+          "correctIndex": 0
+        },
+        {
+          "prompt": "How many booths are on the floor?",
+          "choices": [
+            "8",
+            "20",
+            "24"
+          ],
+          "correctIndex": 2
+        },
+        {
+          "prompt": "Where can you leave a heart?",
+          "choices": [
+            "On a numbered booth",
+            "Only at reception",
+            "Nowhere"
+          ],
+          "correctIndex": 0
+        }
+      ]
+    },
+    "organization": "World Vision",
+    "theme": "Climate & Environment"
+  },
+  {
+    "id": 24,
+    "name": "Restless Development",
+    "category": "Child Exploitation & Trafficking",
+    "logo": "",
+    "images": [],
+    "overview": "Restless Development. Theme: OCSEA. Full exhibit details are still being prepared.",
+    "introVideo": "https://www.youtube.com/watch?v=-EE0W5Lg738",
+    "stats": [],
+    "links": [],
+    "socials": {},
+    "contact": {},
+    "placeholder": true,
+    "quiz": {
+      "title": "Quick quiz",
+      "passScore": 2,
+      "questions": [
+        {
+          "prompt": "What is this marketplace showcasing?",
+          "choices": [
+            "Youth-led satellite innovations",
+            "Only government projects"
+          ],
+          "correctIndex": 0
+        },
+        {
+          "prompt": "How many booths are on the floor?",
+          "choices": [
+            "8",
+            "20",
+            "24"
+          ],
+          "correctIndex": 2
+        },
+        {
+          "prompt": "Where can you leave a heart?",
+          "choices": [
+            "On a numbered booth",
+            "Only at reception",
+            "Nowhere"
+          ],
+          "correctIndex": 0
+        }
+      ]
+    },
+    "organization": "Restless Development",
+    "theme": "OCSEA"
   }
 ]

@@ -38,10 +38,14 @@ except ImportError:
     if not BLENDER:
         raise SystemExit('Blender not found — run this with `blender -b <blend> --python %s`' % __file__)
     src = os.path.join(ROOT, 'diplomatic_hall_v10_textured.blend')
-    raise SystemExit(subprocess.call([BLENDER, '-b', src, '--python', os.path.abspath(__file__)]))
+    # --factory-startup: a user add-on in this install stalls batch runs for minutes on load.
+    raise SystemExit(subprocess.call([BLENDER, '-b', '--factory-startup', src, '--python', os.path.abspath(__file__)]))
 
 import bmesh  # noqa: E402
 from mathutils import Vector  # noqa: E402
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import venue_set  # noqa: E402
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(bpy.data.filepath or __file__)))
 if not os.path.isdir(os.path.join(ROOT, 'textures')):
@@ -49,9 +53,11 @@ if not os.path.isdir(os.path.join(ROOT, 'textures')):
 TEX = os.path.join(ROOT, 'textures')
 OUT = os.path.join(ROOT, 'public', 'models', 'diplomatic_hall.glb')
 
-# The walkable envelope, mirroring WORLD_BOUNDS in src/main.js (three.js z = -blender y).
-# Anything comfortably outside it can never be seen, so it is dropped.
-ENVELOPE = dict(min_x=0.0, max_x=28.0, min_y=0.0, max_y=26.0)
+# The walkable envelope, mirroring WORLD_BOUNDS in src/main.js (three.js z = -blender y), after
+# venue_set.reshape_hall() has stretched the hall north. Anything comfortably outside it can
+# never be seen, so it is dropped.
+ENVELOPE = dict(min_x=0.0, max_x=28.0, min_y=0.0,
+                max_y=-venue_set.LAYOUT['hall']['northWallZ'] + 1.0)
 
 # Meshes the runtime hides and rebuilds procedurally — HIDE_NODE_RE in src/main.js, plus the
 # organizer stands that src/modules/organizers.js replaces.
@@ -113,7 +119,7 @@ def gltf_output_group():
 
 def build_pbr(mat, base=None, normal=None, orm=None, emission=None,
               color=None, roughness=None, metallic=None, emit_strength=1.0,
-              normal_strength=1.0, detail=None, tint=None):
+              normal_strength=1.0, detail=None, tint=None, emit_color=None, double_sided=None):
     """Rebuild `mat` as a clean Principled setup from a base/normal/ORM texture set.
 
     `detail` names a second, finely-tiled normal+ORM pair layered under a large unique base
@@ -208,8 +214,13 @@ def build_pbr(mat, base=None, normal=None, orm=None, emission=None,
         if n:
             links.new(n.outputs['Color'], bsdf.inputs['Emission Color'])
             bsdf.inputs['Emission Strength'].default_value = emit_strength
+    elif emit_color:
+        bsdf.inputs['Emission Color'].default_value = (*emit_color, 1.0)
+        bsdf.inputs['Emission Strength'].default_value = emit_strength
     else:
         bsdf.inputs['Emission Strength'].default_value = 0.0
+    if double_sided is not None:
+        mat.use_backface_culling = not double_sided
 
     return mat
 
@@ -236,7 +247,9 @@ SURFACES = {
                                tint=(0.58, 0.47, 0.36)),
     'Mat_Ceiling':        dict(uv='world', tile=2.4, base='ceiling_tiles', normal='ceiling_tiles_normal',
                                orm='ceiling_tiles_orm', emission='ceiling_tiles_emission',
-                               emit_strength=1.0, normal_strength=0.8,
+                               # 7 m up, a full-strength glow read as a starfield of LEDs
+                               # rather than recessed downlights; a third of it reads real.
+                               emit_strength=0.35, normal_strength=0.8,
                                tint=(0.50, 0.50, 0.52)),
     # Tiled, not face-mapped: this material covers the full width of the back wall, so a
     # one-shot layout would scale with the wall instead of with the room.
@@ -284,6 +297,8 @@ SOLIDS = {
     'Stair':            dict(color=(0.14, 0.13, 0.12), roughness=0.70, metallic=0.02),
     'Text':             dict(color=(0.92, 0.94, 0.97), roughness=0.45, metallic=0.0),
 }
+# The marketplace set (stage, seating, booth clusters) built by scripts/venue_set.py.
+SOLIDS.update(venue_set.MATERIALS)
 
 
 # =============================================================================================
@@ -483,7 +498,12 @@ def step_uvs():
 def step_materials():
     """Rebuild every material we have art direction for."""
     built = 0
+    # Only materials some mesh still wears — the old per-booth graphics are orphaned by
+    # venue_set but kept alive by fake users in the authoring file.
+    in_use = {m for o in bpy.data.objects if o.type == 'MESH' for m in o.data.materials if m}
     for mat in bpy.data.materials:
+        if mat not in in_use:
+            continue
         name = mat.name
         if name.startswith('Mat_Booth_') and name.endswith('_Graphic'):
             idx = name.split('_')[2]
@@ -581,8 +601,10 @@ def step_join_static():
     """
     FAMILIES = [
         ('Venue_Walls',  lambda o: o.name.startswith(('W_', 'Step_', 'EX_', 'DoorMark'))),
-        ('Venue_Stage',  lambda o: o.name in ('Stage', 'Podium', 'Stair_Landing', 'Stair_Rail')),
+        ('Venue_Stage',  lambda o: o.name.startswith('Stage_') or o.name in ('Stair_Landing', 'Stair_Rail')),
         ('Venue_Booths', lambda o: o.name.startswith('Booth_')),
+        ('Venue_Seating', lambda o: o.name.startswith('Seat_')),
+        ('Venue_Doors',  lambda o: o.name.startswith('Door_')),
     ]
     for new_name, pred in FAMILIES:
         members = [o for o in bpy.data.objects if o.type == 'MESH' and pred(o)]
@@ -651,6 +673,9 @@ def main():
     before_objs = len([o for o in bpy.data.objects if o.type == 'MESH'])
     before_polys = sum(len(o.data.polygons) for o in bpy.data.objects if o.type == 'MESH')
     say(f'start  : {before_objs} meshes, {before_polys} polys, {len(bpy.data.materials)} materials')
+
+    say('\n[0/7] marketplace set (hall reshape, stage, seating, 27 booths)')
+    venue_set.build_all(say)
 
     say('\n[1/7] prune')
     step_prune()

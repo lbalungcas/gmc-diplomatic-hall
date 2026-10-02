@@ -111,12 +111,29 @@ await check('no plan-label text meshes on the floor', `
   ${G}.hallModel.traverse(o => { if (o.isMesh && /^T_|Text/i.test(o.name || '')) bad.push(o.name); });
   return { ok: bad.length === 0, detail: bad.length ? bad.join(',') : 'none' };`);
 
+// ---- layout ---------------------------------------------------------------------------------
+await check('24 booths in 8 clusters of 3', `
+  const B = ${G}.BOOTH_POSITIONS;
+  const ids = Object.keys(B).map(Number);
+  const per = {};
+  for (const b of Object.values(B)) per[b.cluster] = (per[b.cluster] || 0) + 1;
+  const ok = ids.length === 24 && Object.keys(per).length === 8 && Object.values(per).every(n => n === 3);
+  return { ok, detail: ids.length + ' booths, clusters ' + JSON.stringify(per) };`);
+
+await check('LED wall: idle slide + window + 10 m CSS screen', `
+  let idle = null, hole = null;
+  ${G}.scene.traverse(o => { if (o.name === 'Stage_LED_Idle') idle = o; if (o.name === 'Stage_LED_Window') hole = o; });
+  const css = ${G}.cssScene.children[0];
+  const w = css ? css.scale.x * 1280 : 0;
+  return { ok: !!idle && !!hole && w > 9.9, detail: 'css width ' + w.toFixed(2) + ' m' };`);
+
 // ---- interaction --------------------------------------------------------------------------
-// yaw 0 faces -Z, so forward = (-sin(yaw), 0, -cos(yaw)); -PI/2 points at +X, which is the
-// side booth 1's graphic faces. Under SwiftShader a frame can take seconds, and checkProximity
-// now runs at 20 Hz from the render loop, so drive it directly instead of waiting for a frame.
+// yaw 0 faces -Z, so forward = (-sin(yaw), 0, -cos(yaw)); to face a point (dx, dz) away the yaw
+// is atan2(-dx, -dz). Under SwiftShader a frame can take seconds, and checkProximity runs at
+// 20 Hz from the render loop, so drive it directly instead of waiting for a frame.
 await check('booth proximity prompt', `
-  ${G}.teleportPlayer(12.75, 1.45, -4.96, -Math.PI/2);
+  const b = ${G}.BOOTH_POSITIONS[1];
+  ${G}.teleportPlayer(b.ax, 1.45, b.az, Math.atan2(-(b.cx - b.ax), -(b.cz - b.az)));
   ${G}.checkProximity(true);
   const t = ${G}.activeTarget;
   return { ok: !!t && t.type === 'booth' && t.id === 1, detail: t ? t.type + ' ' + (t.id ?? t.key) : 'none' };`);
@@ -124,10 +141,23 @@ await check('booth proximity prompt', `
 // pickTV raycasts from the camera, and the camera is only moved inside updatePlayer during a
 // frame — so this one has to wait for real frames rather than poke state directly.
 await check('TV raycast picks a booth screen', `
-  ${G}.teleportPlayer(12.75, 1.45, -4.96, -Math.PI/2);
+  const b = ${G}.BOOTH_POSITIONS[1];
+  const scr = ${G}.tvScreens.find(s => s.userData.boothId === 1);
+  const p = new window.THREE.Vector3();
+  scr.getWorldPosition(p);
+  const dx = p.x - b.ax, dz = p.z - b.az;
+  ${G}.teleportPlayer(b.ax, 1.45, b.az, Math.atan2(-dx, -dz));
+  ${G}.player.pitch = Math.atan2(p.y - 1.45, Math.hypot(dx, dz));
   for (let i = 0; i < 3; i++) await new Promise(r => requestAnimationFrame(r));
   const tv = ${G}.pickTV(0, 0);
   return { ok: !!tv && tv.boothId === 1, detail: tv ? tv.key : 'no hit' };`);
+
+await check('cluster blocks walking through the panels', `
+  const b = ${G}.BOOTH_POSITIONS[14];
+  const p = new window.THREE.Vector3(b.cx + 0.2, 1.45, b.cz);
+  ${G}.checkCollision(p);
+  const d = Math.hypot(p.x - b.cx, p.z - b.cz);
+  return { ok: d > 1.3, detail: 'pushed to ' + d.toFixed(2) + ' m from the hub' };`);
 
 await check('booth modal opens and closes', `
   ${G}.openBoothModal(3);
@@ -142,7 +172,8 @@ await check('booth poster image resolves', `
   return { ok: r.ok, detail: 'HTTP ' + r.status };`);
 
 await check('chair sit and stand', `
-  ${G}.teleportPlayer(6.0, 1.45, -17.6, 0);
+  const c0 = ${G}.CHAIR_LOCATIONS[0];
+  ${G}.teleportPlayer(c0.x, 1.45, c0.z - 0.35, 0);
   ${settle}
   ${G}.sitDownOnChair(${G}.CHAIR_LOCATIONS[0]);
   ${settle}
@@ -152,9 +183,9 @@ await check('chair sit and stand', `
   return { ok: sat && !${G}.player.isSitting, detail: 'sat=' + sat };`);
 
 await check('collision still blocks the stage', `
-  const p = new window.THREE.Vector3(9.68, 1.45, -23.0);
-  const blocked = ${G}.checkCollision(p);
-  return { ok: Math.abs(p.z - -23.0) > 0.01, detail: 'pushed to z=' + p.z.toFixed(2) };`);
+  const p = new window.THREE.Vector3(9.68, 1.45, -26.5);
+  ${G}.checkCollision(p);
+  return { ok: p.z > -24.6, detail: 'pushed to z=' + p.z.toFixed(2) };`);
 
 await check('waypoint set and clear', `
   ${G}.setWaypoint(7, { silent: true });

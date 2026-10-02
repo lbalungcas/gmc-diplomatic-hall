@@ -1,0 +1,67 @@
+{
+  "_comment": "Single source of truth for the Diplomatic Hall floor plan. Read by scripts/build_venue.py (Blender: geometry baked into the GLB) and by src/main.js (interaction, collision, minimap). Coordinates are three.js world metres: x east, z = -(Blender y), y up. The stage is at the north end (most negative z); the main entrance is on the south wall at z = 0.",
+
+  "hall": {
+    "_comment": "The authoring .blend is a 19.35 x 25.15 m hall with a 3.5 m ceiling. The build stretches every vertex north of stretchFromZ by stretchBy (keeping the chamfered stage-end corners and every door where they were) and lifts every vertex above ceilingFrom by ceilingBy.",
+    "stretchFromZ": -20.5,
+    "stretchBy": 4.0,
+    "ceilingFrom": 3.0,
+    "ceilingBy": 3.5,
+    "width": 19.35,
+    "northWallZ": -29.15,
+    "ceilingHeight": 7.0
+  },
+
+  "stage": {
+    "x0": 4.18, "x1": 15.18,
+    "zFront": -24.8, "zBack": -29.0,
+    "height": 0.6
+  },
+
+  "led": {
+    "_comment": "16:9 LED wall standing on the back of the stage. 10.0 x 5.625 m — twice the area of the old 7 x 3.94 m screen.",
+    "cx": 9.68, "z": -28.82,
+    "width": 10.0, "height": 5.625,
+    "bottom": 0.85
+  },
+
+  "seating": {
+    "_comment": "Twenty seats: one row of ten either side of a 2.4 m centre aisle, facing the stage.",
+    "rows": [-22.6],
+    "blocks": [
+      { "x0": 3.2,   "count": 10 },
+      { "x0": 11.18, "count": 10 }
+    ],
+    "pitch": 0.62
+  },
+
+  "clusters": {
+    "_comment": "Eight clusters of three booths (24 booths), laid out 3-2-3 as in the venue floor plan and grouped by theme. Counting starts at the front row (by the stage) and runs C1 -> C8; within a cluster the two stage-facing bays take the lower numbers. `booths` lists the official booth numbers in bay order. Each cluster is three 1.0 x 2.4 m partition panels radiating from a hub at 120 deg; every panel is shared back to back by two booths. panelAngles are degrees in the x/z plane measured from +x toward +z (so -90 points north at the stage). A booth is the bay between two panels; bays are listed in booth order.",
+    "panelLength": 1.0,
+    "panelHeight": 2.4,
+    "panelAngles": [-90, 30, 150],
+    "bayAngles": [-150, -30, 90],
+    "counterRadius": 0.86,
+    "anchorRadius": 1.9,
+    "collisionRadius": 1.35,
+    "ringRadius": 1.62,
+    "graphic": { "_comment": "Printable area of one panel face: radial span from the hub, height span, and offset from the panel's centre plane (the fabric core is ±0.015; the extra ~8 mm clears meshopt position quantization in the GLB).", "r0": 0.04, "r1": 0.955, "y0": 0.05, "y1": 2.355, "offset": 0.023 },
+    "counter": { "_comment": "Counter in the bay's own frame: radial depth span, half width, height.", "r0": 0.62, "r1": 1.1, "halfWidth": 0.45, "height": 1.0 },
+    "list": [
+      { "id": "C1", "x": 3.98,  "z": -17.0, "color": "#F47B20", "theme": "Child Labour",                     "booths": [1, 2, 12] },
+      { "id": "C2", "x": 9.68,  "z": -17.0, "color": "#EF4B5E", "theme": "Child Marriage",                   "booths": [3, 4, 21] },
+      { "id": "C3", "x": 15.38, "z": -17.0, "color": "#F6B91A", "theme": "Corporal Punishment",              "booths": [5, 6, 20] },
+      { "id": "C4", "x": 6.83,  "z": -11.2, "color": "#1FA9E1", "theme": "OCSEA",                            "booths": [7, 8, 9] },
+      { "id": "C5", "x": 12.53, "z": -11.2, "color": "#9B4DCA", "theme": "OCSEA",                            "booths": [10, 17, 22] },
+      { "id": "C6", "x": 3.98,  "z": -5.4,  "color": "#EC2F7B", "theme": "Child Exploitation & Trafficking", "booths": [11, 13, 24] },
+      { "id": "C7", "x": 9.68,  "z": -5.4,  "color": "#14B8A6", "theme": "Child Exploitation & ASRH",        "booths": [14, 15, 16] },
+      { "id": "C8", "x": 15.38, "z": -5.4,  "color": "#4CB848", "theme": "Climate & Environment",            "booths": [18, 19, 23] }
+    ]
+  },
+
+  "standees": {
+    "_comment": "Freestanding cut-outs from the stage design, placed on the hall floor either side of the stage so they never cover the LED wall.",
+    "boat":       { "x": 2.15,  "z": -24.0, "height": 2.6, "yaw": 0.35,  "image": "/landing/assets/web/boat-sail-clean.png" },
+    "lighthouse": { "x": 17.2,  "z": -24.0, "height": 4.4, "yaw": -0.35, "image": "/landing/assets/web/lighthouse-clean.png" }
+  }
+}

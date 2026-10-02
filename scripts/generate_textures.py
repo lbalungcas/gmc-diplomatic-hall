@@ -73,50 +73,77 @@ def emit(name, base, height, ao, rough, metal, normal_strength=2.0, emission=Non
 
 
 # =============================================================================================
-# 1. Hall carpet — deep navy diplomatic broadloom with a gold diamond lattice
+# 1. Hall floor — warm polished terrazzo with confetti chips in the YIM brand colours
 # =============================================================================================
+# The material keeps its historical name (`carpet_hall`, Mat_Hall_Carpet) so the venue build and
+# the smoke test don't need to know the hall stopped being carpeted. The navy diplomatic
+# broadloom read as a corporate summit; the marketplace is for youth and children, so the floor
+# is now a light, warm terrazzo with a sprinkle of navy / sun-yellow / orange / teal / pink chips.
+#
+# build_venue.py projects it at 4 m per repeat, so 2048 px = 4 m = 512 px per metre.
+TERRAZZO_CHIPS = [
+    # (rgb, count, min_r_px, max_r_px) — mostly quiet stone, a sprinkle of brand colour
+    ((196, 186, 172), 5200, 2.5, 6.0),
+    ((168, 158, 146), 2600, 2.5, 5.5),
+    ((236, 232, 224), 1600, 2.5, 6.0),
+    ((32, 52, 104), 650, 3.5, 8.5),      # navy
+    ((246, 186, 36), 650, 3.5, 8.5),     # sun yellow
+    ((240, 118, 44), 520, 3.5, 8.0),     # orange
+    ((36, 168, 158), 520, 3.5, 8.0),     # teal
+    ((232, 88, 132), 420, 3.5, 7.5),     # pink
+]
+
+
 def carpet():
+    from PIL import Image, ImageDraw
     s = SIZE
-    y = np.linspace(0, 1, s, endpoint=False, dtype=np.float32)[:, None]
-    x = np.linspace(0, 1, s, endpoint=False, dtype=np.float32)[None, :]
+    rng = np.random.default_rng(2026)
 
-    # --- Diamond lattice. |frac - .5| on both axes sums to a rotated-square distance field, so
-    # the motif tiles exactly and the border can be taken as an iso-line of that field.
-    n = 8.0
-    dfield = np.abs((y * n) % 1.0 - 0.5) + np.abs((x * n) % 1.0 - 0.5)
-    border = smoothstep(0.45, 0.50, dfield) * (1.0 - smoothstep(0.50, 0.55, dfield))
-    centre = 1.0 - smoothstep(0.0, 0.07, dfield)
+    # --- Chips: irregular polygons drawn on a wrapped canvas so the tile stays seamless.
+    chip_rgb = Image.new('RGB', (s, s), (0, 0, 0))
+    chip_mask = Image.new('L', (s, s), 0)
+    dc = ImageDraw.Draw(chip_rgb)
+    dm = ImageDraw.Draw(chip_mask)
+    for rgb, count, rmin, rmax in TERRAZZO_CHIPS:
+        for _ in range(count):
+            cx, cy = rng.random() * s, rng.random() * s
+            r = rng.uniform(rmin, rmax)
+            k = int(rng.integers(5, 9))
+            ang = np.sort(rng.random(k)) * 2 * np.pi
+            rad = r * rng.uniform(0.6, 1.0, k)
+            jitter = rng.uniform(0.9, 1.08)
+            col = tuple(int(np.clip(c * jitter, 0, 255)) for c in rgb)
+            for ox in (-s, 0, s):
+                for oy in (-s, 0, s):
+                    if not (-20 < cx + ox < s + 20 and -20 < cy + oy < s + 20):
+                        continue
+                    pts = [(cx + ox + np.cos(a) * q, cy + oy + np.sin(a) * q) for a, q in zip(ang, rad)]
+                    dc.polygon(pts, fill=col)
+                    dm.polygon(pts, fill=255)
+    chips = np.asarray(chip_rgb, np.float32) / 255.0
+    mask = np.asarray(chip_mask, np.float32) / 255.0
 
-    # --- Wool pile: two scales of fibre plus a fine directional comb.
-    fibre = fbm(s, 256, octaves=4, seed=11)
-    tuft = worley(s, 220, seed=23)
-    comb = value_noise(s, (1400, 90), seed=31)
-    pile = 0.45 * fibre + 0.35 * (1.0 - tuft) + 0.20 * comb
+    # --- Cement ground: warm cream with a soft cloudy drift and very fine aggregate.
+    cloud = blur(fbm(s, 6, octaves=4, seed=401), 6)
+    grain = fbm(s, 512, octaves=2, seed=402)
+    ground = tint(np.clip(0.55 + 0.35 * (cloud - 0.5) + 0.18 * (grain - 0.5), 0, 1),
+                  (178, 166, 148), (206, 196, 180))
 
-    # --- Broad tonal drift so an 8x10 repeat across the hall doesn't read as wallpaper.
-    drift = blur(fbm(s, 5, octaves=3, seed=47), 24)
+    base = ground * (1 - mask[..., None]) + chips * mask[..., None]
 
-    height = 0.62 * pile + 0.30 * border + 0.08 * drift
-    height = norm01(blur(height, 0.6))
+    # --- Slab joints every metre (4 per tile): a thin warm-grey seam, like poured panels.
+    seam = np.maximum(stripes(s, 4, axis=0, duty=0.004, softness=0.0015),
+                      stripes(s, 4, axis=1, duty=0.004, softness=0.0015))
+    base = base * (1 - 0.35 * seam[..., None])
 
-    navy_dark = (18, 26, 44)
-    navy_lite = (40, 54, 84)
-    # Antique brass rather than bright gold: at full saturation the lattice read as the
-    # dominant colour of the hall instead of an accent woven into a navy ground.
-    gold = (142, 116, 62)
+    height = norm01(0.55 * mask + 0.25 * grain + 0.20 * cloud - 0.6 * seam)
+    ao = np.clip(cavity_ao(height, sigma=6.0, strength=0.5), 0.75, 1.0)
+    # Honed rather than mirror-polished: a satin sheen, slightly glossier chips, matte seams.
+    # At 0.3 the floor mirrored the whole lit ceiling and read near-white from any distance.
+    rough = np.clip(0.48 + 0.10 * grain + 0.06 * (cloud - 0.5) - 0.06 * mask + 0.40 * seam, 0, 1)
+    metal = np.zeros((s, s), np.float32)
 
-    base = tint(np.clip(0.30 + 0.55 * pile + 0.25 * (drift - 0.5), 0, 1), navy_dark, navy_lite)
-    goldmask = np.clip(border * 0.72 + centre * 0.85, 0, 1)[..., None]
-    base = base * (1 - goldmask) + (np.array(gold, np.float32) / 255.0)[None, None, :] * goldmask
-    # Let the fibre break up the gold too, otherwise the lattice looks printed on.
-    base *= (0.82 + 0.28 * pile)[..., None]
-
-    ao = cavity_ao(height, sigma=10.0, strength=1.1)
-    # Wool is matte and uneven; the silk lattice thread is a touch glossier.
-    rough = remap(1.0 - pile, 0.80, 0.97) - 0.16 * goldmask[..., 0]
-    metal = 0.10 * goldmask[..., 0]
-
-    emit('carpet_hall', base, height, ao, np.clip(rough, 0, 1), metal, normal_strength=2.4)
+    emit('carpet_hall', base, height, ao, rough, metal, normal_strength=0.6)
 
 
 # =============================================================================================

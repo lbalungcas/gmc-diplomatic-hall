@@ -6,19 +6,18 @@
  * inside. main.js hides the snack tables and we rebuild the three stands here, procedurally, so
  * they can be branded per organizer from `src/data/organizers.json` without touching Blender.
  *
- * Local booth space: the panel is centred on the origin, spans X, and its graphic faces +Z.
+ * Each stand follows the organizer booth design: a curved pop-up fabric backwall with two arm
+ * spotlights, an oval pop-up counter, a roll-up banner and a zig-zag brochure rack.
+ *
+ * Local booth space: the backwall is centred on the origin, spans X, and its graphic faces +Z.
  * main.js rotates the group so +Z points into the foyer aisle.
  */
 import * as THREE from 'three';
 
-export const PANEL_W = 2.4;
 export const PANEL_H = 2.3;
 export const PANEL_BOTTOM = 0.05;
-export const TV_CENTER_Y = 1.45;
 export const TV_W = 1.3;
 export const TV_H = TV_W * 9 / 16;
-
-const PX_PER_M = 1024 / PANEL_W;
 
 function hexToRgb(hex) {
   const h = String(hex).replace('#', '');
@@ -72,112 +71,143 @@ export function palette(org) {
   };
 }
 
-/** Big backdrop graphic. Leaves a dark well where the TV is mounted. */
+// ---------------------------------------------------------------------------------------------
+// Pop-up stand geometry (after the organizer booth design: a curved fabric backwall with two
+// arm spots, an oval pop-up counter, a roll-up banner and a brochure rack).
+//
+// The backwall is an arc: chord WALL_CHORD wide, bowed back by WALL_SAG at the middle, so its
+// ends sit at z = 0 and its centre at z = -WALL_SAG. Visitors stand on the +Z side.
+// ---------------------------------------------------------------------------------------------
+const WALL_CHORD = 2.6;
+const WALL_SAG = 0.3;
+const WALL_R = (WALL_CHORD * WALL_CHORD / 4 + WALL_SAG * WALL_SAG) / (2 * WALL_SAG);
+const WALL_HALF = Math.asin(WALL_CHORD / 2 / WALL_R);   // half the arc angle
+const WALL_CZ = WALL_R - WALL_SAG;                      // arc centre z
+const WALL_PX_PER_M = 500;
+
+/** Point on the backwall arc for a local x (front face). */
+function wallZ(x) {
+  return WALL_CZ - Math.sqrt(WALL_R * WALL_R - x * x);
+}
+
+/** Canvas u (0 = left as seen by a visitor) for a local x on the arc. */
+function wallU(x) {
+  return (Math.asin(x / WALL_R) + WALL_HALF) / (2 * WALL_HALF);
+}
+
+// The organizer TV sits in the lower-left of the wall, where the design has its big photo.
+const TV_X0 = -1.2;
+const TV_X1 = TV_X0 + TV_W;
+const TV_Y = PANEL_BOTTOM + 0.98;
+const SPLIT_Y = PANEL_BOTTOM + 1.42;   // top band (logo) above, TV + message panel below
+
+/** Big curved backdrop graphic, with rounded top corners cut out of the alpha. */
 export function createBackdropTexture(org) {
+  const W = Math.round(WALL_R * 2 * WALL_HALF * WALL_PX_PER_M);   // arc length in px
+  const H = Math.round(PANEL_H * WALL_PX_PER_M);
   const canvas = document.createElement('canvas');
-  canvas.width = 1024;
-  canvas.height = Math.round(PANEL_H * PX_PER_M);
+  canvas.width = W;
+  canvas.height = H;
   const ctx = canvas.getContext('2d');
-  const W = canvas.width;
-  const H = canvas.height;
-  const yOf = (worldY) => (PANEL_BOTTOM + PANEL_H - worldY) * PX_PER_M;
+  const yOf = (worldY) => (PANEL_BOTTOM + PANEL_H - worldY) * WALL_PX_PER_M;
+  const xOf = (localX) => wallU(localX) * W;
   const { color, bg, accent, ink } = palette(org);
 
-  const grad = ctx.createLinearGradient(0, 0, W, H);
-  grad.addColorStop(0, shade(bg, 1.12));
-  grad.addColorStop(0.55, bg);
-  grad.addColorStop(1, shade(bg, 0.6));
-  ctx.fillStyle = grad;
-  ctx.fillRect(0, 0, W, H);
-
-  // Soft diagonal texture
-  ctx.strokeStyle = 'rgba(255,255,255,0.06)';
-  ctx.lineWidth = 18;
-  for (let i = -H; i < W + H; i += 70) {
-    ctx.beginPath();
-    ctx.moveTo(i, 0);
-    ctx.lineTo(i - H, H);
-    ctx.stroke();
-  }
-
-  // Brand colour block behind the header (visible when bg ≠ color, e.g. Tdh)
-  if (bg.toLowerCase() !== color.toLowerCase()) {
-    ctx.fillStyle = color;
-    ctx.fillRect(0, yOf(1.85) - 8, W, 8);
-  }
-
-  // Header band
-  ctx.fillStyle = 'rgba(8, 12, 24, 0.45)';
-  ctx.fillRect(0, 0, W, yOf(1.85) - 8);
-  ctx.fillStyle = accent;
-  ctx.font = 'bold 30px "Outfit", "Plus Jakarta Sans", sans-serif';
-  ctx.textBaseline = 'alphabetic';
-  ctx.fillText((org.kicker || 'ORGANIZER BOOTH').toUpperCase(), 48, 56);
-
-  // Logo-style lock-up: short name in the brand colour on a rounded tile, full name beside it
-  const shortText = org.short || org.name;
-  ctx.font = '800 108px "Outfit", "Plus Jakarta Sans", sans-serif';
-  const shortW = ctx.measureText(shortText).width;
-  ctx.fillStyle = bg.toLowerCase() === color.toLowerCase() ? '#ffffff' : color;
+  // Rounded-top silhouette, like a pop-up frame's fabric sock.
+  ctx.save();
   ctx.beginPath();
-  ctx.roundRect(40, 74, shortW + 48, 118, 22);
+  ctx.roundRect(0, 0, W, H, [90, 90, 10, 10]);
+  ctx.clip();
+
+  // Top band: brand background with a soft glow and the logo lock-up.
+  const top = yOf(SPLIT_Y);
+  const g = ctx.createLinearGradient(0, 0, 0, top);
+  g.addColorStop(0, shade(bg, 1.25));
+  g.addColorStop(1, shade(bg, 0.95));
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, W, top);
+  ctx.fillStyle = 'rgba(255,255,255,0.10)';
+  for (let i = 0; i < 6; i++) {
+    ctx.beginPath();
+    ctx.arc(W * (0.1 + i * 0.17), top * (0.2 + (i % 2) * 0.5), 60 + (i % 3) * 30, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  const shortText = org.short || org.name;
+  ctx.font = '800 150px "Outfit", "Plus Jakarta Sans", sans-serif';
+  const shortW = ctx.measureText(shortText).width;
+  ctx.font = '700 64px "Plus Jakarta Sans", "Outfit", sans-serif';
+  const nameLines = wrapLines(ctx, org.name, W * 0.42, 2);
+  const nameW = Math.max(...nameLines.map((l) => ctx.measureText(l).width));
+  const lockW = shortW + 64 + 36 + nameW;
+  const lx = (W - lockW) / 2;
+  const ly = top * 0.5;
+  const tileOnBrand = bg.toLowerCase() === color.toLowerCase();
+  ctx.fillStyle = tileOnBrand ? '#ffffff' : color;
+  ctx.beginPath();
+  ctx.roundRect(lx, ly - 95, shortW + 64, 190, 34);
   ctx.fill();
-  ctx.fillStyle = bg.toLowerCase() === color.toLowerCase() ? color : '#ffffff';
-  ctx.fillText(shortText, 64, 172);
-
+  ctx.fillStyle = tileOnBrand ? color : '#ffffff';
+  ctx.font = '800 150px "Outfit", "Plus Jakarta Sans", sans-serif';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(shortText, lx + 32, ly + 8);
   ctx.fillStyle = '#ffffff';
-  ctx.font = '600 38px "Plus Jakarta Sans", "Outfit", sans-serif';
-  const nameLines = wrapLines(ctx, org.name, W - shortW - 150, 2);
-  nameLines.forEach((line, i) => ctx.fillText(line, shortW + 116, 128 + i * 46));
+  ctx.font = '700 64px "Plus Jakarta Sans", "Outfit", sans-serif';
+  nameLines.forEach((line, i) => ctx.fillText(line, lx + shortW + 100, ly + (i - (nameLines.length - 1) / 2) * 72));
+  ctx.fillStyle = accent;
+  ctx.font = 'bold 34px "Outfit", "Plus Jakarta Sans", sans-serif';
+  ctx.fillText((org.kicker || 'ORGANIZER BOOTH').toUpperCase(), lx, ly - 140);
+  ctx.textBaseline = 'alphabetic';
 
-  // TV well (the physical TV mesh covers it; this is what shows through the bezel gap)
-  const tvX = (PANEL_W / 2 - TV_W / 2) * PX_PER_M;
-  const tvW = TV_W * PX_PER_M;
-  const tvTop = yOf(TV_CENTER_Y + TV_H / 2);
-  const tvH = TV_H * PX_PER_M;
+  // Lower left: playful brand pattern around a dark well for the TV.
+  ctx.fillStyle = shade(bg, 0.8);
+  ctx.fillRect(0, top, xOf(TV_X1 + 0.12), H - top);
+  const dots = [accent, '#F6B91A', '#1FA9E1', '#EC2F7B', '#4CB848'];
+  for (let i = 0; i < 40; i++) {
+    ctx.fillStyle = dots[i % dots.length];
+    ctx.globalAlpha = 0.55;
+    ctx.beginPath();
+    ctx.arc((i * 97) % xOf(TV_X1 + 0.1), top + 20 + ((i * 53) % (H - top - 40)), 8 + (i % 4) * 4, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.globalAlpha = 1;
   ctx.fillStyle = '#05070d';
   ctx.beginPath();
-  ctx.roundRect(tvX - 14, tvTop - 14, tvW + 28, tvH + 28, 18);
+  ctx.roundRect(xOf(TV_X0) - 16, yOf(TV_Y + TV_H / 2) - 16, xOf(TV_X1) - xOf(TV_X0) + 32, TV_H * WALL_PX_PER_M + 32, 20);
   ctx.fill();
 
-  // Tagline
-  ctx.fillStyle = '#ffffff';
-  ctx.textAlign = 'center';
-  ctx.font = 'italic 600 40px "Plus Jakarta Sans", "Outfit", sans-serif';
-  const tagLines = wrapLines(ctx, org.tagline || '', W - 120, 2);
-  tagLines.forEach((line, i) => ctx.fillText(line, W / 2, yOf(0.98) + i * 46));
-  ctx.textAlign = 'left';
-
-  // Bullets
-  ctx.font = '600 32px "Plus Jakarta Sans", "Outfit", sans-serif';
+  // Lower right: accent message panel with the tagline and three bullets.
+  const px = xOf(TV_X1 + 0.12);
+  ctx.fillStyle = accent;
+  ctx.fillRect(px, top, W - px, H - top);
+  ctx.fillStyle = ink;
+  ctx.font = '800 50px "Plus Jakarta Sans", "Outfit", sans-serif';
+  const tag = wrapLines(ctx, org.tagline || '', W - px - 80, 3);
+  tag.forEach((line, i) => ctx.fillText(line, px + 40, top + 90 + i * 60));
+  ctx.font = '600 38px "Plus Jakarta Sans", "Outfit", sans-serif';
   (org.bullets || []).slice(0, 3).forEach((b, i) => {
-    const y = yOf(0.72 - i * 0.18);
-    ctx.fillStyle = accent;
+    const y = top + 110 + tag.length * 60 + 40 + i * 64;
     ctx.beginPath();
-    ctx.arc(76, y - 11, 9, 0, Math.PI * 2);
+    ctx.arc(px + 52, y - 12, 10, 0, Math.PI * 2);
     ctx.fill();
-    ctx.fillStyle = 'rgba(255,255,255,0.92)';
-    ctx.fillText(b, 104, y);
+    wrapLines(ctx, b, W - px - 120, 1).forEach((line) => ctx.fillText(line, px + 78, y));
   });
 
-  // Watermark
-  ctx.save();
-  ctx.globalAlpha = 0.12;
+  // Footer strip
+  ctx.fillStyle = shade(bg, 0.55);
+  ctx.fillRect(0, H - 56, W, 56);
   ctx.fillStyle = '#ffffff';
-  ctx.font = '800 220px "Outfit", sans-serif';
-  ctx.textAlign = 'right';
-  ctx.fillText(shortText, W - 24, yOf(0.3));
+  ctx.font = 'bold 30px "Outfit", "Plus Jakarta Sans", sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText('YOUTH INNOVATION MARKETPLACE  •  GMC 2026', W / 2, H - 18);
+  ctx.textAlign = 'left';
   ctx.restore();
 
-  // Footer strip
-  ctx.fillStyle = accent;
-  ctx.fillRect(0, yOf(0.2), W, H - yOf(0.2));
-  ctx.fillStyle = ink;
-  ctx.font = 'bold 26px "Outfit", "Plus Jakarta Sans", sans-serif';
-  ctx.textAlign = 'center';
-  ctx.fillText('YOUTH INNOVATIONS MARKETPLACE  •  GMC 2026  •  MARRIOTT MANILA', W / 2, yOf(0.2) + 44);
-
-  return makeTexture(canvas);
+  const tex = makeTexture(canvas);
+  // The arc is seen from inside, which mirrors cylinder UVs; flip u back.
+  tex.repeat.x = -1;
+  tex.offset.x = 1;
+  return tex;
 }
 
 /** Roll-up banner beside the stand. */
@@ -244,156 +274,209 @@ export function createBannerTexture(org) {
   return makeTexture(canvas);
 }
 
-function createCounterSignTexture(org) {
+/** Wrap graphic for the oval pop-up counter: logo centred on the front, brand band below. */
+function createCounterWrapTexture(org) {
   const canvas = document.createElement('canvas');
-  canvas.width = 512;
-  canvas.height = 320;
+  canvas.width = 1024;
+  canvas.height = 384;
   const ctx = canvas.getContext('2d');
-  const { color, accent, ink } = palette(org);
-  ctx.fillStyle = '#F1F0EC';
-  ctx.beginPath();
-  ctx.roundRect(0, 0, 512, 320, 28);
-  ctx.fill();
-  ctx.fillStyle = color;
-  ctx.fillRect(0, 0, 512, 70);
-  ctx.fillStyle = '#ffffff';
-  ctx.font = 'bold 34px "Outfit", sans-serif';
-  ctx.textAlign = 'center';
-  ctx.fillText(org.short || org.name, 256, 48);
-  ctx.fillStyle = ink;
-  ctx.font = '800 64px "Outfit", sans-serif';
-  ctx.fillText('ASK US', 256, 170);
-  ctx.font = '600 30px "Plus Jakarta Sans", sans-serif';
-  ctx.fillStyle = '#2E4570';
-  ctx.fillText('Passport · Programme · Partners', 256, 230);
+  const { color, bg, accent } = palette(org);
+  ctx.fillStyle = '#F7F6F2';
+  ctx.fillRect(0, 0, 1024, 384);
+  // u = 0.5 is the front of the counter (see the thetaStart in buildOrganizerBooth).
   ctx.fillStyle = accent;
-  ctx.fillRect(120, 262, 272, 10);
+  ctx.fillRect(0, 300, 1024, 84);
+  const cx = 512;
+  const shortText = org.short || org.name;
+  ctx.font = '800 96px "Outfit", "Plus Jakarta Sans", sans-serif';
+  const w = ctx.measureText(shortText).width;
+  const tileOnBrand = bg.toLowerCase() === color.toLowerCase();
+  ctx.fillStyle = tileOnBrand ? color : bg;
+  ctx.beginPath();
+  ctx.roundRect(cx - w / 2 - 34, 70, w + 68, 140, 26);
+  ctx.fill();
+  ctx.fillStyle = tileOnBrand ? '#ffffff' : color;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(shortText, cx, 144);
+  ctx.fillStyle = '#2E4570';
+  ctx.font = '700 30px "Plus Jakarta Sans", sans-serif';
+  ctx.fillText('ASK US · Passport · Programme', cx, 256);
+  return makeTexture(canvas);
+}
+
+function createBrochureTexture(org, i) {
+  const canvas = document.createElement('canvas');
+  canvas.width = 128;
+  canvas.height = 180;
+  const ctx = canvas.getContext('2d');
+  const { color, bg, accent } = palette(org);
+  const fills = [bg, accent, color, '#F6B91A'];
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, 128, 180);
+  ctx.fillStyle = fills[i % fills.length];
+  ctx.fillRect(0, 0, 128, 110);
+  ctx.fillStyle = '#ffffff';
+  ctx.beginPath();
+  ctx.arc(40 + i * 14, 60, 26, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#2E4570';
+  ctx.fillRect(14, 126, 100, 10);
+  ctx.fillRect(14, 146, 70, 8);
   return makeTexture(canvas);
 }
 
 /**
  * Builds one organizer stand. `attachTV(parent, localPos)` is supplied by main.js so all TVs in
  * the hall share the same video element and click handling.
+ *
+ * Footprint stays inside ±1.75 m along X so neighbouring stands (3.5 m apart) never touch.
  */
 export function buildOrganizerBooth(org, { attachTV, castShadow = true } = {}) {
   const group = new THREE.Group();
   group.name = `Organizer_${org.id}`;
 
   const pal = palette(org);
-  const dark = new THREE.MeshStandardMaterial({ color: 0x151b28, roughness: 0.55, metalness: 0.35 });
-  const cloth = new THREE.MeshStandardMaterial({ color: new THREE.Color(shade(pal.color, 0.8)), roughness: 0.95 });
-  const accent = new THREE.MeshStandardMaterial({
-    color: new THREE.Color(pal.accent),
-    emissive: new THREE.Color(pal.accent),
-    emissiveIntensity: 0.55,
-    roughness: 0.4,
-  });
+  const frameMat = new THREE.MeshStandardMaterial({ color: 0xd9dde3, roughness: 0.3, metalness: 0.85 });
+  const dark = new THREE.MeshStandardMaterial({ color: 0x1b1f27, roughness: 0.55, metalness: 0.3 });
+  const glow = new THREE.MeshStandardMaterial({ color: 0xfff1d6, emissive: 0xffe2b0, emissiveIntensity: 2.2 });
 
-  // Floor mat marks the stand footprint (also reads well on the minimap-less mobile view)
-  const mat = new THREE.Mesh(
-    new THREE.PlaneGeometry(3.4, 2.9),
-    new THREE.MeshStandardMaterial({ color: new THREE.Color(shade(pal.color, 0.6)), roughness: 1, transparent: true, opacity: 0.55 })
-  );
-  mat.rotation.x = -Math.PI / 2;
-  mat.position.set(0, 0.012, 0.7);
-  mat.receiveShadow = true;
-  group.add(mat);
-
-  // Frame + backdrop panel
-  const frame = new THREE.Mesh(new THREE.BoxGeometry(PANEL_W + 0.12, PANEL_H + 0.12, 0.06), dark);
-  frame.position.set(0, PANEL_BOTTOM + PANEL_H / 2, -0.05);
-  frame.castShadow = castShadow;
-  frame.receiveShadow = true;
-  frame.name = 'panel';
-  group.add(frame);
-
+  // --- Curved pop-up backwall: printed fabric on the front, plain brand colour on the back.
   const backdropTex = createBackdropTexture(org);
-  const graphic = new THREE.MeshStandardMaterial({
-    map: backdropTex,
-    emissive: 0xffffff,
-    emissiveMap: backdropTex,
-    emissiveIntensity: 0.32,
-    roughness: 0.65,
-  });
-  const panel = new THREE.Mesh(new THREE.BoxGeometry(PANEL_W, PANEL_H, 0.08), [dark, dark, dark, dark, graphic, dark]);
-  panel.position.set(0, PANEL_BOTTOM + PANEL_H / 2, 0);
-  panel.castShadow = castShadow;
-  panel.receiveShadow = true;
-  group.add(panel);
+  const arcGeo = new THREE.CylinderGeometry(WALL_R, WALL_R, PANEL_H, 48, 1, true, Math.PI - WALL_HALF, WALL_HALF * 2);
+  const front = new THREE.Mesh(arcGeo, new THREE.MeshStandardMaterial({
+    map: backdropTex, emissive: 0xffffff, emissiveMap: backdropTex, emissiveIntensity: 0.18,
+    roughness: 0.8, side: THREE.BackSide, alphaTest: 0.5, transparent: false,
+  }));
+  front.position.set(0, PANEL_BOTTOM + PANEL_H / 2, WALL_CZ);
+  front.receiveShadow = true;
+  front.castShadow = castShadow;
+  front.name = 'panel';
+  group.add(front);
 
-  // Lit top rail
-  const rail = new THREE.Mesh(new THREE.BoxGeometry(PANEL_W + 0.16, 0.1, 0.16), accent);
-  rail.position.set(0, PANEL_BOTTOM + PANEL_H + 0.06, 0.02);
-  group.add(rail);
+  const back = new THREE.Mesh(
+    new THREE.CylinderGeometry(WALL_R + 0.04, WALL_R + 0.04, PANEL_H - 0.12, 48, 1, true, Math.PI - WALL_HALF, WALL_HALF * 2),
+    new THREE.MeshStandardMaterial({ color: new THREE.Color(shade(pal.bg, 0.7)), roughness: 0.9, side: THREE.FrontSide }),
+  );
+  back.position.copy(front.position);
+  group.add(back);
 
-  // Feet
+  // End caps where the fabric wraps round the frame.
   for (const sx of [-1, 1]) {
-    const foot = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.05, 0.6), dark);
-    foot.position.set(sx * (PANEL_W / 2 - 0.1), 0.025, 0.05);
+    const cap = new THREE.Mesh(new THREE.BoxGeometry(0.05, PANEL_H - 0.14, 0.06), new THREE.MeshStandardMaterial({ color: new THREE.Color(shade(pal.bg, 0.85)), roughness: 0.85 }));
+    cap.position.set(sx * (WALL_CHORD / 2 - 0.005), PANEL_BOTTOM + PANEL_H / 2 - 0.05, 0.0);
+    group.add(cap);
+    const foot = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.03, 0.5), frameMat);
+    foot.position.set(sx * (WALL_CHORD / 2 - 0.1), 0.015, -0.05);
     group.add(foot);
   }
 
-  // TV (shared video, click-to-pop-up) mounted on the panel
-  if (attachTV) attachTV(group, new THREE.Vector3(0, TV_CENTER_Y, 0.04 + 0.035));
-
-  // Draped counter table
-  const table = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.74, 0.62), cloth);
-  table.position.set(0, 0.37, 1.0);
-  table.castShadow = castShadow;
-  table.receiveShadow = true;
-  table.name = 'table';
-  group.add(table);
-
-  const top = new THREE.Mesh(new THREE.BoxGeometry(1.66, 0.04, 0.68), dark);
-  top.position.set(0, 0.76, 1.0);
-  top.receiveShadow = true;
-  group.add(top);
-
-  const skirtBand = new THREE.Mesh(new THREE.BoxGeometry(1.62, 0.08, 0.64), accent);
-  skirtBand.position.set(0, 0.7, 1.0);
-  group.add(skirtBand);
-
-  // Counter sign
-  const sign = new THREE.Mesh(
-    new THREE.PlaneGeometry(0.44, 0.275),
-    new THREE.MeshStandardMaterial({ map: createCounterSignTexture(org), roughness: 0.7, side: THREE.DoubleSide })
-  );
-  sign.position.set(0.45, 0.905, 1.12);
-  sign.rotation.x = -0.32;
-  group.add(sign);
-
-  // Leaflet stacks
-  const paper = new THREE.MeshStandardMaterial({ color: 0xf1f0ec, roughness: 0.9 });
-  for (let i = 0; i < 2; i++) {
-    const stack = new THREE.Mesh(new THREE.BoxGeometry(0.21, 0.03, 0.3), paper);
-    stack.position.set(-0.5 + i * 0.28, 0.795, 1.02);
-    stack.rotation.y = (i - 0.5) * 0.25;
-    group.add(stack);
+  // Two arm spotlights on the top edge, aimed down at the graphic.
+  for (const sx of [-0.65, 0.65]) {
+    const z = wallZ(sx);
+    const arm = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.008, 0.42, 6), frameMat);
+    arm.rotation.x = Math.PI / 2;
+    arm.position.set(sx, PANEL_BOTTOM + PANEL_H + 0.02, z + 0.2);
+    group.add(arm);
+    const head = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.04, 0.12, 12), dark);
+    head.position.set(sx, PANEL_BOTTOM + PANEL_H + 0.0, z + 0.42);
+    head.rotation.x = -0.9;
+    group.add(head);
+    const lens = new THREE.Mesh(new THREE.CircleGeometry(0.038, 12), glow);
+    lens.position.set(0, -0.061, 0);
+    lens.rotation.x = Math.PI / 2;
+    head.add(lens);
   }
 
-  // Roll-up banner on the south side of the stand
+  // TV in the lower-left "photo" area, flat on the chord of that stretch of the arc.
+  if (attachTV) {
+    const za = wallZ(TV_X0), zb = wallZ(TV_X1);
+    const mount = new THREE.Group();
+    mount.position.set((TV_X0 + TV_X1) / 2, TV_Y, (za + zb) / 2 + 0.045);
+    mount.rotation.y = -Math.atan2(zb - za, TV_X1 - TV_X0);
+    group.add(mount);
+    attachTV(mount, new THREE.Vector3(0, 0, 0));
+  }
+
+  // --- Oval pop-up counter with a printed wrap and a dark top.
+  const counter = new THREE.Group();
+  counter.position.set(0.3, 0, 1.0);
+  group.add(counter);
+  const wrapTex = createCounterWrapTexture(org);
+  const body = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.5, 0.5, 0.95, 48, 1, false, Math.PI, Math.PI * 2),
+    [new THREE.MeshStandardMaterial({ map: wrapTex, roughness: 0.45 }), dark, dark],
+  );
+  body.scale.set(1.2, 1, 0.48);
+  body.position.y = 0.95 / 2;
+  body.castShadow = castShadow;
+  body.receiveShadow = true;
+  body.name = 'table';
+  counter.add(body);
+  const lid = new THREE.Mesh(new THREE.CylinderGeometry(0.52, 0.52, 0.03, 48), dark);
+  lid.scale.set(1.2, 1, 0.5);
+  lid.position.y = 0.965;
+  counter.add(lid);
+  const paper = new THREE.MeshStandardMaterial({ color: 0xf1f0ec, roughness: 0.9 });
+  for (let i = 0; i < 2; i++) {
+    const stack = new THREE.Mesh(new THREE.BoxGeometry(0.21, 0.025, 0.28), paper);
+    stack.position.set(-0.22 + i * 0.3, 0.995, -0.02);
+    stack.rotation.y = (i - 0.5) * 0.3;
+    counter.add(stack);
+  }
+
+  // --- Roll-up banner on the right.
+  const bannerX = WALL_CHORD / 2 + 0.42;
   const bannerTex = createBannerTexture(org);
   const banner = new THREE.Mesh(
-    new THREE.PlaneGeometry(0.75, 1.9),
-    new THREE.MeshStandardMaterial({ map: bannerTex, emissive: 0xffffff, emissiveMap: bannerTex, emissiveIntensity: 0.22, roughness: 0.75, side: THREE.DoubleSide })
+    new THREE.PlaneGeometry(0.75, 1.95),
+    new THREE.MeshStandardMaterial({ map: bannerTex, emissive: 0xffffff, emissiveMap: bannerTex, emissiveIntensity: 0.18, roughness: 0.75, side: THREE.DoubleSide }),
   );
-  banner.position.set(PANEL_W / 2 + 0.5, 1.05, 0.3);
-  banner.rotation.y = -0.18;
+  banner.position.set(bannerX, 1.06, 0.2);
+  banner.rotation.y = -0.25;
   group.add(banner);
-
-  const bannerBase = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.05, 0.3), dark);
-  bannerBase.position.set(PANEL_W / 2 + 0.5, 0.025, 0.3);
-  bannerBase.rotation.y = -0.18;
+  const bannerBase = new THREE.Mesh(new THREE.BoxGeometry(0.82, 0.07, 0.2), frameMat);
+  bannerBase.position.set(bannerX, 0.035, 0.2);
+  bannerBase.rotation.y = -0.25;
   bannerBase.name = 'bannerBase';
   group.add(bannerBase);
-
-  const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, 2.0, 8), dark);
-  pole.position.set(PANEL_W / 2 + 0.5 + 0.02, 1.0, 0.3 - 0.13);
+  const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.01, 0.01, 2.0, 6), frameMat);
+  pole.position.set(bannerX + 0.03, 1.0, 0.1);
   group.add(pole);
 
-  // Collision: panel + table are one solid (the staff gap between them is narrower than a
-  // visitor, so treating it as open space would only invite tunnelling); banner base is its own.
-  return { group, solids: [[frame, table], [bannerBase]] };
+  // --- Zig-zag brochure rack, front-left.
+  const rack = new THREE.Group();
+  rack.position.set(-1.05, 0, 0.55);
+  rack.rotation.y = 0.35;
+  group.add(rack);
+  for (const sx of [-0.17, 0.17]) {
+    for (let k = 0; k < 4; k++) {
+      const seg = new THREE.Mesh(new THREE.CylinderGeometry(0.006, 0.006, 0.42, 5), frameMat);
+      seg.position.set(sx, 0.2 + k * 0.36, (k % 2 ? 0.06 : -0.06));
+      seg.rotation.x = k % 2 ? -0.3 : 0.3;
+      rack.add(seg);
+    }
+  }
+  const rackFoot = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.02, 0.36), frameMat);
+  rackFoot.position.y = 0.01;
+  rackFoot.name = 'rackFoot';
+  rack.add(rackFoot);
+  for (let k = 0; k < 4; k++) {
+    const shelf = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.01, 0.1), frameMat);
+    shelf.position.set(0, 0.32 + k * 0.36, 0.06);
+    rack.add(shelf);
+    const brochure = new THREE.Mesh(
+      new THREE.PlaneGeometry(0.21, 0.29),
+      new THREE.MeshStandardMaterial({ map: createBrochureTexture(org, k), roughness: 0.6 }),
+    );
+    brochure.position.set(0, 0.32 + k * 0.36 + 0.15, 0.08);
+    brochure.rotation.x = -0.25;
+    rack.add(brochure);
+  }
+
+  // Collision: the backwall arc + counter as one solid (the staff gap behind the counter is
+  // narrower than a visitor), the banner base and the rack each on their own.
+  return { group, solids: [[front, body], [bannerBase], [rackFoot]] };
 }
 
 /**

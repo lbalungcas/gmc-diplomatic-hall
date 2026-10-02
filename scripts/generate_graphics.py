@@ -67,10 +67,35 @@ ZONES = {
     'Creative':   dict(primary=(235, 152, 26), deep=(58, 34, 8), accent=(252, 208, 128), ink=(38, 22, 4)),
 }
 
+# 24 booths in eight theme clusters of three. Theme and colour come from the cluster in
+# src/data/hallLayout.json, the same table main.js builds BOOTH_POSITIONS from; booth numbers
+# are the official ones listed in each cluster's `booths`.
+with open(os.path.join(ROOT, 'src', 'data', 'hallLayout.json'), encoding='utf-8') as _fh:
+    _CLUSTERS = json.load(_fh)['clusters']['list']
+
+
+def _hex(h):
+    h = h.lstrip('#')
+    return tuple(int(h[i:i + 2], 16) for i in (0, 2, 4))
+
+
+def cluster_palette(hex_colour):
+    p = _hex(hex_colour)
+    return dict(primary=p,
+                deep=tuple(int(c * 0.22) for c in p),
+                accent=tuple(int(c + (255 - c) * 0.55) for c in p),
+                ink=tuple(int(c * 0.14) for c in p))
+
+
 BOOTH_CATEGORY = {}
-for _i in range(1, 21):
-    BOOTH_CATEGORY[_i] = ('Innovation' if _i <= 5 else 'GreenTech' if _i <= 10 else
-                          'EdTech' if _i <= 14 else 'Health' if _i <= 17 else 'Creative')
+BOOTH_PALETTE = {}
+BOOTH_CLUSTER = {}
+for _c in _CLUSTERS:
+    for _i in _c['booths']:
+        BOOTH_CATEGORY[_i] = _c['theme']
+        BOOTH_PALETTE[_i] = cluster_palette(_c['color'])
+        BOOTH_CLUSTER[_i] = _c['id']
+TOTAL_BOOTHS = len(BOOTH_CATEGORY)
 
 # The runtime TV footprint on the backwall, in UV space (see module docstring).
 TV_U0, TV_U1 = 0.1505, 0.8495
@@ -205,7 +230,7 @@ def booth_screen(idx, info, pal):
     vgrad(d, (0, 0, W, H), tuple(min(255, c + 16) for c in pal['deep']), (4, 7, 14))
 
     d.rectangle([0, 0, W, 62], fill=pal['primary'])
-    d.text((26, 31), f'BOOTH {idx:02d}  \u00b7  {BOOTH_CATEGORY[idx].upper()}',
+    d.text((26, 31), f'BOOTH {idx:02d}  \u00b7  {BOOTH_CLUSTER[idx]}  ·  {BOOTH_CATEGORY[idx].upper()}',
            fill=(255, 255, 255), font=font(BOLD, 26), anchor='lm')
     d.text((W - 26, 31), 'INTERACTIVE EXHIBIT', fill=pal['ink'], font=font(SEMI, 22), anchor='rm')
 
@@ -333,12 +358,12 @@ def media_hub():
 
 if __name__ == '__main__':
     booths = load_booths()
-    print('Booth backwalls (1024x1024 square - the panel is 1.86 x 1.85 m):')
-    for i in range(1, 21):
-        booth_graphic(i, booths.get(i), ZONES[BOOTH_CATEGORY[i]])
-        booth_screen(i, booths.get(i), ZONES[BOOTH_CATEGORY[i]])
-    print('  wrote 20 graphics + 20 posters across zones: '
-          + ', '.join(dict.fromkeys(BOOTH_CATEGORY.values())))
+    # Backwall artwork is drawn at runtime now (src/modules/boothClusters.js) so each team's
+    # name and colours come straight from booths.json; only the pop-up video posters are images.
+    print(f'Booth pop-up posters ({TOTAL_BOOTHS} booths, {len(_CLUSTERS)} clusters):')
+    for i in range(1, TOTAL_BOOTHS + 1):
+        booth_screen(i, booths.get(i), BOOTH_PALETTE[i])
+    print(f'  wrote {TOTAL_BOOTHS} posters')
 
     print('Shared prop materials:')
     booth_fabric()

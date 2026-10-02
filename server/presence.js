@@ -31,7 +31,7 @@ const ANALYTICS_TOKEN =
   process.env.ANALYTICS_TOKEN !== undefined ? process.env.ANALYTICS_TOKEN : 'gmc-dev';
 
 const MIN_BOOTH_ID = 1;
-const MAX_BOOTH_ID = 20;
+const MAX_BOOTH_ID = 24; // 8 clusters x 3 booths — keep in step with src/data/hallLayout.json
 const COMMENT_MAX = 200;
 const COMMENTS_PER_BOOTH = 40;
 const HEART_MIN_INTERVAL_MS = 500;
