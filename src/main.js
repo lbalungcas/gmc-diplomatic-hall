@@ -2906,6 +2906,9 @@ function renderLinksAndSocials(info) {
     a.target = '_blank';
     a.rel = 'noopener noreferrer';
     a.textContent = `🔗 ${l.label || href.replace(/^https?:\/\//, '')}`;
+    a.addEventListener('click', () => {
+      emitAnalytics('link_click', { boothId: info.id, linkType: 'custom', url: href, label: l.label || '' });
+    });
     linksBox.appendChild(a);
   });
 
@@ -2919,6 +2922,9 @@ function renderLinksAndSocials(info) {
     a.target = '_blank';
     a.rel = 'noopener noreferrer';
     a.textContent = `${SOCIAL_ICONS[network.toLowerCase()] || '🔗'} ${network.charAt(0).toUpperCase() + network.slice(1)}`;
+    a.addEventListener('click', () => {
+      emitAnalytics('link_click', { boothId: info.id, linkType: 'social', network, url: href });
+    });
     socialsBox.appendChild(a);
   });
 
@@ -2928,6 +2934,9 @@ function renderLinksAndSocials(info) {
     a.className = 'link-chip';
     a.href = `mailto:${contact.email}`;
     a.textContent = `✉️ ${contact.email}`;
+    a.addEventListener('click', () => {
+      emitAnalytics('link_click', { boothId: info.id, linkType: 'contact', channel: 'email' });
+    });
     socialsBox.appendChild(a);
   }
   if (contact.phone) {
@@ -2935,6 +2944,9 @@ function renderLinksAndSocials(info) {
     a.className = 'link-chip';
     a.href = `tel:${String(contact.phone).replace(/[^\d+]/g, '')}`;
     a.textContent = `📞 ${contact.phone}`;
+    a.addEventListener('click', () => {
+      emitAnalytics('link_click', { boothId: info.id, linkType: 'contact', channel: 'phone' });
+    });
     socialsBox.appendChild(a);
   }
 }

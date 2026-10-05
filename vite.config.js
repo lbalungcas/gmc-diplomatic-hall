@@ -98,10 +98,46 @@ const presenceProxy = {
       proxy.on('error', () => {});
     },
   },
+  '/admin-api': {
+    target: `http://127.0.0.1:${presencePort}`,
+    configure: (proxy) => {
+      proxy.on('error', () => {});
+    },
+  },
 };
 
+/**
+ * Automatically redirect /admin, /game, /innovator-guidelines to their trailing slash
+ * versions in dev and preview servers, so directory index.html files are properly served
+ * instead of falling back to the root index.html.
+ */
+function multiPageRedirectPlugin() {
+  const handler = (req, res, next) => {
+    const url = req.url || '';
+    const [pathname, search] = url.split('?');
+    const query = search ? `?${search}` : '';
+    const routes = ['/admin', '/game', '/innovator-guidelines'];
+    if (routes.includes(pathname)) {
+      res.writeHead(302, { Location: `${pathname}/${query}` });
+      res.end();
+      return;
+    }
+    next();
+  };
+
+  return {
+    name: 'multi-page-redirect',
+    configureServer(server) {
+      server.middlewares.use(handler);
+    },
+    configurePreviewServer(server) {
+      server.middlewares.use(handler);
+    },
+  };
+}
+
 export default defineConfig({
-  plugins: [copyTexturesPlugin(), copyLandingAssetsPlugin()],
+  plugins: [copyTexturesPlugin(), copyLandingAssetsPlugin(), multiPageRedirectPlugin()],
   define: {
     // Lets the client fall back to a direct connection when the dev proxy isn't in front of it
     // (e.g. `vite preview`, or a phone opening the LAN URL while the proxy target is down).
@@ -114,6 +150,7 @@ export default defineConfig({
         main: resolve(rootDir, 'index.html'),
         game: resolve(rootDir, 'game/index.html'),
         analytics: resolve(rootDir, 'analytics.html'),
+        admin: resolve(rootDir, 'admin/index.html'),
         innovatorGuidelines: resolve(rootDir, 'innovator-guidelines/index.html'),
       },
     },

@@ -1,0 +1,698 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>Booth Manager — YIM Admin</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%230f172a'/%3E%3Cpath d='M8 10h16M8 16h16M8 22h10' stroke='%2338bdf8' stroke-width='2.5' stroke-linecap='round'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<link rel="stylesheet" href="/admin/admin.css">
+</head>
+<body>
+
+<!-- Main Dashboard -->
+<div id="dashboard" class="dashboard">
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-brand">
+      <div class="brand-icon"><i class="fas fa-store"></i></div>
+      <div class="brand-text">
+        <span class="brand-name">YIM Admin</span>
+        <span class="brand-sub">Booth Manager</span>
+      </div>
+    </div>
+
+    <nav class="sidebar-nav">
+      <a href="#" class="nav-item active" data-view="booths">
+        <i class="fas fa-grip"></i>
+        <span>All Booths (27)</span>
+      </a>
+      <a href="#" class="nav-item" data-view="analytics">
+        <i class="fas fa-chart-line"></i>
+        <span>Analytics</span>
+      </a>
+      <a href="#" class="nav-item" data-view="media">
+        <i class="fas fa-photo-film"></i>
+        <span>Media Library</span>
+      </a>
+      <a href="#" class="nav-item" data-view="sync">
+        <i class="fas fa-arrows-rotate"></i>
+        <span>Import / Export</span>
+      </a>
+    </nav>
+
+    <div class="sidebar-footer">
+      <a href="/" class="nav-item" target="_blank" rel="noopener">
+        <i class="fas fa-arrow-up-right-from-square"></i>
+        <span>View Public Site</span>
+      </a>
+    </div>
+  </aside>
+
+  <!-- Content Area -->
+  <main class="content">
+    <!-- Header Bar -->
+    <header class="content-header">
+      <div class="header-left">
+        <button class="mobile-menu" id="mobileMenu"><i class="fas fa-bars"></i></button>
+        <h2 id="viewTitle">All Booths</h2>
+      </div>
+      <div class="header-right">
+        <div class="search-box" id="searchBox">
+          <i class="fas fa-magnifying-glass"></i>
+          <input type="text" id="searchInput" placeholder="Search booths...">
+        </div>
+        <div class="header-status">
+          <span class="status-dot" id="statusDot"></span>
+          <span id="statusLabel">Connecting…</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- Booths Grid View -->
+    <section id="boothsView" class="view active">
+      <div class="view-toolbar">
+        <div class="filter-pills" id="filterPills">
+          <button class="pill active" data-filter="all">All</button>
+        </div>
+        <span class="booth-count" id="boothCount">27 booths</span>
+      </div>
+      <div class="booths-grid" id="boothsGrid">
+        <!-- Booth cards rendered by JS -->
+      </div>
+    </section>
+
+    <!-- Media Library View -->
+    <section id="mediaView" class="view" hidden>
+      <div class="view-toolbar">
+        <button class="btn btn-primary" id="uploadMediaBtn">
+          <i class="fas fa-cloud-arrow-up"></i> Upload Files
+        </button>
+        <input type="file" id="mediaFileInput" multiple hidden accept="image/*,video/*">
+      </div>
+      <div class="media-grid" id="mediaGrid">
+        <!-- Media files rendered by JS -->
+      </div>
+      <p class="empty-state" id="mediaEmpty">No files uploaded yet. Use the upload button above.</p>
+    </section>
+
+    <!-- Sync View -->
+    <section id="syncView" class="view" hidden>
+      <div class="sync-cards">
+        <div class="sync-card">
+          <div class="sync-icon"><i class="fas fa-file-import"></i></div>
+          <h3>Import from booths.json</h3>
+          <p>Push the current <code>src/data/booths.json</code> data into the database. This will overwrite existing DB entries with JSON file values.</p>
+          <button class="btn btn-primary" id="importJsonBtn">
+            <i class="fas fa-upload"></i> Import Now
+          </button>
+          <p class="sync-status" id="importStatus"></p>
+        </div>
+        <div class="sync-card">
+          <div class="sync-icon"><i class="fas fa-file-export"></i></div>
+          <h3>Export to booths.json</h3>
+          <p>Download the current database data as a <code>booths.json</code> file you can drop into <code>src/data/</code> to update the game build.</p>
+          <button class="btn btn-secondary" id="exportJsonBtn">
+            <i class="fas fa-download"></i> Export JSON
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Analytics View -->
+    <section id="analyticsView" class="view" hidden>
+      <div class="view-toolbar analytics-toolbar">
+        <div class="analytics-live-status">
+          <span class="live-pulse-dot"></span>
+          <span id="analyticsStatusText">Live Telemetry &bull; Refreshing every 10s</span>
+        </div>
+        <div class="analytics-actions">
+          <button type="button" class="btn btn-secondary btn-sm" id="analyticsRefreshBtn">
+            <i class="fas fa-arrows-rotate"></i> Refresh
+          </button>
+          <button type="button" class="btn btn-secondary btn-sm" id="analyticsExportCsv">
+            <i class="fas fa-file-csv"></i> Export CSV
+          </button>
+          <button type="button" class="btn btn-ghost btn-sm" id="analyticsExportJson">
+            <i class="fas fa-file-code"></i> Export JSON
+          </button>
+        </div>
+      </div>
+
+      <!-- KPI Metrics Grid -->
+      <div class="analytics-metrics-grid">
+        <div class="metric-card online">
+          <div class="metric-icon"><i class="fas fa-users-viewfinder"></i></div>
+          <div class="metric-info">
+            <span class="metric-label">Online Now</span>
+            <strong class="metric-val" id="kpiOnline">0</strong>
+          </div>
+        </div>
+        <div class="metric-card peak">
+          <div class="metric-icon"><i class="fas fa-chart-line"></i></div>
+          <div class="metric-info">
+            <span class="metric-label">Peak Concurrent</span>
+            <strong class="metric-val" id="kpiPeak">0</strong>
+          </div>
+        </div>
+        <div class="metric-card visitors">
+          <div class="metric-icon"><i class="fas fa-user-group"></i></div>
+          <div class="metric-info">
+            <span class="metric-label">Unique Hall Visitors</span>
+            <strong class="metric-val" id="kpiUniques">0</strong>
+          </div>
+        </div>
+        <div class="metric-card views">
+          <div class="metric-icon"><i class="fas fa-eye"></i></div>
+          <div class="metric-info">
+            <span class="metric-label">Hall Page Loads</span>
+            <strong class="metric-val" id="kpiPageViews">0</strong>
+          </div>
+        </div>
+        <div class="metric-card opens">
+          <div class="metric-icon"><i class="fas fa-door-open"></i></div>
+          <div class="metric-info">
+            <span class="metric-label">Booth Impressions</span>
+            <strong class="metric-val" id="kpiOpens">0</strong>
+          </div>
+        </div>
+        <div class="metric-card hearts">
+          <div class="metric-icon"><i class="fas fa-heart"></i></div>
+          <div class="metric-info">
+            <span class="metric-label">Total Hearts Given</span>
+            <strong class="metric-val" id="kpiHearts">0</strong>
+          </div>
+        </div>
+        <div class="metric-card comments">
+          <div class="metric-icon"><i class="fas fa-comments"></i></div>
+          <div class="metric-info">
+            <span class="metric-label">Visitor Comments</span>
+            <strong class="metric-val" id="kpiComments">0</strong>
+          </div>
+        </div>
+        <div class="metric-card passports">
+          <div class="metric-icon"><i class="fas fa-passport"></i></div>
+          <div class="metric-info">
+            <span class="metric-label">Completed Passports</span>
+            <strong class="metric-val" id="kpiPassports">0</strong>
+          </div>
+        </div>
+        <div class="metric-card quizzes">
+          <div class="metric-icon"><i class="fas fa-award"></i></div>
+          <div class="metric-info">
+            <span class="metric-label">Quizzes Taken / Passed</span>
+            <strong class="metric-val" id="kpiQuizzes">0 / 0</strong>
+          </div>
+        </div>
+      </div>
+
+      <!-- Visual Charts Suite: Macro & Micro Benchmarks -->
+      <div class="analytics-card chart-suite-card" style="margin-top: 24px;">
+        <div class="analytics-card-header chart-header-wrap">
+          <div>
+            <h3><i class="fas fa-chart-column"></i> Interactive Booth Performance & Benchmark Charts</h3>
+            <p>Compare engagement across all 27 booths. Click any bar to open its micro-analytics dossier.</p>
+          </div>
+          <div class="chart-scope-pills" id="chartScopePills">
+            <button type="button" class="pill active" data-scope="top10">Top 10 Leaders</button>
+            <button type="button" class="pill" data-scope="all">All 27 Booths</button>
+            <button type="button" class="pill" data-scope="clusters">Thematic Clusters</button>
+          </div>
+        </div>
+
+        <!-- Metric Switcher Pills -->
+        <div class="chart-metric-pills" id="chartMetricPills">
+          <button type="button" class="metric-pill active" data-metric="score"><i class="fas fa-bolt"></i> Engagement Score</button>
+          <button type="button" class="metric-pill" data-metric="opens"><i class="fas fa-door-open"></i> Impressions</button>
+          <button type="button" class="metric-pill" data-metric="hearts"><i class="fas fa-heart"></i> Reactions / Hearts</button>
+          <button type="button" class="metric-pill" data-metric="intros"><i class="fas fa-play"></i> Video Plays</button>
+          <button type="button" class="metric-pill" data-metric="quizzes"><i class="fas fa-award"></i> Quiz Attempts</button>
+          <button type="button" class="metric-pill" data-metric="passRate"><i class="fas fa-percent"></i> Quiz Pass Rate</button>
+          <button type="button" class="metric-pill" data-metric="linkClicks"><i class="fas fa-arrow-up-right-from-square"></i> Link & Social Clicks</button>
+          <button type="button" class="metric-pill" data-metric="comments"><i class="fas fa-comment-dots"></i> Visitor Notes</button>
+        </div>
+
+        <!-- Chart Graphic Container -->
+        <div class="chart-svg-container" id="analyticsChartContainer">
+          <!-- Rendered dynamically by JS as SVG -->
+          <div class="chart-loading-placeholder"><i class="fas fa-spinner fa-spin"></i> Rendering chart…</div>
+        </div>
+        <div id="chartTooltip" class="chart-tooltip" hidden></div>
+      </div>
+
+      <!-- Per-Booth Telemetry Table -->
+      <div class="analytics-card" style="margin-top: 24px;">
+        <div class="analytics-card-header">
+          <div>
+            <h3><i class="fas fa-store"></i> All 27 Booths Telemetry & Performance Matrix</h3>
+            <p>Real-time micro-metrics: impressions, video plays, challenge quizzes, hearts, visitor notes, and link clicks.</p>
+          </div>
+          <div class="analytics-filter-wrap">
+            <select id="analyticsCategoryFilter" class="analytics-cat-select">
+              <option value="all">All Categories</option>
+            </select>
+            <input type="text" id="analyticsBoothSearch" placeholder="Filter booths or innovators..." class="analytics-search-input">
+          </div>
+        </div>
+        <div class="analytics-table-wrap">
+          <table class="analytics-table">
+            <thead>
+              <tr>
+                <th style="width: 55px;">Rank</th>
+                <th>Booth & Innovator</th>
+                <th>Category</th>
+                <th title="Total booth modal opens">Impressions</th>
+                <th title="Intro video views">Videos</th>
+                <th title="Quiz attempts and pass rate">Quizzes (Pass %)</th>
+                <th title="Reactions given by visitors">Reacts</th>
+                <th title="Notes left by visitors">Notes</th>
+                <th title="Outbound link & social clicks">Clicks</th>
+                <th title="Weighted overall engagement score">Score</th>
+                <th style="text-align: right; width: 140px;">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="analyticsBoothRows">
+              <!-- Rendered by JS -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Recent Visitor Notes / Comments -->
+      <div class="analytics-card" style="margin-top: 24px;">
+        <div class="analytics-card-header">
+          <div>
+            <h3><i class="fas fa-comment-dots"></i> Recent Visitor Notes & Feedback</h3>
+            <p>Live messages and thoughts posted by visitors across all booths.</p>
+          </div>
+        </div>
+        <div id="analyticsRecentComments" class="analytics-comments-list">
+          <!-- Rendered by JS -->
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<!-- Edit Modal -->
+<div class="modal-overlay" id="editModal" hidden>
+  <div class="modal">
+    <div class="modal-header">
+      <h3 id="modalTitle">Edit Booth</h3>
+      <button class="modal-close" id="modalClose"><i class="fas fa-xmark"></i></button>
+    </div>
+    <div class="modal-body">
+      <form id="editForm">
+        <input type="hidden" id="editId">
+
+        <div class="form-tabs" id="formTabs">
+          <button type="button" class="form-tab active" data-tab="basic">Basic Info</button>
+          <button type="button" class="form-tab" data-tab="content">Content</button>
+          <button type="button" class="form-tab" data-tab="media">Media</button>
+          <button type="button" class="form-tab" data-tab="quiz">Quiz</button>
+          <button type="button" class="form-tab" data-tab="links">Links & Socials</button>
+        </div>
+
+        <!-- Basic Info Tab -->
+        <div class="form-panel active" data-panel="basic">
+          <div class="form-row">
+            <div class="form-group">
+              <label for="editName">Booth Name</label>
+              <input type="text" id="editName" placeholder="e.g. Gain Line">
+            </div>
+            <div class="form-group">
+              <label for="editOrg">Organization</label>
+              <input type="text" id="editOrg" placeholder="e.g. Violence Ends With Us">
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="editCategory">Category</label>
+              <input type="text" id="editCategory" placeholder="e.g. Child Labour">
+            </div>
+            <div class="form-group">
+              <label for="editTheme">Theme</label>
+              <input type="text" id="editTheme" placeholder="e.g. Child Labour">
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="toggle-label">
+              <input type="checkbox" id="editPlaceholder">
+              <span class="toggle-switch"></span>
+              <span>Placeholder (booth not yet finalized)</span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Content Tab -->
+        <div class="form-panel" data-panel="content" hidden>
+          <div class="form-group">
+            <label for="editOverview">Overview / Description</label>
+            <textarea id="editOverview" rows="6" placeholder="Describe what this booth showcases..."></textarea>
+          </div>
+          <div class="form-group">
+            <label for="editStats">Key Statistics (JSON array)</label>
+            <textarea id="editStats" rows="3" placeholder='[{"label": "Reach", "value": "10,000+"}]'></textarea>
+            <small>Array of objects with <code>label</code> and <code>value</code> properties.</small>
+          </div>
+        </div>
+
+        <!-- Media Tab -->
+        <div class="form-panel" data-panel="media" hidden>
+          <div class="form-group">
+            <label for="editLogo">Logo URL</label>
+            <div class="input-with-upload">
+              <input type="text" id="editLogo" placeholder="https://... or upload">
+              <button type="button" class="btn btn-sm" id="uploadLogoBtn"><i class="fas fa-upload"></i></button>
+            </div>
+            <div class="preview-area" id="logoPreview"></div>
+          </div>
+          <div class="form-group">
+            <label for="editVideo">Intro Video URL</label>
+            <input type="text" id="editVideo" placeholder="https://www.youtube.com/watch?v=...">
+          </div>
+          <div class="form-group">
+            <label>Gallery Images</label>
+            <div class="image-gallery" id="editImages">
+              <!-- Rendered by JS -->
+            </div>
+            <button type="button" class="btn btn-sm btn-secondary" id="addImageBtn">
+              <i class="fas fa-plus"></i> Add Image
+            </button>
+          </div>
+        </div>
+
+        <!-- Quiz Tab -->
+        <div class="form-panel" data-panel="quiz" hidden>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="editQuizTitle">Quiz Title</label>
+              <input type="text" id="editQuizTitle" placeholder="Quick quiz">
+            </div>
+            <div class="form-group">
+              <label for="editPassScore">Pass Score</label>
+              <input type="number" id="editPassScore" min="1" placeholder="2">
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Questions</label>
+            <div id="quizQuestions">
+              <!-- Rendered by JS -->
+            </div>
+            <button type="button" class="btn btn-sm btn-secondary" id="addQuestionBtn">
+              <i class="fas fa-plus"></i> Add Question
+            </button>
+          </div>
+        </div>
+
+        <!-- Links & Socials Tab -->
+        <div class="form-panel" data-panel="links" hidden>
+          <!-- Live Preview Box -->
+          <div class="socials-preview-card">
+            <div class="socials-preview-header">
+              <span class="preview-badge"><i class="fas fa-eye"></i> Live Booth Preview</span>
+              <small class="preview-subtext">Icons appear in real-time as you enter links</small>
+            </div>
+            <div id="socialsLiveChips" class="socials-live-chips">
+              <span class="preview-empty-hint">No links added yet. Paste links below to see icons appear here.</span>
+            </div>
+          </div>
+
+          <!-- Social Media Accounts -->
+          <div class="form-section-head">
+            <div class="section-title-wrap">
+              <h4><i class="fas fa-share-nodes"></i> Social Media Accounts</h4>
+              <p>Paste profile or page links. The icon automatically activates and displays in the 3D booth.</p>
+            </div>
+          </div>
+
+          <div class="socials-list">
+            <!-- Facebook -->
+            <div class="social-input-row" data-network="facebook">
+              <div class="social-badge facebook">
+                <i class="fab fa-facebook-f"></i>
+                <span>Facebook</span>
+              </div>
+              <div class="social-input-wrap">
+                <input type="url" id="socialFacebook" class="social-field" placeholder="https://facebook.com/yourpage" autocomplete="off">
+                <a href="#" class="social-action-btn test-btn" target="_blank" rel="noopener noreferrer" title="Open link in new tab" hidden>
+                  <i class="fas fa-arrow-up-right-from-square"></i>
+                </a>
+                <button type="button" class="social-action-btn clear-btn" title="Clear link" hidden>
+                  <i class="fas fa-xmark"></i>
+                </button>
+              </div>
+            </div>
+
+            <!-- Instagram -->
+            <div class="social-input-row" data-network="instagram">
+              <div class="social-badge instagram">
+                <i class="fab fa-instagram"></i>
+                <span>Instagram</span>
+              </div>
+              <div class="social-input-wrap">
+                <input type="url" id="socialInstagram" class="social-field" placeholder="https://instagram.com/yourprofile" autocomplete="off">
+                <a href="#" class="social-action-btn test-btn" target="_blank" rel="noopener noreferrer" title="Open link in new tab" hidden>
+                  <i class="fas fa-arrow-up-right-from-square"></i>
+                </a>
+                <button type="button" class="social-action-btn clear-btn" title="Clear link" hidden>
+                  <i class="fas fa-xmark"></i>
+                </button>
+              </div>
+            </div>
+
+            <!-- TikTok -->
+            <div class="social-input-row" data-network="tiktok">
+              <div class="social-badge tiktok">
+                <i class="fab fa-tiktok"></i>
+                <span>TikTok</span>
+              </div>
+              <div class="social-input-wrap">
+                <input type="url" id="socialTiktok" class="social-field" placeholder="https://tiktok.com/@youraccount" autocomplete="off">
+                <a href="#" class="social-action-btn test-btn" target="_blank" rel="noopener noreferrer" title="Open link in new tab" hidden>
+                  <i class="fas fa-arrow-up-right-from-square"></i>
+                </a>
+                <button type="button" class="social-action-btn clear-btn" title="Clear link" hidden>
+                  <i class="fas fa-xmark"></i>
+                </button>
+              </div>
+            </div>
+
+            <!-- LinkedIn -->
+            <div class="social-input-row" data-network="linkedin">
+              <div class="social-badge linkedin">
+                <i class="fab fa-linkedin-in"></i>
+                <span>LinkedIn</span>
+              </div>
+              <div class="social-input-wrap">
+                <input type="url" id="socialLinkedin" class="social-field" placeholder="https://linkedin.com/company/yourorg" autocomplete="off">
+                <a href="#" class="social-action-btn test-btn" target="_blank" rel="noopener noreferrer" title="Open link in new tab" hidden>
+                  <i class="fas fa-arrow-up-right-from-square"></i>
+                </a>
+                <button type="button" class="social-action-btn clear-btn" title="Clear link" hidden>
+                  <i class="fas fa-xmark"></i>
+                </button>
+              </div>
+            </div>
+
+            <!-- X / Twitter -->
+            <div class="social-input-row" data-network="twitter">
+              <div class="social-badge twitter">
+                <i class="fab fa-x-twitter"></i>
+                <span>X / Twitter</span>
+              </div>
+              <div class="social-input-wrap">
+                <input type="url" id="socialTwitter" class="social-field" placeholder="https://x.com/yourhandle" autocomplete="off">
+                <a href="#" class="social-action-btn test-btn" target="_blank" rel="noopener noreferrer" title="Open link in new tab" hidden>
+                  <i class="fas fa-arrow-up-right-from-square"></i>
+                </a>
+                <button type="button" class="social-action-btn clear-btn" title="Clear link" hidden>
+                  <i class="fas fa-xmark"></i>
+                </button>
+              </div>
+            </div>
+
+            <!-- YouTube -->
+            <div class="social-input-row" data-network="youtube">
+              <div class="social-badge youtube">
+                <i class="fab fa-youtube"></i>
+                <span>YouTube</span>
+              </div>
+              <div class="social-input-wrap">
+                <input type="url" id="socialYoutube" class="social-field" placeholder="https://youtube.com/@yourchannel" autocomplete="off">
+                <a href="#" class="social-action-btn test-btn" target="_blank" rel="noopener noreferrer" title="Open link in new tab" hidden>
+                  <i class="fas fa-arrow-up-right-from-square"></i>
+                </a>
+                <button type="button" class="social-action-btn clear-btn" title="Clear link" hidden>
+                  <i class="fas fa-xmark"></i>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Custom Links & Resources -->
+          <div class="form-section-head" style="margin-top: 24px;">
+            <div class="section-title-wrap">
+              <h4><i class="fas fa-link"></i> Website & Additional Resources</h4>
+              <p>Official website, downloadable brochures, pitch decks, or external articles.</p>
+            </div>
+            <button type="button" class="btn btn-sm btn-ghost" id="addCustomLinkBtn">
+              <i class="fas fa-plus"></i> Add Link
+            </button>
+          </div>
+
+          <div id="customLinksList" class="custom-links-list">
+            <!-- Dynamic link rows inserted by JS -->
+          </div>
+
+          <!-- Contact Details -->
+          <div class="form-section-head" style="margin-top: 24px;">
+            <div class="section-title-wrap">
+              <h4><i class="fas fa-address-book"></i> Direct Contact Info</h4>
+              <p>Contact channels for visitors to reach out directly to the booth team.</p>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group" style="margin-bottom: 12px;">
+              <label for="contactEmail"><i class="fas fa-envelope"></i> Email Address</label>
+              <input type="email" id="contactEmail" placeholder="info@organization.org" autocomplete="off">
+            </div>
+            <div class="form-group" style="margin-bottom: 12px;">
+              <label for="contactPhone"><i class="fas fa-phone"></i> Phone / WhatsApp</label>
+              <input type="tel" id="contactPhone" placeholder="+63 912 345 6789" autocomplete="off">
+            </div>
+          </div>
+          <div class="form-group" style="margin-bottom: 0;">
+            <label for="contactLocation"><i class="fas fa-location-dot"></i> Location / Headquarters (Optional)</label>
+            <input type="text" id="contactLocation" placeholder="e.g. Manila, Philippines" autocomplete="off">
+          </div>
+        </div>
+      </form>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" id="modalCancel">Cancel</button>
+      <button class="btn btn-primary" id="modalSave">
+        <i class="fas fa-check"></i> Save Changes
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Booth Deep-Dive Dossier Modal -->
+<div class="modal-overlay" id="boothDossierModal" hidden>
+  <div class="modal modal-xl dossier-modal">
+    <div class="modal-header dossier-header">
+      <div class="dossier-header-info">
+        <div class="dossier-badge-row">
+          <span class="dossier-id-badge" id="dossierBoothId">Booth #01</span>
+          <span class="dossier-cat-badge" id="dossierCategory">Youth Innovation</span>
+          <span class="dossier-rank-badge" id="dossierRank"><i class="fas fa-trophy"></i> Rank #1 of 27</span>
+        </div>
+        <h3 id="dossierTitle" class="dossier-title">EcoYouth Solutions</h3>
+        <p id="dossierOrg" class="dossier-org">Organization Name · Philippines</p>
+      </div>
+      <div class="dossier-header-actions">
+        <div class="dossier-score-chip">
+          <span class="dossier-score-val" id="dossierScore">0</span>
+          <span class="dossier-score-lbl">Engagement Score</span>
+        </div>
+        <button class="modal-close" id="dossierClose"><i class="fas fa-xmark"></i></button>
+      </div>
+    </div>
+
+    <div class="modal-body dossier-body">
+      <!-- Funnel & Interaction Grid -->
+      <div class="dossier-grid">
+        <!-- 6-Stage Conversion Funnel Card -->
+        <div class="dossier-card funnel-card">
+          <div class="dossier-card-title">
+            <i class="fas fa-filter"></i> 6-Stage Visitor Conversion Funnel
+          </div>
+          <p class="dossier-card-subtitle">Tracking delegate journey from hall impression to active outreach.</p>
+          <div class="funnel-container" id="dossierFunnel">
+            <!-- Rendered by JS -->
+          </div>
+        </div>
+
+        <!-- Micro-Metrics & Interaction Distribution Card -->
+        <div class="dossier-card dist-card">
+          <div class="dossier-card-title">
+            <i class="fas fa-chart-pie"></i> Micro-Interaction Breakdown
+          </div>
+          <p class="dossier-card-subtitle">Distribution of reactions, challenge attempts, media, and link clicks.</p>
+          
+          <div class="dossier-metrics-tiles">
+            <div class="dossier-tile tile-heart">
+              <span class="tile-icon">❤️</span>
+              <strong class="tile-val" id="dossierHeartCount">0</strong>
+              <span class="tile-label">Reactions</span>
+              <span class="tile-sub" id="dossierHeartRate">0% of visitors</span>
+            </div>
+            <div class="dossier-tile tile-video">
+              <span class="tile-icon">🎬</span>
+              <strong class="tile-val" id="dossierVideoCount">0</strong>
+              <span class="tile-label">Video Plays</span>
+              <span class="tile-sub" id="dossierVideoRate">0% of visitors</span>
+            </div>
+            <div class="dossier-tile tile-quiz">
+              <span class="tile-icon">🏆</span>
+              <strong class="tile-val" id="dossierQuizPassRate">0%</strong>
+              <span class="tile-label">Quiz Mastery</span>
+              <span class="tile-sub" id="dossierQuizRatio">0 / 0 passed</span>
+            </div>
+            <div class="dossier-tile tile-clicks">
+              <span class="tile-icon">🔗</span>
+              <strong class="tile-val" id="dossierClickCount">0</strong>
+              <span class="tile-label">Link Clicks</span>
+              <span class="tile-sub" id="dossierClickRate">Outbound visits</span>
+            </div>
+          </div>
+
+          <!-- Interaction Distribution SVG -->
+          <div class="dossier-donut-wrap">
+            <div id="dossierDonutChart" class="dossier-donut-chart"></div>
+            <div id="dossierDonutLegend" class="dossier-donut-legend"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Booth-Specific Feedback Notes -->
+      <div class="dossier-card comments-card" style="margin-top: 16px;">
+        <div class="dossier-card-title">
+          <i class="fas fa-comment-dots"></i> Visitor Notes & Messages for this Booth
+        </div>
+        <p class="dossier-card-subtitle">Encouraging words and feedback left directly at this exhibit.</p>
+        <div class="dossier-comments-list" id="dossierCommentsList">
+          <!-- Rendered by JS -->
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-footer dossier-footer">
+      <div class="dossier-footer-note">
+        <i class="fas fa-lightbulb"></i> Need to update this booth's information, pictures, or links based on these metrics?
+      </div>
+      <div class="dossier-footer-actions">
+        <button type="button" class="btn btn-secondary" id="dossierCloseBtn">Close Dossier</button>
+        <button type="button" class="btn btn-primary" id="dossierEditBoothBtn">
+          <i class="fas fa-pen"></i> Edit Booth Content
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast-container" id="toastContainer"></div>
+
+<!-- Upload Modal for Media Library -->
+<input type="file" id="globalUpload" hidden accept="image/*,video/*">
+
+<script type="module" src="/admin/admin.js"></script>
+</body>
+</html>

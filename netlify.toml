@@ -27,6 +27,24 @@
   to = "/innovator-guidelines/index.html"
   status = 200
 
+# Admin dashboard (hidden — no public links)
+[[redirects]]
+  from = "/admin"
+  to = "/admin/index.html"
+  status = 200
+
+[[redirects]]
+  from = "/admin/"
+  to = "/admin/index.html"
+  status = 200
+
+# Proxy admin API calls to the presence server
+[[redirects]]
+  from = "/admin-api/*"
+  to = "https://gmc-presence.onrender.com/admin-api/:splat"
+  status = 200
+  force = true
+
 # Headers for performance & security
 [[headers]]
   for = "/*"

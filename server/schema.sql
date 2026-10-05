@@ -38,23 +38,29 @@ INSERT INTO hall_analytics_totals (id) VALUES (1)
 
 -- Hearts: one row per visitor per booth
 CREATE TABLE IF NOT EXISTS booth_hearts (
-  booth_id   INTEGER NOT NULL CHECK (booth_id BETWEEN 1 AND 24),
+  booth_id   INTEGER NOT NULL CHECK (booth_id BETWEEN 1 AND 30),
   visitor_id TEXT NOT NULL,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   PRIMARY KEY (booth_id, visitor_id)
 );
+
+ALTER TABLE booth_hearts DROP CONSTRAINT IF EXISTS booth_hearts_booth_id_check;
+ALTER TABLE booth_hearts ADD CONSTRAINT booth_hearts_booth_id_check CHECK (booth_id BETWEEN 1 AND 30);
 
 CREATE INDEX IF NOT EXISTS booth_hearts_booth_idx ON booth_hearts (booth_id);
 
 -- Comments left on booths
 CREATE TABLE IF NOT EXISTS booth_comments (
   id         TEXT PRIMARY KEY,
-  booth_id   INTEGER NOT NULL CHECK (booth_id BETWEEN 1 AND 24),
+  booth_id   INTEGER NOT NULL CHECK (booth_id BETWEEN 1 AND 30),
   visitor_id TEXT,
   name       TEXT NOT NULL,
   body       TEXT NOT NULL,
   ts         TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+ALTER TABLE booth_comments DROP CONSTRAINT IF EXISTS booth_comments_booth_id_check;
+ALTER TABLE booth_comments ADD CONSTRAINT booth_comments_booth_id_check CHECK (booth_id BETWEEN 1 AND 30);
 
 CREATE INDEX IF NOT EXISTS booth_comments_booth_ts_idx
   ON booth_comments (booth_id, ts DESC);

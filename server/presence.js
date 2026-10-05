@@ -20,6 +20,7 @@ import {
   recordAnalyticsEvent,
   fetchTrend,
 } from './supabase.js';
+import { initAdmin, handleAdminRequest } from './admin.js';
 
 const PORT = Number(process.env.PORT || 8787);
 const HOST = process.env.HOST || '0.0.0.0';
@@ -31,7 +32,7 @@ const ANALYTICS_TOKEN =
   process.env.ANALYTICS_TOKEN !== undefined ? process.env.ANALYTICS_TOKEN : 'gmc-dev';
 
 const MIN_BOOTH_ID = 1;
-const MAX_BOOTH_ID = 24; // 8 clusters x 3 booths — keep in step with src/data/hallLayout.json
+const MAX_BOOTH_ID = 27; // 24 youth booths + 3 organizer booths (TdH, KNH, VEWU)
 const COMMENT_MAX = 200;
 const COMMENTS_PER_BOOTH = 40;
 const HEART_MIN_INTERVAL_MS = 500;
@@ -138,6 +139,7 @@ const analyticsState = {
   introPlays: {},
   quizPlays: {},
   quizPasses: {},
+  linkClicks: {},
   uniqueVisitors: new Set(),
   pageViews: 0,
   peakConcurrent: 0,
@@ -151,6 +153,7 @@ function loadAnalytics() {
     if (raw.introPlays) analyticsState.introPlays = { ...raw.introPlays };
     if (raw.quizPlays) analyticsState.quizPlays = { ...raw.quizPlays };
     if (raw.quizPasses) analyticsState.quizPasses = { ...raw.quizPasses };
+    if (raw.linkClicks) analyticsState.linkClicks = { ...raw.linkClicks };
     if (Array.isArray(raw.uniqueVisitors)) {
       analyticsState.uniqueVisitors = new Set(raw.uniqueVisitors.map(String));
     }
@@ -169,6 +172,7 @@ function writeAnalytics() {
     introPlays: analyticsState.introPlays,
     quizPlays: analyticsState.quizPlays,
     quizPasses: analyticsState.quizPasses,
+    linkClicks: analyticsState.linkClicks,
     uniqueVisitors: [...analyticsState.uniqueVisitors],
     pageViews: analyticsState.pageViews,
     peakConcurrent: analyticsState.peakConcurrent,
@@ -265,8 +269,10 @@ async function analyticsSnapshot() {
   let totalQuizPasses = 0;
   let totalHearts = 0;
   let totalComments = 0;
+  let totalLinkClicks = 0;
   const booths = {};
   const recentComments = [];
+  const tempBoothList = [];
 
   for (let id = MIN_BOOTH_ID; id <= MAX_BOOTH_ID; id++) {
     const record = engagement.get(id) || boothRecord(id);
@@ -274,6 +280,7 @@ async function analyticsSnapshot() {
     const intros = Number(analyticsState.introPlays[id]) || 0;
     const quizPlays = Number(analyticsState.quizPlays[id]) || 0;
     const quizPasses = Number(analyticsState.quizPasses[id]) || 0;
+    const linkClicks = Number(analyticsState.linkClicks[id]) || 0;
     const hearts = record.hearts.size;
     const comments = record.comments.length;
     totalOpens += opens;
@@ -282,11 +289,38 @@ async function analyticsSnapshot() {
     totalQuizPasses += quizPasses;
     totalHearts += hearts;
     totalComments += comments;
-    booths[id] = { opens, introPlays: intros, quizPlays, quizPasses, hearts, comments };
+    totalLinkClicks += linkClicks;
+
+    const engagementScore = (opens * 1) + (intros * 2) + (quizPlays * 2) + (quizPasses * 1) + (hearts * 3) + (comments * 3) + (linkClicks * 2);
+
+    const bData = {
+      id,
+      opens,
+      introPlays: intros,
+      quizPlays,
+      quizPasses,
+      hearts,
+      comments,
+      linkClicks,
+      engagementScore,
+      boothComments: record.comments.slice(0, 40),
+    };
+    tempBoothList.push(bData);
+
     for (const c of record.comments) {
       recentComments.push({ boothId: id, name: c.name, text: c.text, ts: c.ts });
     }
   }
+
+  // Calculate ranks by engagementScore descending
+  const sortedByScore = [...tempBoothList].sort((a, b) => b.engagementScore - a.engagementScore);
+  sortedByScore.forEach((b, index) => {
+    b.rank = index + 1;
+  });
+
+  tempBoothList.forEach((b) => {
+    booths[b.id] = b;
+  });
 
   recentComments.sort((a, b) => (b.ts || 0) - (a.ts || 0));
 
@@ -307,11 +341,12 @@ async function analyticsSnapshot() {
     totalIntroPlays: totalIntros,
     totalQuizPlays,
     totalQuizPasses,
+    totalLinkClicks,
     passportCompletions: analyticsState.passportCompletions,
     totalHearts,
     totalComments,
     booths,
-    recentComments: recentComments.slice(0, 30),
+    recentComments: recentComments.slice(0, 50),
     trend: Array.isArray(trend) ? trend : [],
     countries: [],
     storage: isSupabaseEnabled() ? 'supabase' : 'json',
@@ -359,14 +394,19 @@ async function bootPersistence() {
 }
 
 bootPersistence().catch((err) => console.warn('[presence] boot:', err.message));
+initAdmin().catch((err) => console.warn('[admin] boot:', err.message));
 
-const server = createServer((req, res) => {
+const server = createServer(async (req, res) => {
   const url = new URL(req.url || '/', `http://${req.headers.host || 'localhost'}`);
 
   if (req.method === 'OPTIONS') {
     corsJson(res, 204, {});
     return;
   }
+
+  // Admin API routes (/admin-api/*)
+  const adminHandled = await handleAdminRequest(req, res, url, ANALYTICS_TOKEN);
+  if (adminHandled) return;
 
   if (url.pathname === '/health') {
     corsJson(res, 200, {
@@ -658,6 +698,15 @@ wss.on('connection', (ws) => {
         noteVisitor(actor);
         analyticsState.passportCompletions += 1;
         recordAnalyticsEvent({ type: 'passport_complete', visitorId: actor });
+        scheduleFlush();
+      } else if (msg.type === 'link_click') {
+        const actor = visitorId || String(msg.clientId || '').slice(0, 64);
+        if (!actor) return;
+        const boothId = validBoothId(msg.boothId);
+        if (!boothId) return;
+        noteVisitor(actor);
+        bumpCounter(analyticsState.linkClicks, boothId);
+        recordAnalyticsEvent({ type: 'link_click', boothId, visitorId: actor, linkType: msg.linkType, url: msg.url });
         scheduleFlush();
       } else if (msg.type === 'ping') {
         const v = visitorId ? visitors.get(visitorId) : null;
