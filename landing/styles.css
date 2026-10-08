@@ -1363,6 +1363,44 @@ section[id] {
   flex: 1;
 }
 
+.thematic-asks-heading {
+  font-size: 0.74rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--vewu-yellow);
+  margin-bottom: 0.65rem;
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.thematic-asks-list {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 1.4rem 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  flex: 1;
+}
+
+.thematic-asks-list li {
+  font-size: 0.82rem;
+  color: #cbd5e1;
+  line-height: 1.45;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+
+.thematic-asks-list li i {
+  color: var(--vewu-yellow);
+  font-size: 0.72rem;
+  margin-top: 0.25rem;
+  flex-shrink: 0;
+}
+
 .thematic-metric {
   font-size: 0.82rem;
   color: var(--vewu-yellow);
@@ -1373,6 +1411,30 @@ section[id] {
   border-top: 1px solid rgba(255, 255, 255, 0.14);
   padding-top: 0.95rem;
   margin-top: auto;
+}
+
+.thematic-agenda-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  background: rgba(251, 217, 96, 0.12);
+  border: 1.5px solid var(--vewu-yellow);
+  color: var(--vewu-yellow);
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 0.92rem;
+  padding: 0.85rem 1.85rem;
+  border-radius: var(--radius-full);
+  text-decoration: none;
+  transition: all var(--transition-normal);
+  backdrop-filter: blur(8px);
+}
+
+.thematic-agenda-link:hover {
+  background: var(--vewu-yellow);
+  color: var(--brand-navy);
+  transform: translateY(-2px);
+  box-shadow: 0 10px 28px rgba(251, 217, 96, 0.35);
 }
 
 /* Endorsement Card */
