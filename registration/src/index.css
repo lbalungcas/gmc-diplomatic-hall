@@ -1,0 +1,66 @@
+@import 'tailwindcss';
+
+/* Brand tokens from the main site (landing/styles.css). */
+@theme {
+  --color-navy: #193561;
+  --color-navy-dark: #0f2240;
+  --color-navy-light: #254f8e;
+  --color-navy-surface: #f0f4fa;
+  --color-sun: #fbd960;
+  --color-sun-light: #fef4cf;
+  --color-sun-dark: #e6c13d;
+  --color-tdh-red: #e65140;
+  --color-knh-blue: #0050a0;
+  --font-display: 'Outfit', ui-sans-serif, system-ui, sans-serif;
+  --font-sans: 'Plus Jakarta Sans', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+}
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+  body {
+    @apply bg-slate-50 font-sans text-slate-700 antialiased;
+  }
+  h1, h2, h3 {
+    @apply font-display text-navy;
+  }
+  :focus-visible {
+    @apply outline-3 outline-offset-2 outline-navy-light;
+  }
+}
+
+@utility input {
+  @apply block w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-base text-slate-900 shadow-xs
+    placeholder:text-slate-400 focus:border-navy-light focus:outline-none focus:ring-3 focus:ring-navy-light/25
+    aria-invalid:border-tdh-red aria-invalid:ring-tdh-red/20;
+}
+
+@utility label {
+  @apply mb-1.5 block text-sm font-semibold text-slate-800;
+}
+
+@utility btn {
+  @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold transition
+    disabled:cursor-not-allowed disabled:opacity-50;
+}
+
+@utility btn-primary {
+  @apply btn bg-navy text-white hover:bg-navy-light;
+}
+
+@utility btn-sun {
+  @apply btn bg-sun text-navy-dark hover:bg-sun-dark;
+}
+
+@utility btn-ghost {
+  @apply btn border border-slate-300 bg-white text-slate-700 hover:bg-slate-100;
+}
+
+@utility btn-danger {
+  @apply btn bg-red-700 text-white hover:bg-red-800;
+}
+
+@utility card {
+  @apply rounded-2xl border border-slate-200 bg-white shadow-sm;
+}

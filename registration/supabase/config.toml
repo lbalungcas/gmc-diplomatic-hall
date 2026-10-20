@@ -1,0 +1,30 @@
+# Only the bits this project relies on. `supabase link` connects it to the hosted project.
+project_id = "yim-registration"
+
+[db.seed]
+enabled = true
+sql_paths = ["./seed.sql"]
+
+[auth]
+# Invite emails land on the staff pages; password-reset links come back to /register/admin/password.
+site_url = "https://youthinnovationsmarketplace.org/register/admin"
+additional_redirect_urls = ["https://youthinnovationsmarketplace.org/register/admin/password", "http://localhost:5174/register/admin/password"]
+# Admins and scanners are invited (or created in the dashboard), never self-registered.
+enable_signup = false
+minimum_password_length = 10
+
+[auth.email]
+enable_signup = false
+
+# All functions check auth themselves (requireAdmin) — required for the new publishable API keys.
+[functions.register]
+verify_jwt = false
+
+[functions.decide]
+verify_jwt = false
+
+[functions.resend-email]
+verify_jwt = false
+
+[functions.import-registrations]
+verify_jwt = false

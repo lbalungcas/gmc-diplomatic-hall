@@ -590,13 +590,15 @@ section[id] {
   pointer-events: none;
 }
 
+.container.hero-stage-container,
 .hero-stage-container {
   position: relative;
   z-index: 2;
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
-  min-height: calc(100vh - 130px);
+  min-height: calc(100vh - 120px);
+  max-width: 1540px !important;
   gap: 0;
   flex: 1;
 }
@@ -604,9 +606,9 @@ section[id] {
 /* Main 2-Column Split: Headline on Left, Design Graphic on Right */
 .hero-main-split {
   display: grid;
-  grid-template-columns: 0.75fr 1.45fr;
-  align-items: stretch;
-  gap: 1.25rem;
+  grid-template-columns: minmax(360px, 440px) 1fr;
+  align-items: flex-end;
+  gap: 1.5rem;
   padding: 0.2rem 0 0;
   flex: 1;
   min-height: 0;
@@ -618,8 +620,8 @@ section[id] {
   flex-direction: column;
   justify-content: center;
   align-self: center;
-  max-width: 460px;
-  padding-bottom: 1.25rem;
+  max-width: 440px;
+  padding-bottom: 2rem;
 }
 
 .hero-main-title {
@@ -649,7 +651,7 @@ section[id] {
   font-size: clamp(0.88rem, 0.95vw, 0.96rem);
   line-height: 1.6;
   color: #f1f5f9;
-  max-width: 460px;
+  max-width: 440px;
   text-shadow: 0 2px 12px rgba(0, 0, 0, 0.85);
   text-wrap: pretty;
 }
@@ -658,11 +660,12 @@ section[id] {
 .hero-visual-col {
   display: flex;
   align-items: flex-end;
-  justify-content: center;
+  justify-content: flex-end;
   align-self: stretch;
   position: relative;
   width: 100%;
   min-height: 0;
+  overflow: visible;
 }
 
 .hero-design-wrapper {
@@ -671,23 +674,25 @@ section[id] {
   max-width: none;
   display: flex;
   align-items: flex-end;
-  justify-content: center;
-  margin-bottom: -8px; /* Flushes Tutu's feet directly against the top of the dock window */
+  justify-content: flex-end;
+  margin-bottom: -12px; /* Flushes Tutu's feet directly against the top of the dock window */
 }
 
 .hero-design-img {
-  width: 100%;
+  width: 112%;
+  max-width: 1180px;
+  min-width: min(100%, 780px);
   height: auto;
-  max-height: clamp(640px, 78vh, 860px);
+  max-height: clamp(540px, 76vh, 880px);
   object-fit: contain;
-  object-position: bottom center;
+  object-position: bottom right;
   filter: drop-shadow(0 20px 45px rgba(0, 0, 0, 0.65)) drop-shadow(0 0 35px rgba(251, 217, 96, 0.22));
   transition: transform var(--transition-normal);
   display: block;
 }
 
 .hero-design-wrapper:hover .hero-design-img {
-  transform: scale(1.015);
+  transform: scale(1.02);
 }
 
 /* Bottom Overlaid Action & Meta Dock (COMPRESSED & ANCHORED) */

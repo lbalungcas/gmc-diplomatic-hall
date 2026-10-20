@@ -1,0 +1,38 @@
+{
+  "name": "yim-registration",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -p . && vite build",
+    "build:site": "tsc -p . && vite build --outDir ../dist/register --emptyOutDir",
+    "preview": "vite preview",
+    "typecheck": "tsc -p .",
+    "seed:fake": "node scripts/seed-fake.mjs",
+    "test:db": "node supabase/tests/db.test.mjs .",
+    "test:form": "node supabase/tests/form.test.mjs",
+    "test": "npm run test:form && npm run test:db"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.118.0",
+    "@yudiel/react-qr-scanner": "^2.6.0",
+    "papaparse": "^5.7.0",
+    "qrcode.react": "^4.2.0",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "react-router-dom": "^7.18.4"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "^0.5.10",
+    "@tailwindcss/vite": "^4.3.3",
+    "@types/node": "^26.6.5",
+    "@types/papaparse": "^5.5.2",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.1.2",
+    "tailwindcss": "^4.3.3",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.4"
+  }
+}
