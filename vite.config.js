@@ -116,7 +116,7 @@ function multiPageRedirectPlugin() {
     const url = req.url || '';
     const [pathname, search] = url.split('?');
     const query = search ? `?${search}` : '';
-    const routes = ['/admin', '/game', '/innovator-guidelines'];
+    const routes = ['/admin', '/game'];
     if (routes.includes(pathname)) {
       res.writeHead(302, { Location: `${pathname}/${query}` });
       res.end();
@@ -151,7 +151,6 @@ export default defineConfig({
         game: resolve(rootDir, 'game/index.html'),
         analytics: resolve(rootDir, 'analytics.html'),
         admin: resolve(rootDir, 'admin/index.html'),
-        innovatorGuidelines: resolve(rootDir, 'innovator-guidelines/index.html'),
       },
     },
   },

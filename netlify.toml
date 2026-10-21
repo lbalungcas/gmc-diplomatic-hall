@@ -17,16 +17,16 @@
   to = "/game/index.html"
   status = 200
 
-# Ensure /innovator-guidelines/ route serves innovator-guidelines/index.html
+# Redirect old /innovator-guidelines/ route to home
 [[redirects]]
   from = "/innovator-guidelines"
-  to = "/innovator-guidelines/index.html"
-  status = 200
+  to = "/"
+  status = 301
 
 [[redirects]]
-  from = "/innovator-guidelines/"
-  to = "/innovator-guidelines/index.html"
-  status = 200
+  from = "/innovator-guidelines/*"
+  to = "/"
+  status = 301
 
 # Admin dashboard (hidden — no public links)
 [[redirects]]
