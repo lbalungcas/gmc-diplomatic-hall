@@ -16,7 +16,7 @@ You are building a Luma-style registration system for a real event that happens 
 - **Date/time:** 17 Nov 2026, 9:00 AM – 5:00 PM (Asia/Manila, UTC+8). Registration desk opens 9:00 AM.
 - **Venue:** Diplomatic Hall, Marriott Hotel Manila, Newport World Resorts, Pasay City
 - **Capacity:** ~200 attendees
-- **Co-conveners:** Global Youth-Led Movement on EVAC, Terre des Hommes Netherlands, Kindernothilfe
+- **Co-conveners:** Violence Ends With Us (VEWU), Terre des Hommes Netherlands, Kindernothilfe
 - **Existing site:** https://youthinnovationsmarketplace.org/ (React + Vite build, Netlify). It currently links to a Google Form for "Pre-Registration to the General Public" — this system replaces that link.
 - **Audience:** ministers and senior government officials, donors/development partners, CSOs, youth innovators (some aged 13–17), media, general public.
 

@@ -23,7 +23,7 @@ export function PublicShell({ children }: { children: ReactNode }) {
           <p className="mb-4 text-xs font-semibold tracking-widest text-slate-500 uppercase">Co-convened &amp; supported by</p>
           <img
             src={publicUrl('brand/partners.png')}
-            alt="Global Youth-Led Movement on Ending Violence Against Children (Violence Ends With Us), Kindernothilfe, Terre des Hommes Netherlands; supported by German Cooperation and co-funded by the European Union"
+            alt="Violence Ends With Us (VEWU), Kindernothilfe, Terre des Hommes Netherlands; supported by German Cooperation and co-funded by the European Union"
             className="mx-auto w-full max-w-md"
             loading="lazy"
           />

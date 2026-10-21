@@ -556,7 +556,7 @@ export const DEFAULT_FORM: FormSchema = {
         'We are deeply encouraged by the enthusiasm, commitment, and leadership in advancing youth-led solutions around the world! Your participation is an important step towards building a stronger, more collaborative, youth-led movement to end violence against children.\n\n' +
         'For any questions or clarification, please contact us through our [LinkedIn Page](https://www.linkedin.com/company/violence-ends-with-us/?viewAsMember=true) or [Instagram Account](https://www.instagram.com/violenceendswithus?utm_source=ig_web_button_share_sheet&stkn=ZDNlZDc0MzIxNw==), or email us at [violenceendswithus@gmail.com](mailto:violenceendswithus@gmail.com)\n\n' +
         'You may also reach out to the summit organisers directly:\n\n' +
-        '**Bryanna Mariñas**\nFounder, Violence Ends With Us | Global Youth-Led Movement on Ending Violence Against Children\n[bryanna.marinas@gmail.com](mailto:bryanna.marinas@gmail.com) | +65 8269 1938 (WhatsApp)\n\n' +
+        '**Bryanna Mariñas**\nFounder, Violence Ends With Us (VEWU)\n[bryanna.marinas@gmail.com](mailto:bryanna.marinas@gmail.com) | +65 8269 1938 (WhatsApp)\n\n' +
         '**Chrisindah Janecilsky Khosuma**\nProgram and Impact Director, Violence Ends With Us\n[chrisindah.khosuma@gmail.com](mailto:chrisindah.khosuma@gmail.com) | +62 838-3319-2311 (WhatsApp)',
       blocks: [],
     },

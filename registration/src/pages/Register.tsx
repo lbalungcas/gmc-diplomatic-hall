@@ -406,9 +406,8 @@ function PrivacyNotice({ contact }: { contact: string }) {
   return (
     <div className="mt-3 space-y-3 leading-relaxed text-slate-700">
       <p>
-        <strong>Who we are.</strong> The Youth Innovations Marketplace is convened by Violence Ends With Us (Global Youth-Led
-        Movement on Ending Violence Against Children) and co-hosted by Terre des Hommes Netherlands and Kindernothilfe
-        ("the organisers").
+        <strong>Who we are.</strong> The Youth Innovations Marketplace is convened by Violence Ends With Us (VEWU)
+        and co-hosted by Terre des Hommes Netherlands and Kindernothilfe ("the organisers").
       </p>
       <p>
         <strong>What we collect.</strong> Your answers to this form — including your name, preferred name, age, nationality,

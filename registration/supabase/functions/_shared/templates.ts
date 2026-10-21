@@ -75,7 +75,7 @@ ${inner}
 <tr><td style="padding:20px 28px;background:#f8fafc;color:${MUTED};font-size:12px;line-height:1.5">
   <strong style="color:${NAVY}">${esc(event.name)}</strong> — ${esc(event.subtitle)}<br>
   A satellite event of the 2nd Global Ministerial Conference on Ending Violence Against Children.<br>
-  Co-convened by the Global Youth-Led Movement on EVAC, Terre des Hommes Netherlands and Kindernothilfe.<br><br>
+  Co-convened by Violence Ends With Us (VEWU), Terre des Hommes Netherlands and Kindernothilfe.<br><br>
   Questions? Reply to this email or write to <a href="mailto:${esc(event.contact_email)}" style="color:${NAVY}">${esc(event.contact_email)}</a>.<br>
   Your personal data is processed under the Philippine Data Privacy Act (RA 10173) and only for organizing this event.
 </td></tr>
