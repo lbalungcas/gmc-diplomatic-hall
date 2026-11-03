@@ -22,7 +22,6 @@ import { createPresence, getVisitorInfo, colorFromId } from './modules/presence.
 import { track } from './modules/analytics.js';
 import { buildOrganizerBooth, organizerObstacles, TV_W, TV_H } from './modules/organizers.js';
 import { createMascots } from './modules/mascots3d.js';
-import { buildWelcomeDesk } from './modules/welcomeDesk.js';
 import { createPerfHud, isPerfHudEnabled } from './modules/perfHud.js';
 import { createAdaptiveQuality } from './modules/adaptiveQuality.js';
 import { computeBoothPositions, createBoothGrid, gridObstacles } from './modules/boothGrid.js';
@@ -107,7 +106,7 @@ const player = {
   vel: new THREE.Vector3(0, 0, 0),
   desiredVel: new THREE.Vector3(0, 0, 0),
   pitch: 0,
-  yaw: hallLayout.lobby.spawn.yaw, // at registration, facing the desk
+  yaw: hallLayout.lobby.spawn.yaw, // in the lobby, looking over the photowall and organizer stands
   roll: 0,
   maxSpeed: 4.6,
   eyeHeight: 1.45,
@@ -175,8 +174,6 @@ const LED = hallLayout.led;
 const LED_VIDEO = LED.video || { width: LED.width, height: LED.height };
 const HALL_NORTH_Z = hallLayout.hall.northWallZ;
 const FOYER = hallLayout.foyer;
-// The registration desk box is refined from the procedural desk's real bounds in createWelcomeDesk().
-const WELCOME_DESK_BOX = { minX: FOYER.registration.x - 0.6, maxX: FOYER.registration.x + 0.6, minZ: FOYER.registration.z - 1.6, maxZ: FOYER.registration.z + 1.6, label: 'registration desk' };
 // The pledge wall stands against the foyer's north wall, facing south (setupPolicyWall).
 const COMMITMENT_WALL_BOX = { minX: FOYER.policyWall.x - 2.2, maxX: FOYER.policyWall.x + 2.2, minZ: FOYER.policyWall.z - 0.1, maxZ: FOYER.policyWall.z + 0.42, label: 'commitment wall' };
 // The lobby outside the hall (hallLayout.lobby): an axis-aligned outline, clockwise from the
@@ -341,7 +338,6 @@ const ROUND_PROPS = [
 
 staticBoxes.push(
   STAIRS_BOX,
-  WELCOME_DESK_BOX,
   COMMITMENT_WALL_BOX,
   ...LOBBY_WALL_BOXES,
   STAGE_BOX,
@@ -364,7 +360,6 @@ const WORLD_BOUNDS = {
 
 // Interactive Venue Hotspots
 const HOTSPOTS = {
-  welcomeDesk: { x: FOYER.registration.x, z: FOYER.registration.z, radius: 2.6, title: "Registration & Information Desk", action: "Open venue guide", modal: "desk-modal" },
   commitmentWall: { x: FOYER.policyWall.x, z: FOYER.policyWall.z + 1.1, radius: 2.8, title: "Policy & Pledge Wall", action: "Post a pledge", modal: "pledge-modal" },
   mediaHub: { x: FOYER.mediaHub.x, z: FOYER.mediaHub.z, radius: 2.6, title: "Youth Media Hub & Photo Wall", action: "Open venue guide", modal: "desk-modal" },
   podium: { x: hallLayout.stageSet.lectern[0] - 1.3, z: STAGE.zFront + 0.75, radius: 1.5, title: "Speaker Lectern", action: "Step up to the lectern", modal: "podium" },
@@ -719,7 +714,6 @@ function init() {
   createBoothTVs();
   createOrganizerBooths();
   createHallMascots();
-  createWelcomeDesk();
   createContactShadows();
   setupStageYouTubeScreen();
   setupPolicyWall();
@@ -833,7 +827,7 @@ function captureZoneEnvironments() {
 
 /**
  * Zone culling. The hall, the foyer and the east lobby are separated by walls that the GPU's
- * frustum culling knows nothing about, so from the registration desk it still drew every booth
+ * frustum culling knows nothing about, so from the east lobby it still drew every booth
  * print in the hall behind the curved wall. From the floor plan:
  *  - east of x 31.6 (past the curved wall's west face) the hall and the foyer cannot be seen —
  *    the curved wall, the closed door and the entrance door line's east stub block them;
@@ -852,7 +846,6 @@ function updateZoneCulling() {
     if (/^Standee_/.test(o.name)) o.visible = hallSeen;
   }
   for (const { group } of organizerBooths.values()) group.visible = eastSeen;
-  if (welcomeDesk) welcomeDesk.visible = eastSeen;
   const lighthouse = scene.getObjectByName('Mascot_Lighthouse');
   if (lighthouse) lighthouse.visible = eastSeen;
 }
@@ -938,7 +931,7 @@ function addVenueLighting() {
       fixtures.push({ x: grid.x0 + k * grid.booth, y: 3.0, z: island.spineZ, color: 0xffd6a0, intensity: 2.6, distance: 5.5, decay: 1.4 });
     }
   }
-  // Lobby: the foyer's ends, the vestibule, the elevator hall, the media hub, registration, the
+  // Lobby: the foyer's ends, the vestibule, the elevator hall, the media hub, the
   // organizer stands and the east end; the chandeliers are warmer and brighter.
   [[21.5, -15.5], [21.5, -3.0], [33.0, -14.0], [34.6, -9.0], [34.0, -3.2], [39.8, -12.6],
    [41.5, -16.8], [46.5, -16.8], [44.0, -1.5], [55.0, -12.0]].forEach(([x, z]) => ceilingLight(x, z, 6));
@@ -1238,14 +1231,14 @@ function addContactShadow(x, z, w, d, { y = 0.015, rotation = 0 } = {}) {
 
 const _contactShadowGeo = new THREE.PlaneGeometry(1, 1);
 
-/** Grounds the booth islands, the registration desk and the pledge wall. */
+/** Grounds the booth islands and the pledge wall. */
 function createContactShadows() {
   const grid = hallLayout.grid;
   for (const island of grid.islands) {
     addContactShadow(grid.x0 + grid.cols * grid.booth / 2, island.spineZ,
       grid.cols * grid.booth + 0.8, grid.booth * 2 + 0.8);
   }
-  for (const box of [WELCOME_DESK_BOX, COMMITMENT_WALL_BOX]) {
+  for (const box of [COMMITMENT_WALL_BOX]) {
     const cx = (box.minX + box.maxX) / 2;
     const cz = (box.minZ + box.maxZ) / 2;
     addContactShadow(cx, cz, (box.maxX - box.minX) + 2.0, (box.maxZ - box.minZ) + 1.6);
@@ -1480,24 +1473,6 @@ function createHallMascots() {
       return org ? { color: org.color, accent: org.accent, ink: org.ink } : {};
     },
   });
-}
-
-// --- Welcome & Information desk (replaces the GLB's stretched-texture cube) ---
-let welcomeDesk = null;
-function createWelcomeDesk() {
-  const { group, solids } = buildWelcomeDesk({ castShadow: !isLowPowerDevice, isTouch: isTouchDevice });
-  const s = HOTSPOTS.welcomeDesk;
-  group.position.set(s.x, 0, s.z);
-  // Fascia faces -X, out of the east side of the foyer toward its middle.
-  group.rotation.y = FOYER.registration.yaw;
-  scene.add(group);
-  welcomeDesk = group;
-
-  // Tighten the collision box to the built counter (body + top + header sign).
-  const [box] = organizerObstacles(group, [solids], 0.06);
-  Object.assign(WELCOME_DESK_BOX, box);
-  // Then merge its ~40 parts into one draw call per material.
-  mergeStaticByMaterial(group);
 }
 
 // --- Helper to extract YouTube Video ID ---
@@ -4059,7 +4034,7 @@ function buildMinimapStatic() {
   for (const p of LOBBY.pillars || []) ctx.fillRect(mapX(p.x) - 1.5, mapZ(p.z) - 1.5, 3, 3);
   const foyerN = LOBBY.outline[LOBBY.outline.length - 1][1];
 
-  // The guided route from registration to the entrance and the arch, as a dotted line.
+  // The guided route from the lobby to the entrance and the arch, as a dotted line.
   ctx.save();
   ctx.strokeStyle = 'rgba(56, 189, 248, 0.95)';
   ctx.lineWidth = 1.6;
@@ -4104,13 +4079,13 @@ function buildMinimapStatic() {
 
   // Welcome desk + commitment wall footprints
   ctx.fillStyle = 'rgba(0, 212, 255, 0.35)';
-  for (const b of [WELCOME_DESK_BOX, COMMITMENT_WALL_BOX]) {
+  for (const b of [COMMITMENT_WALL_BOX]) {
     ctx.fillRect(mapX(b.minX), mapZ(b.minZ), mapX(b.maxX) - mapX(b.minX), mapZ(b.maxZ) - mapZ(b.minZ));
   }
 
   // Hotspots
   ctx.fillStyle = 'rgba(245, 158, 11, 0.8)';
-  for (const key of ['welcomeDesk', 'commitmentWall', 'mediaHub']) {
+  for (const key of ['commitmentWall', 'mediaHub']) {
     const spot = HOTSPOTS[key];
     ctx.fillRect(mapX(spot.x) - 3, mapZ(spot.z) - 3, 6, 6);
   }
@@ -4410,11 +4385,9 @@ window.__diplomaticGame = {
   get hallModel() { return hallModel; },
   get perfHud() { return perfHud; },
   get quality() { return quality; },
-  get welcomeDesk() { return welcomeDesk; },
   get policyWallGroup() { return policyWallGroup; },
   get policyCanvas() { return policyCanvas; },
   staticBoxes,
-  WELCOME_DESK_BOX,
   COMMITMENT_WALL_BOX,
   WALL_NOTE_CAPACITY,
   getPledges,

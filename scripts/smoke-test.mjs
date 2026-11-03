@@ -1,6 +1,6 @@
 /**
  * Functional regression pass over the interactions most likely to break from the venue rebuild:
- * the registration spawn, booth proximity, easel posters, the venue signage prints, modals,
+ * the lobby spawn, booth proximity, easel posters, the venue signage prints, modals,
  * seating, the CSS3D stage screen, the pledge wall canvas texture, the minimap layers, waypoints
  * and collision in the hall and the lobby.
  */
@@ -86,8 +86,8 @@ async function check(name, expr) {
 const G = 'window.__diplomaticGame';
 const settle = 'await new Promise(r => setTimeout(r, 450));';
 
-// ---- spawn: visitors start at registration in the lobby -------------------------------------
-await check('player starts at registration', `
+// ---- spawn: visitors start in the lobby, by the route to the entrance -----------------------
+await check('player starts at the lobby spawn', `
   const s = ${G}.LOBBY.spawn, p = ${G}.player.pos;
   const d = Math.hypot(p.x - s.x, p.z - s.z);
   return { ok: d < 1.0, detail: 'at (' + p.x.toFixed(2) + ', ' + p.z.toFixed(2) + '), ' + d.toFixed(2) + ' m from spawn' };`);
@@ -284,8 +284,10 @@ await check('organizer booths + mascots built', `
   return { ok: ${G}.organizerBooths.size === 3 && !!${G}.mascots,
            detail: ${G}.organizerBooths.size + ' stands, ' + (${G}.mascots ? ${G}.mascots.list.length : 0) + ' mascots' };`);
 
-await check('welcome desk + policy wall procedural meshes', `
-  return { ok: !!${G}.welcomeDesk && !!${G}.policyWallGroup, detail: 'desk=' + !!${G}.welcomeDesk + ' wall=' + !!${G}.policyWallGroup };`);
+await check('policy wall built, no registration desk', `
+  let desk = false;
+  ${G}.scene.traverse(o => { if (/Welcome_Desk|registration/i.test(o.name)) desk = true; });
+  return { ok: !!${G}.policyWallGroup && !desk, detail: 'wall=' + !!${G}.policyWallGroup + ' desk=' + desk };`);
 
 await check('adaptive quality governor responds', `
   const q = ${G}.quality;
@@ -311,11 +313,11 @@ await check('light pool keeps a fixed light count', `
   let n = 0;
   ${G}.scene.traverse(o => { if (o.isPointLight) n++; });
   const T = window.THREE;
-  ${G}.teleportPlayer(45.0, 1.45, -11.0, 1.2);
+  ${G}.teleportPlayer(${G}.LOBBY.spawn.x, 1.45, ${G}.LOBBY.spawn.z, 0);
   let m = 0;
   ${G}.scene.traverse(o => { if (o.isPointLight) m++; });
   const lit = ${G}.scene.children.filter(o => o.isPointLight && o.intensity > 0).length;
-  return { ok: n === m && n <= 12 && lit > 3, detail: n + ' point lights before and after a jump, ' + lit + ' lit at registration' };`);
+  return { ok: n === m && n <= 12 && lit > 3, detail: n + ' point lights before and after a jump, ' + lit + ' lit at the lobby spawn' };`);
 
 await check('venue signage prints are in place', `
   const want = ['EventArch_Front', 'EventArch_Back', 'StageBanner_W', 'StageBanner_E', 'PhotoWall_Print'];

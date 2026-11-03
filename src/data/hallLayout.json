@@ -289,11 +289,6 @@
       "x": 34.2,
       "z": -9.2,
       "backdropWidth": 6.0
-    },
-    "registration": {
-      "x": 32.48,
-      "z": -3.26,
-      "yaw": 1.7104
     }
   },
   "hallFeatures": {
@@ -313,16 +308,6 @@
     }
   },
   "signs": [
-    {
-      "id": "registration",
-      "image": "/venue/signs/registration.webp",
-      "x": 32.9,
-      "z": -0.6,
-      "yaw": 1.2,
-      "w": 1.0,
-      "h": 1.414,
-      "bottom": 0.45
-    },
     {
       "id": "dealCorner",
       "image": "/venue/signs/dealCorner.webp",
@@ -540,10 +525,10 @@
     },
     "ceilingHeight": 7.0,
     "spawn": {
-      "_comment": "Visitors start in front of the registration desk, beside the entrance.",
-      "x": 36.0,
-      "z": -3.0,
-      "yaw": 1.497
+      "_comment": "Visitors start in the lobby by the curved wall, looking north over the photowall, the Youth Media Hub and the organizer stands; the route to the entrance starts behind them.",
+      "x": 35.4,
+      "z": -3.6,
+      "yaw": 0.0
     },
     "wallDoors": [
       {
@@ -730,8 +715,8 @@
     "_comment": "Floor arrows from registration to the Diplomatic Hall foyer entrance and on through the event arch to the booths; floating markers over the entrance and the standees.",
     "route": [
       [
-        34.4,
-        -2.0
+        35.0,
+        -2.4
       ],
       [
         33.6,
@@ -784,10 +769,6 @@
       }
     ],
     "signLabels": {
-      "registration": [
-        "REGISTRATION",
-        "Start here"
-      ],
       "dealCorner": [
         "DEAL CORNER",
         "Meet the teams"

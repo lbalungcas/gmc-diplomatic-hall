@@ -70,6 +70,25 @@ function venueVersion() {
   }
 }
 
+/**
+ * Dev only: never let the browser reuse a cached venue model or venue art without asking.
+ * __VENUE_VERSION__ (the GLB's hash, used as its ?v= cache key) is computed once when the dev
+ * server starts, so after `npm run venue` rebuilds the GLB mid-session the URL stays the same
+ * and the browser kept the old model: the baked boards no longer matched the runtime prints
+ * laid on them from the current layout. `no-cache` makes it revalidate (cheap 304s via ETag).
+ */
+function devNoCacheVenuePlugin() {
+  return {
+    name: 'dev-no-cache-venue',
+    configureServer(server) {
+      server.middlewares.use((req, res, next) => {
+        if (/^\/(models|venue|booths)\//.test(req.url || '')) res.setHeader('Cache-Control', 'no-cache');
+        next();
+      });
+    },
+  };
+}
+
 // Same-origin `/presence` is forwarded to the presence server (start it with `npm run server`,
 // or use `npm run dev` which launches both). Errors are swallowed: the client shows an
 // "Offline" pill and keeps retrying with back-off instead of spamming the terminal.
@@ -137,7 +156,7 @@ function multiPageRedirectPlugin() {
 }
 
 export default defineConfig({
-  plugins: [copyTexturesPlugin(), copyLandingAssetsPlugin(), multiPageRedirectPlugin()],
+  plugins: [devNoCacheVenuePlugin(), copyTexturesPlugin(), copyLandingAssetsPlugin(), multiPageRedirectPlugin()],
   define: {
     // Lets the client fall back to a direct connection when the dev proxy isn't in front of it
     // (e.g. `vite preview`, or a phone opening the LAN URL while the proxy target is down).
