@@ -208,8 +208,28 @@ const LOBBY_WALL_BOXES = [];
       label: 'lobby wall',
     });
   }
-  const p = LOBBY.pillar;
-  LOBBY_WALL_BOXES.push({ minX: p.x - p.size / 2, maxX: p.x + p.size / 2, minZ: p.z - p.size / 2, maxZ: p.z + p.size / 2, label: 'pillar' });
+  for (const p of LOBBY.pillars) {
+    LOBBY_WALL_BOXES.push({ minX: p.x - p.size / 2, maxX: p.x + p.size / 2, minZ: p.z - p.size / 2, maxZ: p.z + p.size / 2, label: 'pillar' });
+  }
+  // The short wall with the closed door, between the curved wall's top and the restroom block.
+  const cd = LOBBY.closedDoorWall;
+  LOBBY_WALL_BOXES.push({ minX: cd.x - cd.thickness / 2, maxX: cd.x + cd.thickness / 2, minZ: Math.min(cd.z0, cd.z1), maxZ: Math.max(cd.z0, cd.z1), label: 'closed-door wall' });
+  // Entrance door line: wall stubs at both ends, posts between the doorways, and the open door
+  // leaves standing into the foyer beside each post (venue_set.py build_lobby).
+  const en = LOBBY.entrance, posts = en.posts;
+  LOBBY_WALL_BOXES.push(
+    { minX: en.x0, maxX: posts[0], minZ: en.z - 0.1, maxZ: en.z + 0.1, label: 'entrance wall' },
+    { minX: posts[posts.length - 1], maxX: en.x1 + 0.3, minZ: en.z - 0.1, maxZ: en.z + 0.1, label: 'entrance wall' },
+  );
+  for (const p of posts.slice(1, -1)) LOBBY_WALL_BOXES.push({ minX: p - 0.1, maxX: p + 0.1, minZ: en.z - 0.1, maxZ: en.z + 0.1, label: 'entrance post' });
+  for (let i = 0; i < posts.length - 1; i++) {
+    const a0 = posts[i] + (i ? 0.1 : 0), a1 = posts[i + 1] - (i + 1 < posts.length - 1 ? 0.1 : 0);
+    const leaf = (a1 - a0) / 2 - 0.02;
+    for (const [hinge, sgn] of [[a0, 1], [a1, -1]]) {
+      const xa = Math.min(hinge + sgn * 0.03, hinge + sgn * 0.09), xb = Math.max(hinge + sgn * 0.03, hinge + sgn * 0.09);
+      LOBBY_WALL_BOXES.push({ minX: xa, maxX: xb, minZ: en.z - 0.1 - leaf, maxZ: en.z - 0.1, label: 'entrance door' });
+    }
+  }
   LOBBY_WALL_BOXES.push({ minX: -1.0, maxX: DIV_X + DIV_HALF, minZ: -1.05, maxZ: 6.0, label: 'hall south wall' });
 }
 // Stage platform plus its side steps — solid so you cannot walk onto the set.
@@ -267,24 +287,30 @@ const CHAMFER_WALLS = [
   { ax: 15.28, az: HALL_NORTH_Z, bx: 19.35, bz: HALL_NORTH_Z + 4.07 },
 ];
 // Round obstacles: the boat / lighthouse standees, the deal-corner cocktail tables, the curved
-// photo wall (as a chain of small circles) and the Youth Media Hub furniture inside its curve.
+// wall between the foyer and the lobby (as a chain of circles along its middle) and the Youth
+// Media Hub furniture against its outside.
 const ROUND_PROPS = [
   ...Object.values(hallLayout.standees).map((s) => ({ x: s.x, z: s.z, r: 0.55 })),
   ...FOYER.dealCorner.tables.map(([x, z]) => ({ x, z, r: FOYER.dealCorner.tableRadius + 0.02 })),
 ];
 {
-  const ph = FOYER.photoWall;
-  const n = Math.ceil(ph.r * (ph.a1 - ph.a0) * Math.PI / 180 / 0.35);
+  const cw = LOBBY.curvedWall;
+  const rm = cw.r - cw.thickness / 2;
+  const n = Math.ceil(rm * (cw.a1 - cw.a0) * Math.PI / 180 / 0.2);
   for (let i = 0; i <= n; i++) {
-    const a = (ph.a0 + (ph.a1 - ph.a0) * i / n) * Math.PI / 180;
-    ROUND_PROPS.push({ x: ph.cx + Math.cos(a) * (ph.r - 0.03), z: ph.cz + Math.sin(a) * (ph.r - 0.03), r: 0.2 });
-  }
-  // Plants at both ends, on the inside of the curve (venue_set.py build_foyer).
-  for (const a of [ph.a0 - 2, ph.a1 + 2]) {
-    const t = a * Math.PI / 180;
-    ROUND_PROPS.push({ x: ph.cx + Math.cos(t) * (ph.r - 0.5), z: ph.cz + Math.sin(t) * (ph.r - 0.5), r: 0.35 });
+    const a = (cw.a0 + (cw.a1 - cw.a0) * i / n) * Math.PI / 180;
+    ROUND_PROPS.push({ x: cw.cx + Math.cos(a) * rm, z: cw.cz + Math.sin(a) * rm, r: cw.thickness / 2 + 0.03 });
   }
   const mh = FOYER.mediaHub;
+  // Plants either side of the media hub backdrop (venue_set.py build_foyer).
+  {
+    const ri = cw.r - cw.thickness;
+    const hubA = Math.atan2(mh.z - cw.cz, mh.x - cw.cx);
+    const half = (mh.backdropWidth / 2 + 0.35) / ri;
+    for (const a of [hubA - half, hubA + half]) {
+      ROUND_PROPS.push({ x: cw.cx + Math.cos(a) * (ri - 0.45), z: cw.cz + Math.sin(a) * (ri - 0.45), r: 0.35 });
+    }
+  }
   ROUND_PROPS.push(
     { x: mh.x - 0.3, z: mh.z - 0.75, r: 0.48 }, { x: mh.x - 0.3, z: mh.z + 0.75, r: 0.48 },
     { x: mh.x - 0.85, z: mh.z, r: 0.25 }, { x: mh.x + 1.1, z: mh.z - 1.15, r: 0.32 }, { x: mh.x + 0.9, z: mh.z + 0.6, r: 0.32 },
@@ -758,13 +784,13 @@ function addVenueLighting() {
 
   // The ceiling is 7 m now, so the general fixtures sit high with a long reach, and the booth
   // islands get warm pools over their spines. Those pools are what make the islands read as lit
-  // stands rather than props on an evenly lit floor. The lobby gets fixtures over the deal
-  // corner, the photo wall / media hub, registration and the organizer stands.
+  // stands rather than props on an evenly lit floor. The foyer, the vestibule and the lobby
+  // (media hub, registration and the organizer stands, the elevators) get fixtures too.
   const ceilingFixtures = [
     [5.0, 6.6, -7.8], [14.4, 6.6, -7.8], [5.0, 6.6, -16.0], [14.4, 6.6, -16.0],
     [9.68, 6.6, -21.5],
-    [23.5, 6.6, -5.5], [23.5, 6.6, -15.0], [30.5, 6.6, -10.0], [37.5, 6.6, -4.0],
-    [37.5, 6.6, -15.0], [46.0, 6.6, -10.0], [46.6, 6.6, -18.0],
+    [24.0, 6.6, -13.0], [27.0, 6.6, -5.0], [30.5, 6.6, 1.8], [36.0, 6.6, -6.5],
+    [42.0, 6.6, -14.0], [45.0, 6.6, -7.0], [53.0, 6.6, -12.0], [61.0, 6.6, -10.0],
   ];
   ceilingFixtures.forEach(([x, y, z], idx) => {
     if (isLowPowerDevice && idx % 2 === 1) return;
@@ -3781,10 +3807,10 @@ function updateVisitedHUD() {
 // --- Minimap Radar ---
 const MAP_SIZE = 200;
 let mapDpr = 1;
-// One scale for both axes so the venue keeps its proportions: 56 m across covers the hall and
-// the lobby east of it; the 34 m from the stage end (top) to the lobby's south bay is centred.
+// One scale for both axes so the venue keeps its proportions: 68 m across covers the hall, the
+// foyer and the lobby out to the elevators; the 34 m from the stage end (top) to the lobby's south bay is centred.
 const MAP_X0 = -1;
-const MAP_SPAN = 56;
+const MAP_SPAN = 68;
 const MAP_Z0 = HALL_NORTH_Z - 0.5;
 const MAP_Z_SPAN = 34;
 const MAP_PX = (MAP_SIZE - 24) / MAP_SPAN;
@@ -3837,29 +3863,34 @@ function buildMinimapStatic() {
   ctx.stroke();
   ctx.strokeStyle = 'rgba(125, 211, 252, 0.9)';
   ctx.beginPath();
-  for (const [d0, d1] of LOBBY.doors) { ctx.moveTo(mapX(d0), mapZ(0)); ctx.lineTo(mapX(d1), mapZ(0)); }
+  const posts = LOBBY.entrance.posts;
+  ctx.moveTo(mapX(posts[0]), mapZ(LOBBY.entrance.z)); ctx.lineTo(mapX(posts[posts.length - 1]), mapZ(LOBBY.entrance.z));
+  ctx.stroke();
+  // Walls inside the outline: entrance stubs, the closed-door wall and the curved wall.
+  ctx.strokeStyle = 'rgba(245, 158, 11, 0.45)';
+  ctx.beginPath();
+  ctx.moveTo(mapX(LOBBY.entrance.x0), mapZ(0)); ctx.lineTo(mapX(posts[0]), mapZ(0));
+  ctx.moveTo(mapX(posts[posts.length - 1]), mapZ(0)); ctx.lineTo(mapX(LOBBY.entrance.x1), mapZ(0));
+  const cdw = LOBBY.closedDoorWall;
+  ctx.moveTo(mapX(cdw.x), mapZ(cdw.z0)); ctx.lineTo(mapX(cdw.x), mapZ(cdw.z1));
+  const cwl = LOBBY.curvedWall;
+  for (let a = cwl.a0; a <= cwl.a1 + 0.01; a += (cwl.a1 - cwl.a0) / 24) {
+    const t = a * Math.PI / 180;
+    ctx[a === cwl.a0 ? 'moveTo' : 'lineTo'](mapX(cwl.cx + Math.cos(t) * cwl.r), mapZ(cwl.cz + Math.sin(t) * cwl.r));
+  }
   ctx.stroke();
   ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
-  ctx.fillRect(mapX(LOBBY.pillar.x) - 1.5, mapZ(LOBBY.pillar.z) - 1.5, 3, 3);
+  for (const p of LOBBY.pillars) ctx.fillRect(mapX(p.x) - 1.5, mapZ(p.z) - 1.5, 3, 3);
   const foyerN = LOBBY.outline[LOBBY.outline.length - 1][1];
 
-  // Lobby set: event arch, cocktail tables, curved photo wall, partners wall.
+  // Lobby set: event arch, cocktail tables, partners wall.
   ctx.fillStyle = 'rgba(255, 255, 255, 0.35)';
   for (const [tx, tz] of FOYER.dealCorner.tables) {
     ctx.beginPath();
     ctx.arc(mapX(tx), mapZ(tz), 1.8, 0, Math.PI * 2);
     ctx.fill();
   }
-  ctx.strokeStyle = 'rgba(236, 47, 123, 0.8)';
   ctx.lineWidth = 2;
-  ctx.beginPath();
-  const ph = FOYER.photoWall;
-  for (let a = ph.a0; a <= ph.a1; a += 5) {
-    const t = a * Math.PI / 180;
-    const fn = a === ph.a0 ? 'moveTo' : 'lineTo';
-    ctx[fn](mapX(ph.cx + Math.cos(t) * ph.r), mapZ(ph.cz + Math.sin(t) * ph.r));
-  }
-  ctx.stroke();
   ctx.strokeStyle = 'rgba(246, 185, 26, 0.85)';
   ctx.beginPath();
   ctx.moveTo(mapX(FOYER.eventArch.x), mapZ(FOYER.eventArch.z0));

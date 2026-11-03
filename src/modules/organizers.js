@@ -486,10 +486,10 @@ export function buildOrganizerBooth(org, { attachTV, castShadow = true } = {}) {
 // counter whose front carries the table print (a black draped table where there is no table
 // design), and a roll-up banner with the standing-banner print. No TV, as in the designs.
 // ---------------------------------------------------------------------------------------------
-const ART_WALL_W = 3.0;
+const ART_WALL_W = 2.6;          // three stands share the 9.3 m Executive 3 frontage
 const ART_WALL_H = 2.3;
 const ART_TABLE = { w: 1.6, h: 0.8, d: 0.6, z: 1.05 };
-const ART_BANNER = { w: 0.85, h: 2.0, x: 1.95, z: 0.35, yaw: -0.3 };
+const ART_BANNER = { w: 0.85, h: 2.0, x: 1.25, z: 0.55, yaw: -0.3 };   // front-right corner
 
 function artTexture(url, onLoad) {
   const tex = new THREE.TextureLoader().load(url, onLoad);

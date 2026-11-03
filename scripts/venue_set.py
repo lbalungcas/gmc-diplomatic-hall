@@ -472,11 +472,18 @@ def build_seating(say):
 # 3b. Lobby — the area outside the hall, from the floor plan
 # =============================================================================================
 def build_lobby(say):
+    """The foyer and the pre-function lobby east of the hall, from the Marriott plan.
+
+    Floor and ceiling over the whole outline; walls along every outline edge but the last (the
+    hall's own east wall); then the walls inside it: the curved wall between the foyer and the
+    lobby, the short wall with the closed door by the restroom block, and the entrance door line
+    with its glass doors held open. Exterior doors on the vestibule, closed doors at the end of
+    the two corridor stubs, elevator doors on the east wall, and the pillars.
+    """
     L = LAYOUT['lobby']
     ceil = L['ceilingHeight']
     pts = L['outline']
 
-    # Floor and ceiling: one polygon each over the whole outline.
     for name, mat_name, y, flip in (('Lobby_Floor', 'Mat_Corridor_Tile', 0.0, False),
                                     ('Lobby_Ceiling', 'Mat_Ceiling', ceil, True)):
         b = Builder(name)
@@ -492,41 +499,94 @@ def build_lobby(say):
         me.data.update()
 
     walls = Builder('W_Lobby')
+    dr = Builder('Door_Lobby')
     t = 0.2
-    edges = list(zip(pts, pts[1:]))          # the closing edge is the hall's existing east wall
-    doors = L['doors']
-    for (ax, az), (bx, bz) in edges:
-        if az == bz and az == 0.0 and doors:
-            # Entrance wall: solid between the door openings, lintels above them.
-            xs = [min(ax, bx)] + [v for dr in doors for v in dr] + [max(ax, bx)]
-            for i in range(0, len(xs), 2):
-                if xs[i + 1] - xs[i] > 0.01:
-                    wbox(walls, 'Mat_Acoustic_Wall', xs[i], xs[i + 1], -t / 2, t / 2, 0.0, ceil)
-            for (d0, d1) in doors:
-                wbox(walls, 'Mat_Acoustic_Wall', d0, d1, -t / 2, t / 2, 2.4, ceil)
-            continue
+    ext = L['exteriorDoors']
+    for (ax, az), (bx, bz) in zip(pts, pts[1:]):      # the closing edge is the hall's east wall
         if az == bz:
-            wbox(walls, 'Mat_Acoustic_Wall', min(ax, bx) - t / 2, max(ax, bx) + t / 2, az - t / 2, az + t / 2, 0.0, ceil)
+            x0, x1 = min(ax, bx) - t / 2, max(ax, bx) + t / 2
+            if az == ext['z']:
+                # Vestibule south wall with the exterior doors (closed glass) cut into it.
+                xs = [x0] + [v for sp in ext['spans'] for v in sp] + [x1]
+                for i in range(0, len(xs), 2):
+                    wbox(walls, 'Mat_Acoustic_Wall', xs[i], xs[i + 1], az - t / 2, az + t / 2, 0.0, ceil)
+                for (d0, d1) in ext['spans']:
+                    wbox(walls, 'Mat_Acoustic_Wall', d0, d1, az - t / 2, az + t / 2, 2.4, ceil)
+                    mid = (d0 + d1) / 2
+                    wbox(dr, 'Mat_LED_Frame', d0, d1, az - 0.06, az + 0.06, 2.34, 2.4)
+                    for s0, s1 in ((d0 + 0.02, mid - 0.01), (mid + 0.01, d1 - 0.02)):
+                        wbox(dr, 'Mat_Door_Glass', s0, s1, az - 0.03, az + 0.03, 0.0, 2.34)
+                        wbox(dr, 'Mat_Truss', s0 + 0.08, s1 - 0.08, az - 0.08, az - 0.05, 0.98, 1.03)
+                continue
+            wbox(walls, 'Mat_Acoustic_Wall', x0, x1, az - t / 2, az + t / 2, 0.0, ceil)
         else:
             wbox(walls, 'Mat_Acoustic_Wall', ax - t / 2, ax + t / 2, min(az, bz) - t / 2, max(az, bz) + t / 2, 0.0, ceil)
-    p = L['pillar']
-    wbox(walls, 'Mat_Acoustic_Wall', p['x'] - p['size'] / 2, p['x'] + p['size'] / 2,
-         p['z'] - p['size'] / 2, p['z'] + p['size'] / 2, 0.0, ceil)
-    walls.to_object()
 
-    # Glass entrance doors with push bars, and the closed door in the restroom block.
-    dr = Builder('Door_Lobby')
-    for (d0, d1) in doors:
-        mid = (d0 + d1) / 2
-        wbox(dr, 'Mat_LED_Frame', d0, d1, -0.06, 0.06, 2.34, 2.4)
-        for s0, s1 in ((d0 + 0.02, mid - 0.01), (mid + 0.01, d1 - 0.02)):
-            wbox(dr, 'Mat_Door_Glass', s0, s1, -0.03, 0.03, 0.0, 2.34)
-            wbox(dr, 'Mat_Truss', s0 + 0.08, s1 - 0.08, -0.08, -0.05, 0.98, 1.03)
-    cd = L['closedDoor']
-    wbox(dr, 'Mat_Door_Teal', cd['x0'], cd['x1'], cd['z'] + 0.1, cd['z'] + 0.14, 0.0, 2.3)
-    wbox(dr, 'Mat_LED_Frame', cd['x0'] - 0.05, cd['x1'] + 0.05, cd['z'] + 0.1, cd['z'] + 0.15, 2.3, 2.38)
+    # Curved wall: full height between the foyer (convex face, radius r) and the lobby.
+    cw = L['curvedWall']
+    arc_wall(walls, 'Mat_Acoustic_Wall', cw['cx'], cw['cz'], cw['r'] - cw['thickness'], cw['r'],
+             cw['a0'], cw['a1'], 0.0, ceil, seg=48)
+    # Skirting along both faces so the wall meets the floor like the others.
+    arc_wall(walls, 'Mat_LED_Frame', cw['cx'], cw['cz'], cw['r'] - cw['thickness'] - 0.015, cw['r'] + 0.015,
+             cw['a0'], cw['a1'], 0.0, 0.1, seg=48)
+
+    # Closed-door wall between the curved wall's top and the restroom block, door on both faces.
+    cd = L['closedDoorWall']
+    hx = cd['thickness'] / 2
+    wbox(walls, 'Mat_Acoustic_Wall', cd['x'] - hx, cd['x'] + hx, cd['z0'], cd['z1'], 0.0, ceil)
+    d = cd['door']
+    for s in (-1, 1):
+        fx = cd['x'] + s * hx
+        wbox(dr, 'Mat_Door_Teal', min(fx, fx + s * 0.04), max(fx, fx + s * 0.04), d['z0'], d['z1'], 0.0, 2.3)
+        wbox(dr, 'Mat_LED_Frame', min(fx, fx + s * 0.05), max(fx, fx + s * 0.05), d['z0'] - 0.05, d['z1'] + 0.05, 2.3, 2.38)
+        wbox(dr, 'Mat_Truss', min(fx, fx + s * 0.08), max(fx, fx + s * 0.08), (d['z0'] + d['z1']) / 2 - 0.35,
+             (d['z0'] + d['z1']) / 2 + 0.35, 0.98, 1.03)
+
+    # Entrance door line: wall stubs and posts, a transom above 2.4 m, glass doors held open
+    # against the posts (swung into the foyer).
+    en = L['entrance']
+    z = en['z']
+    posts = en['posts']
+    wbox(walls, 'Mat_Acoustic_Wall', en['x0'], posts[0], z - t / 2, z + t / 2, 0.0, ceil)
+    wbox(walls, 'Mat_Acoustic_Wall', posts[-1], en['x1'], z - t / 2, z + t / 2, 0.0, ceil)
+    for p in posts[1:-1]:
+        wbox(walls, 'Mat_LED_Frame', p - 0.1, p + 0.1, z - t / 2, z + t / 2, 0.0, 2.4)
+    wbox(walls, 'Mat_Acoustic_Wall', posts[0], posts[-1], z - t / 2, z + t / 2, 2.4, ceil)
+    for d0, d1 in zip(posts, posts[1:]):
+        a0, a1 = d0 + (0.1 if d0 != posts[0] else 0.0), d1 - (0.1 if d1 != posts[-1] else 0.0)
+        leaf = (a1 - a0) / 2 - 0.02
+        wbox(dr, 'Mat_LED_Frame', a0, a1, z - 0.06, z + 0.06, 2.34, 2.4)
+        for hinge, s in ((a0, 1), (a1, -1)):
+            xa, xb = sorted((hinge + s * 0.03, hinge + s * 0.09))
+            wbox(dr, 'Mat_Door_Glass', xa, xb, z - 0.1 - leaf, z - 0.1, 0.0, 2.32)
+            wbox(dr, 'Mat_Truss', xa - 0.02, xb + 0.02, z - 0.1 - leaf * 0.75, z - 0.1 - leaf * 0.25, 0.98, 1.03)
+
+    # Closed double doors at the end of the corridor stubs.
+    for c in L['corridorDoors']:
+        w = c['x1'] - c['x0']
+        mid = (c['x0'] + c['x1']) / 2
+        for s0, s1 in ((mid - min(0.9, w / 2 - 0.2), mid - 0.01), (mid + 0.01, mid + min(0.9, w / 2 - 0.2))):
+            wbox(dr, 'Mat_Door_Teal', s0, s1, c['z'] + t / 2, c['z'] + t / 2 + 0.04, 0.0, 2.3)
+        wbox(dr, 'Mat_LED_Frame', mid - min(0.95, w / 2 - 0.15), mid + min(0.95, w / 2 - 0.15),
+             c['z'] + t / 2, c['z'] + t / 2 + 0.05, 2.3, 2.38)
+
+    # Elevator doors on the east wall: brushed steel pairs in a frame, with a call panel.
+    el = L['elevators']
+    ex = el['x'] - t / 2
+    for ez in el['z']:
+        w2 = el['width'] / 2
+        wbox(dr, 'Mat_LED_Frame', ex - 0.06, ex, ez - w2 - 0.12, ez + w2 + 0.12, 0.0, el['height'] + 0.12)
+        wbox(dr, 'Mat_Booth_Alu', ex - 0.09, ex - 0.06, ez - w2, ez - 0.005, 0.0, el['height'])
+        wbox(dr, 'Mat_Booth_Alu', ex - 0.09, ex - 0.06, ez + 0.005, ez + w2, 0.0, el['height'])
+        wbox(dr, 'Mat_Screen_Glow', ex - 0.03, ex, ez + w2 + 0.25, ez + w2 + 0.37, 1.05, 1.25)
+
+    for p in L['pillars']:
+        wbox(walls, 'Mat_Acoustic_Wall', p['x'] - p['size'] / 2, p['x'] + p['size'] / 2,
+             p['z'] - p['size'] / 2, p['z'] + p['size'] / 2, 0.0, ceil)
+    walls.to_object()
     dr.to_object()
-    say(f'  lobby: {len(pts)}-sided outline, {len(doors)} entrance doors, closed door, pillar, {ceil} m ceiling')
+    say(f'  lobby: {len(pts)}-sided outline, curved wall r {cw["r"]} m, {len(posts) - 1} entrance doors, '
+        f'closed door, {len(el["z"])} elevators, {len(L["pillars"])} pillars, {ceil} m ceiling')
 
 
 # =============================================================================================
@@ -764,16 +824,9 @@ def build_foyer(say):
         b.cyl('Mat_Spandex', 0.07, dc['tableRadius'] - 0.01, 0.46, mm @ Matrix.Translation((0, 0, 0.62)), 24)
         b.cyl('Mat_Table_White', dc['tableRadius'], dc['tableRadius'], 0.03, mm @ Matrix.Translation((0, 0, 1.08)), 28)
 
-    # Curved photo wall: white shell with aluminium trims; the runtime prints both faces.
-    pw2 = F['photoWall']
-    r = pw2['r']
-    arc_wall(b, 'Mat_Photo_Wall', pw2['cx'], pw2['cz'], r - 0.06, r, pw2['a0'], pw2['a1'], 0.06, pw2['height'], seg=40)
-    arc_wall(b, 'Mat_Booth_Alu', pw2['cx'], pw2['cz'], r - 0.08, r + 0.02, pw2['a0'], pw2['a1'], 0.0, 0.06, seg=40)
-    arc_wall(b, 'Mat_Booth_Alu', pw2['cx'], pw2['cz'], r - 0.08, r + 0.02, pw2['a0'], pw2['a1'],
-             pw2['height'], pw2['height'] + 0.05, seg=40)
-
-    # Youth Media Hub on the concave (outside) side: rug, two interview armchairs, side table,
-    # ring light and a camera on a tripod, all facing back toward the curved wall.
+    # Youth Media Hub against the curved wall's outside (lobby) face: rug, two interview armchairs
+    # with their backs to the wall, side table, ring light and a camera on a tripod facing them.
+    # The runtime prints the backdrop on the wall behind them.
     mh = F['mediaHub']
     hx, hz = mh['x'], mh['z']
     wbox(b, 'Mat_Rug', hx - 1.4, hx + 1.4, hz - 1.1, hz + 1.1, 0.0, 0.012)
@@ -793,8 +846,12 @@ def build_foyer(say):
         b.rod('Mat_Stool', B(tx, tz, 1.3), B(tx + 0.32 * math.cos(a), tz + 0.32 * math.sin(a), 0.0), 0.01, 6)
     b.box('Mat_Speaker', (-0.12, -0.08, 0.0), (0.12, 0.08, 0.14), facing(tx, tz, hx - 0.3, hz) @ Matrix.Translation((0, 0, 1.3)))
 
-    # Plants at both ends of the photo wall.
-    for (ppx, ppz) in arc_points(pw2['cx'], pw2['cz'], r - 0.5, pw2['a0'] - 2, pw2['a1'] + 2, 1):
+    # Plants either side of the media hub backdrop.
+    cw = LAYOUT['lobby']['curvedWall']
+    ri = cw['r'] - cw['thickness']
+    hub_a = math.degrees(math.atan2(hz - cw['cz'], hx - cw['cx']))
+    half = math.degrees((mh['backdropWidth'] / 2 + 0.35) / ri)
+    for (ppx, ppz) in arc_points(cw['cx'], cw['cz'], ri - 0.45, hub_a - half, hub_a + half, 1):
         plant(b, Matrix.Translation(B(ppx, ppz, 0.0)), scale=1.3, seed=int(abs(ppz) * 10))
 
     # Area standees (registration, deal corner, media hub, booth entrance, safeguarding).
@@ -802,7 +859,7 @@ def build_foyer(say):
         standee(b, s)
 
     b.to_object()
-    say(f'  lobby set: partners wall, event arch returns, {len(dc["tables"])} cocktail tables, curved photo wall + '
+    say(f'  lobby set: partners wall, event arch returns, {len(dc["tables"])} cocktail tables, '
         f'Youth Media Hub set, {len(LAYOUT["signs"])} standees')
 
 

@@ -189,14 +189,22 @@ await check('booth table is solid, its front is open', `
 await check('lobby walls hold, lobby floor is free', `
   const T = window.THREE;
   const probes = [
-    ['south bay', new T.Vector3(36.0, 1.45, 5.5), (p) => p.z < 3.6],
-    ['east wall', new T.Vector3(55.0, 1.45, -12.0), (p) => p.x < 53.6],
-    ['north of deal corner', new T.Vector3(30.0, 1.45, -20.6), (p) => p.z > -19.6],
+    ['vestibule south wall', new T.Vector3(30.0, 1.45, 4.5), (p) => p.z < 3.5],
+    ['east wall', new T.Vector3(67.0, 1.45, -12.0), (p) => p.x < 65.9],
+    ['restroom block', new T.Vector3(30.0, 1.45, -18.2), (p) => p.z > -17.36],
     ['hall south wall', new T.Vector3(9.0, 1.45, 0.5), (p) => p.z < -1.0],
+    ['curved wall, foyer side', new T.Vector3(30.6, 1.45, -4.66), (p) => p.x < 30.45],
+    ['entrance post', new T.Vector3(25.92, 1.45, 0.0), (p) => Math.abs(p.x - 25.92) > 0.3 || Math.abs(p.z) > 0.3],
   ];
   const bad = [];
   for (const [name, p, ok] of probes) { ${G}.checkCollision(p); if (!ok(p)) bad.push(name + '@' + p.x.toFixed(1) + ',' + p.z.toFixed(1)); }
-  const free = new T.Vector3(48.0, 1.45, -12.0), f0 = free.clone();
+  // Open floor in the vestibule and through an entrance doorway.
+  for (const [fx, fz] of [[30.0, 1.8], [27.3, 0.0]]) {
+    const q = new T.Vector3(fx, 1.45, fz), q0 = q.clone();
+    ${G}.checkCollision(q);
+    if (q.distanceTo(q0) > 0.01) bad.push('open floor moved at ' + fx + ',' + fz);
+  }
+  const free = new T.Vector3(50.0, 1.45, -10.0), f0 = free.clone();
   ${G}.checkCollision(free);
   if (free.distanceTo(f0) > 0.01) bad.push('open floor moved');
   return { ok: bad.length === 0, detail: bad.length ? bad.join('; ') : 'all walls hold' };`);
@@ -286,7 +294,7 @@ await check('adaptive quality governor responds', `
   return { ok: mid === 2 && q.level === 0, detail: 'stepped to ' + mid + ' and back to ' + q.level };`);
 
 await check('venue signage prints are in place', `
-  const want = ['EventArch_Front', 'EventArch_Back', 'StageBanner_W', 'StageBanner_E', 'PhotoWall_Print', 'MediaHub_Print'];
+  const want = ['EventArch_Front', 'EventArch_Back', 'StageBanner_W', 'StageBanner_E', 'MediaHub_Print'];
   const found = {};
   ${G}.scene.traverse(o => { if (want.includes(o.name)) found[o.name] = o; });
   for (let i = 0; i < 40 && want.some(n => found[n] && found[n].material.map && !found[n].material.map.image); i++) await new Promise(r => setTimeout(r, 250));

@@ -2,7 +2,7 @@
  * Printed faces for the venue signage, from the client's venue designs.
  *
  * scripts/venue_set.py bakes the hardware — standee boards and stands, the partners wall board,
- * the event arch's navy returns, the curved photo wall shell, the stage banner frames and the
+ * the event arch's navy returns, the curved wall, the stage banner frames and the
  * photo booth header — from src/data/hallLayout.json. This module lays the artwork on them from
  * the same numbers, a few millimetres in front of each baked face:
  *
@@ -10,8 +10,8 @@
  *  - the event arch: the arch design, alpha-cut so you walk through its opening, both faces
  *  - the stage banners either side of the LED wall
  *  - the partners wall (partner lockup)
- *  - the curved wall: a step-and-repeat photo wall on its convex (deal corner) side and the
- *    Youth Media Hub backdrop on its concave side, in the media hub standee's pink grid
+ *  - the Youth Media Hub backdrop on the curved wall's lobby side, in the media hub standee's
+ *    pink grid
  *  - the photo booth header in the hall
  */
 import * as THREE from 'three';
@@ -114,30 +114,12 @@ function arcGeometry(cx, cz, r, a0, a1, y0, y1, outward, seg = 64) {
   return g;
 }
 
-/** Step-and-repeat tile for the photo wall: the YIM logo and the partner strip, staggered. */
-function drawStepRepeat(canvas, yim, partners) {
-  const ctx = canvas.getContext('2d');
-  const W = canvas.width, H = canvas.height;
-  ctx.fillStyle = '#FFFFFF';
-  ctx.fillRect(0, 0, W, H);
-  const rows = 3;
-  const rh = H / rows;
-  for (let r = 0; r < rows; r++) {
-    const y = r * rh;
-    const cells = [[0, r % 2 ? partners : yim], [W / 2, r % 2 ? yim : partners]];
-    for (const [x, img] of cells) {
-      if (!img) continue;
-      drawContained(ctx, img, x + W * 0.04, y + rh * 0.14, W / 2 - W * 0.08, rh * 0.72);
-    }
-  }
-}
-
 /**
- * The Youth Media Hub backdrop, after the media hub standee: pink grid, a white panel with the
- * title behind the interview chairs, the YIM logo and the partner strip either side, and YIM
- * logos repeated out toward the ends of the wall. `centreU` is where the hub sits along it.
+ * The Youth Media Hub backdrop on the curved wall behind the interview chairs, after the media
+ * hub standee: pink grid, the YIM logo on the left, a white title panel in the middle and the
+ * organizer / supporter logos on the right, with a white foot strip.
  */
-function drawMediaHub(canvas, lengthM, centreU, yim, partners) {
+function drawMediaHub(canvas, lengthM, yim, partners) {
   const ctx = canvas.getContext('2d');
   const W = canvas.width, H = canvas.height;
   const ppm = W / lengthM;
@@ -149,9 +131,8 @@ function drawMediaHub(canvas, lengthM, centreU, yim, partners) {
   for (let x = cell / 2; x < W; x += cell) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke(); }
   for (let y = cell / 2; y < H; y += cell) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke(); }
 
-  const cx = centreU * W;
-  // Title panel, high enough to clear the armchairs' backs.
-  const pw = ppm * 3.6, ph = H * 0.42, py = H * 0.12;
+  const cx = W / 2;
+  const pw = Math.min(ppm * 3.0, W * 0.42), ph = H * 0.4, py = H * 0.1;
   ctx.fillStyle = '#FFFFFF';
   ctx.beginPath();
   ctx.roundRect(cx - pw / 2, py, pw, ph, ppm * 0.06);
@@ -159,36 +140,25 @@ function drawMediaHub(canvas, lengthM, centreU, yim, partners) {
   ctx.fillStyle = '#111111';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  const s = fitFont(ctx, 'YOUTH MEDIA HUB', pw * 0.88, Math.round(ph * 0.5));
-  ctx.font = `900 ${s}px ${FONT}`;
+  const s1 = fitFont(ctx, 'YOUTH MEDIA HUB', pw * 0.88, Math.round(ph * 0.42));
+  ctx.font = `900 ${s1}px ${FONT}`;
   ctx.fillText('YOUTH MEDIA HUB', cx, py + ph * 0.42);
   ctx.fillStyle = NAVY;
-  const s2 = fitFont(ctx, 'Interviews · Stories · Share your innovation', pw * 0.8, Math.round(ph * 0.14), 700);
+  const sub = 'Interviews · Stories · Share your innovation';
+  const s2 = fitFont(ctx, sub, pw * 0.8, Math.round(ph * 0.13), 700);
   ctx.font = `700 ${s2}px ${FONT}`;
-  ctx.fillText('Interviews · Stories · Share your innovation', cx, py + ph * 0.8);
+  ctx.fillText(sub, cx, py + ph * 0.8);
 
-  // Logos either side of the panel, then YIM logos every ~3.2 m outward.
+  const side = (W - pw) / 2 - ppm * 0.5;
+  if (yim) drawContained(ctx, yim, ppm * 0.25, py, side, ph);
   if (partners) {
-    const bw = ppm * 2.6, bh = H * 0.36;
+    const bx = cx + pw / 2 + ppm * 0.25, bw = side;
     ctx.fillStyle = '#FFFFFF';
     ctx.beginPath();
-    ctx.roundRect(cx + pw / 2 + ppm * 0.4, py + ph * 0.1, bw, bh, ppm * 0.05);
+    ctx.roundRect(bx, py + ph * 0.08, bw, ph * 0.84, ppm * 0.05);
     ctx.fill();
-    drawContained(ctx, partners, cx + pw / 2 + ppm * 0.5, py + ph * 0.1 + bh * 0.06, bw - ppm * 0.2, bh * 0.88);
+    drawContained(ctx, partners, bx + bw * 0.05, py + ph * 0.12, bw * 0.9, ph * 0.76);
   }
-  if (yim) {
-    drawContained(ctx, yim, cx - pw / 2 - ppm * 3.0, py, ppm * 2.6, ph);
-    // Further out: left of the first logo, and right of the partner board.
-    for (let k = 1; k < 8; k++) {
-      const xl = cx - pw / 2 - ppm * (3.0 + 3.2 * k);
-      const xr = cx + pw / 2 + ppm * (3.6 + 3.2 * (k - 1));
-      for (const x of [xl, xr]) {
-        if (x < -ppm * 2.6 || x > W) continue;
-        drawContained(ctx, yim, x, py, ppm * 2.6, ph);
-      }
-    }
-  }
-  // White foot strip, as on the standee.
   ctx.fillStyle = '#FFFFFF';
   ctx.fillRect(0, H * 0.93, W, H * 0.07);
 }
@@ -288,34 +258,22 @@ export function createVenueSignage(scene, layout, { anisotropy = 4, lowPower = f
   group.add(partners);
   if (pw.image) loadImage(pw.image).then((img) => { if (img) { paintPartners(img); partnersMat.map.needsUpdate = true; } });
 
-  // Curved wall: photo-wall step-and-repeat outside, Youth Media Hub backdrop inside.
-  const ph = F.photoWall;
-  const arcLen = ph.r * (ph.a1 - ph.a0) * Math.PI / 180;
-  const y0 = 0.06, y1 = ph.height;
-  const tileH = y1 - y0;
-  const tile = canvasFor(tileH * 1.6, tileH, lowPower ? 160 : 320);
-  drawStepRepeat(tile, null, null);
-  const tileTex = keep(texture(tile, anisotropy));
-  tileTex.wrapS = THREE.RepeatWrapping;
-  tileTex.repeat.set(arcLen / (tileH * 1.6), 1);
-  Promise.all([yimP, partnersP]).then(([yim, prt]) => { drawStepRepeat(tile, yim, prt); tileTex.needsUpdate = true; });
-  const outer = new THREE.Mesh(arcGeometry(ph.cx, ph.cz, ph.r + 0.004, ph.a0, ph.a1, y0, y1, true), printMat(tileTex));
-  outer.name = 'PhotoWall_Print';
-  group.add(outer);
-
-  const innerR = ph.r - 0.064;
-  const innerLen = innerR * (ph.a1 - ph.a0) * Math.PI / 180;
+  // Youth Media Hub backdrop on the curved wall's lobby face, centred behind the hub.
+  const cw = layout.lobby.curvedWall;
   const mh = F.mediaHub;
-  const hubDeg = Math.atan2(mh.z - ph.cz, mh.x - ph.cx) * 180 / Math.PI;
+  const ri = cw.r - cw.thickness - 0.004;
+  const hubDeg = Math.atan2(mh.z - cw.cz, mh.x - cw.cx) * 180 / Math.PI;
   const hubA = ((hubDeg % 360) + 360) % 360;
-  const centreU = Math.min(0.9, Math.max(0.1, (hubA - ph.a0) / (ph.a1 - ph.a0)));
-  const hc = canvasFor(innerLen, tileH, lowPower ? 90 : 180);
-  drawMediaHub(hc, innerLen, centreU, null, null);
+  const bw = mh.backdropWidth || 7.2;
+  const halfDeg = (bw / 2 / ri) * 180 / Math.PI;
+  const y0 = 0.12, y1 = 2.75;
+  const hc = canvasFor(bw, y1 - y0, lowPower ? 140 : 280);
+  drawMediaHub(hc, bw, null, null);
   const hubTex = keep(texture(hc, anisotropy));
-  Promise.all([yimP, partnersP]).then(([yim, prt]) => { drawMediaHub(hc, innerLen, centreU, yim, prt); hubTex.needsUpdate = true; });
-  const inner = new THREE.Mesh(arcGeometry(ph.cx, ph.cz, innerR, ph.a0, ph.a1, y0, y1, false), printMat(hubTex));
-  inner.name = 'MediaHub_Print';
-  group.add(inner);
+  Promise.all([yimP, partnersP]).then(([yim, prt]) => { drawMediaHub(hc, bw, yim, prt); hubTex.needsUpdate = true; });
+  const backdrop = new THREE.Mesh(arcGeometry(cw.cx, cw.cz, ri, hubA - halfDeg, hubA + halfDeg, y0, y1, false, 24), printMat(hubTex));
+  backdrop.name = 'MediaHub_Print';
+  group.add(backdrop);
 
   // Photo booth header, on the front of the kiosk (it faces north into the hall).
   const pb = layout.hallFeatures.photoBooth;
