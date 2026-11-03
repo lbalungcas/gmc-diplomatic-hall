@@ -15,6 +15,7 @@ import organizersData from './data/organizers.json';
 import mascotsData from './data/mascots.json';
 import tutuFaqs from './data/tutuFaqs.json';
 import hallLayout from './data/hallLayout.json';
+import postersData from './data/posters.json';
 import { createPresence, getVisitorInfo, colorFromId } from './modules/presence.js';
 import { track } from './modules/analytics.js';
 import { buildOrganizerBooth, organizerObstacles, TV_W, TV_H } from './modules/organizers.js';
@@ -93,11 +94,11 @@ const staticBoxes = [];            // world AABBs the player can't walk through
 
 // Player Locomotion & Physics (Normalized realistic height: 1.45m eye level)
 const player = {
-  pos: new THREE.Vector3(9.68, 1.45, -1.6),
+  pos: new THREE.Vector3(hallLayout.lobby.spawn.x, 1.45, hallLayout.lobby.spawn.z),
   vel: new THREE.Vector3(0, 0, 0),
   desiredVel: new THREE.Vector3(0, 0, 0),
   pitch: 0,
-  yaw: 0, // facing -Z down central aisle toward Stage
+  yaw: hallLayout.lobby.spawn.yaw, // at registration, facing the desk
   roll: 0,
   maxSpeed: 4.6,
   eyeHeight: 1.45,
@@ -162,33 +163,57 @@ const TOTAL_BOOTHS = Object.keys(BOOTH_POSITIONS).length;
 const STAIRS_BOX = { minX: 11.45, maxX: 19.4, minZ: -1.9, maxZ: 0.2, label: 'stairs' };
 const STAGE = hallLayout.stage;
 const LED = hallLayout.led;
+const LED_VIDEO = LED.video || { width: LED.width, height: LED.height };
 const HALL_NORTH_Z = hallLayout.hall.northWallZ;
 const FOYER = hallLayout.foyer;
 // The registration desk box is refined from the procedural desk's real bounds in createWelcomeDesk().
 const WELCOME_DESK_BOX = { minX: FOYER.registration.x - 0.6, maxX: FOYER.registration.x + 0.6, minZ: FOYER.registration.z - 1.6, maxZ: FOYER.registration.z + 1.6, label: 'registration desk' };
 // The pledge wall stands against the foyer's north wall, facing south (setupPolicyWall).
 const COMMITMENT_WALL_BOX = { minX: FOYER.policyWall.x - 2.2, maxX: FOYER.policyWall.x + 2.2, minZ: FOYER.policyWall.z - 0.1, maxZ: FOYER.policyWall.z + 0.42, label: 'commitment wall' };
-// The foyer is widened east in Blender (hallLayout.hall.stretchEastBy); its east wall is a gentle
-// curve, kept as a circle the player has to stay inside.
-const FOYER_EAST_WALL = hallLayout.hall.foyerEastWall;
-const FOYER_WIDEN = hallLayout.hall.stretchEastBy || 0;
+// The lobby outside the hall (hallLayout.lobby): an axis-aligned outline, clockwise from the
+// hall's south-east corner. Every edge but the last (the hall's own east wall) is a lobby wall.
+const LOBBY = hallLayout.lobby;
 // Hall↔foyer divider is a thick wall with two doorways — solid segments (not a zero-thickness plane)
 // so jamb corners and long frames can't tunnel through.
 const DIV_X = 19.35;
 const DIV_HALF = 0.28;
+// Since the event arch, the two foyer doorways are one opening (z -13.08 to -7.18) behind it.
 const DIVIDER_SEGMENTS = [
-  { minX: DIV_X - DIV_HALF, maxX: DIV_X + DIV_HALF, minZ: -7.0, maxZ: 0.25, label: 'divider-n' },
-  { minX: DIV_X - DIV_HALF, maxX: DIV_X + DIV_HALF, minZ: -11.4, maxZ: -8.8, label: 'divider-m' },
-  { minX: DIV_X - DIV_HALF, maxX: DIV_X + DIV_HALF, minZ: HALL_NORTH_Z + 4.2, maxZ: -13.2, label: 'divider-s' },
+  { minX: DIV_X - DIV_HALF, maxX: DIV_X + DIV_HALF, minZ: -7.18, maxZ: 0.25, label: 'divider-n' },
+  { minX: DIV_X - DIV_HALF, maxX: DIV_X + DIV_HALF, minZ: HALL_NORTH_Z + 4.2, maxZ: -13.08, label: 'divider-s' },
 ];
-// Foyer L-cutout: block walking past the foyer's north wall (which moved north with the hall).
-const FOYER_NOTCH_BOX = { minX: 19.2, maxX: 27.4 + FOYER_WIDEN, minZ: HALL_NORTH_Z - 0.3, maxZ: HALL_NORTH_Z + 4.6, label: 'foyer-notch' };
+// Lobby walls as solid slabs on the outside of each outline edge (its inner face 0.12 m in, the
+// wall's own half thickness), plus the hall's south wall, which the world bounds no longer cover.
+const LOBBY_WALL_BOXES = [];
+{
+  const pts = LOBBY.outline;
+  // The sign of the shoelace area gives the winding, and so which side of each edge is outside.
+  let area = 0;
+  for (let i = 0; i < pts.length; i++) {
+    const [ax, az] = pts[i], [bx, bz] = pts[(i + 1) % pts.length];
+    area += ax * bz - bx * az;
+  }
+  const inSide = Math.sign(area);
+  for (let i = 0; i < pts.length - 1; i++) {
+    const [ax, az] = pts[i], [bx, bz] = pts[i + 1];
+    // Outward normal of edge a->b.
+    const dx = Math.sign(bx - ax), dz = Math.sign(bz - az);
+    const nx = dz * inSide, nz = -dx * inSide;
+    const inner = 0.12, outer = 3.0;
+    const lo = (v, n) => (n < 0 ? v - outer : v - (n > 0 ? inner : 0));
+    const hi = (v, n) => (n > 0 ? v + outer : v + (n < 0 ? inner : 0));
+    LOBBY_WALL_BOXES.push({
+      minX: nx ? lo(ax, nx) : Math.min(ax, bx), maxX: nx ? hi(ax, nx) : Math.max(ax, bx),
+      minZ: nz ? lo(az, nz) : Math.min(az, bz), maxZ: nz ? hi(az, nz) : Math.max(az, bz),
+      label: 'lobby wall',
+    });
+  }
+  const p = LOBBY.pillar;
+  LOBBY_WALL_BOXES.push({ minX: p.x - p.size / 2, maxX: p.x + p.size / 2, minZ: p.z - p.size / 2, maxZ: p.z + p.size / 2, label: 'pillar' });
+  LOBBY_WALL_BOXES.push({ minX: -1.0, maxX: DIV_X + DIV_HALF, minZ: -1.05, maxZ: 6.0, label: 'hall south wall' });
+}
 // Stage platform plus its side steps — solid so you cannot walk onto the set.
 const STAGE_BOX = { minX: STAGE.x0 - 0.62, maxX: STAGE.x1 + 0.62, minZ: STAGE.zBack - 0.2, maxZ: STAGE.zFront + 0.02, label: 'stage' };
-// Floor speaker stacks either side of the stage (scripts/venue_set.py build_stage).
-const SPEAKER_BOXES = [STAGE.x0 - 0.65, STAGE.x1 + 0.65].map((x) => (
-  { minX: x - 0.3, maxX: x + 0.3, minZ: -27.58, maxZ: -27.02, label: 'speaker' }
-));
 // The audience benches are solid; a seat is still taken from either side (sitDownOnChair).
 const SEAT_ROW_BOXES = [];
 for (const z of SEATING.rows) {
@@ -204,8 +229,12 @@ for (const z of SEATING.rows) {
 const GRID_BOXES = gridObstacles(hallLayout);
 const SET_BOXES = [];
 {
+  // Event arch pillars (the opening between them is walkable).
   const ea = FOYER.eventArch;
-  for (const z of [ea.z0, ea.z1]) SET_BOXES.push({ minX: ea.x - 0.3, maxX: ea.x + 0.3, minZ: z - 0.3, maxZ: z + 0.3, label: 'arch' });
+  SET_BOXES.push(
+    { minX: ea.x - ea.depth / 2, maxX: ea.x + ea.depth / 2, minZ: ea.z0, maxZ: ea.z0 + ea.pillarNorth, label: 'arch' },
+    { minX: ea.x - ea.depth / 2, maxX: ea.x + ea.depth / 2, minZ: ea.z1 - ea.pillarSouth, maxZ: ea.z1, label: 'arch' },
+  );
   const pw = FOYER.partnersWall;
   SET_BOXES.push({ minX: pw.x - pw.width / 2 - 0.1, maxX: pw.x + pw.width / 2 + 0.1, minZ: pw.z - 0.1, maxZ: pw.z + 0.36, label: 'partners wall' });
   for (const sg of hallLayout.signs) {
@@ -237,11 +266,9 @@ const CHAMFER_WALLS = [
   { ax: 0.0, az: HALL_NORTH_Z + 4.07, bx: 4.07, bz: HALL_NORTH_Z },
   { ax: 15.28, az: HALL_NORTH_Z, bx: 19.35, bz: HALL_NORTH_Z + 4.07 },
 ];
-// Round obstacles: stage-corner plants, the boat / lighthouse standees, the deal-corner cocktail
-// tables, the curved photo wall (as a chain of small circles) and the furniture behind it.
+// Round obstacles: the boat / lighthouse standees, the deal-corner cocktail tables, the curved
+// photo wall (as a chain of small circles) and the Youth Media Hub furniture inside its curve.
 const ROUND_PROPS = [
-  { x: STAGE.x0 - 0.5, z: -24.45, r: 0.35 },
-  { x: STAGE.x1 + 0.5, z: -24.45, r: 0.35 },
   ...Object.values(hallLayout.standees).map((s) => ({ x: s.x, z: s.z, r: 0.55 })),
   ...FOYER.dealCorner.tables.map(([x, z]) => ({ x, z, r: FOYER.dealCorner.tableRadius + 0.02 })),
 ];
@@ -252,14 +279,15 @@ const ROUND_PROPS = [
     const a = (ph.a0 + (ph.a1 - ph.a0) * i / n) * Math.PI / 180;
     ROUND_PROPS.push({ x: ph.cx + Math.cos(a) * (ph.r - 0.03), z: ph.cz + Math.sin(a) * (ph.r - 0.03), r: 0.2 });
   }
-  for (const a of [ph.a0 - 3, ph.a1 + 3]) {
+  // Plants at both ends, on the inside of the curve (venue_set.py build_foyer).
+  for (const a of [ph.a0 - 2, ph.a1 + 2]) {
     const t = a * Math.PI / 180;
-    ROUND_PROPS.push({ x: ph.cx + Math.cos(t) * (ph.r + 0.45), z: ph.cz + Math.sin(t) * (ph.r + 0.45), r: 0.35 });
+    ROUND_PROPS.push({ x: ph.cx + Math.cos(t) * (ph.r - 0.5), z: ph.cz + Math.sin(t) * (ph.r - 0.5), r: 0.35 });
   }
   const mh = FOYER.mediaHub;
   ROUND_PROPS.push(
     { x: mh.x - 0.3, z: mh.z - 0.75, r: 0.48 }, { x: mh.x - 0.3, z: mh.z + 0.75, r: 0.48 },
-    { x: mh.x - 0.85, z: mh.z, r: 0.25 }, { x: mh.x + 1.3, z: mh.z, r: 0.32 }, { x: mh.x + 0.9, z: mh.z + 0.6, r: 0.32 },
+    { x: mh.x - 0.85, z: mh.z, r: 0.25 }, { x: mh.x + 1.1, z: mh.z - 1.15, r: 0.32 }, { x: mh.x + 0.9, z: mh.z + 0.6, r: 0.32 },
   );
   const sg = hallLayout.hallFeatures.safeguarding;
   const scx = (sg.x0 + sg.x1) / 2 + 0.4, scz = (sg.z0 + sg.z1) / 2;
@@ -270,24 +298,31 @@ staticBoxes.push(
   STAIRS_BOX,
   WELCOME_DESK_BOX,
   COMMITMENT_WALL_BOX,
-  FOYER_NOTCH_BOX,
+  ...LOBBY_WALL_BOXES,
   STAGE_BOX,
-  ...SPEAKER_BOXES,
   ...SEAT_ROW_BOXES,
   ...DIVIDER_SEGMENTS,
   ...GRID_BOXES,
   ...SET_BOXES,
 );
 
-/** Inner playable bounds (kept slightly inside the GLB wall faces so the camera never sits in mesh). */
-const WORLD_BOUNDS = { minX: 1.05, maxX: 26.55 + FOYER_WIDEN, minZ: HALL_NORTH_Z + 0.6, maxZ: -1.05 };
+/**
+ * Outer playable bounds: the hall's west and north walls, and a box around the lobby outline.
+ * The lobby's own walls (and the hall's south wall) are LOBBY_WALL_BOXES.
+ */
+const WORLD_BOUNDS = {
+  minX: 1.05,
+  maxX: Math.max(...LOBBY.outline.map(([x]) => x)) - 0.12,
+  minZ: HALL_NORTH_Z + 0.6,
+  maxZ: Math.max(...LOBBY.outline.map(([, z]) => z)) - 0.12,
+};
 
 // Interactive Venue Hotspots
 const HOTSPOTS = {
   welcomeDesk: { x: FOYER.registration.x, z: FOYER.registration.z, radius: 2.6, title: "Registration & Information Desk", action: "Open venue guide", modal: "desk-modal" },
   commitmentWall: { x: FOYER.policyWall.x, z: FOYER.policyWall.z + 1.1, radius: 2.8, title: "Policy & Pledge Wall", action: "Post a pledge", modal: "pledge-modal" },
   mediaHub: { x: FOYER.mediaHub.x, z: FOYER.mediaHub.z, radius: 2.6, title: "Youth Media Hub & Photo Wall", action: "Open venue guide", modal: "desk-modal" },
-  podium: { x: 4.2, z: -24.0, radius: 1.4, title: "Speaker Lectern", action: "Step up to the lectern", modal: "podium" },
+  podium: { x: hallLayout.stageSet.lectern[0] - 1.3, z: STAGE.zFront + 0.75, radius: 1.5, title: "Speaker Lectern", action: "Step up to the lectern", modal: "podium" },
   stageScreen: { x: LED.cx, z: STAGE.zFront + 0.6, radius: 3.0, title: "Main Stage LED Wall", action: "Open theater view", modal: "stage-modal" },
 };
 
@@ -722,13 +757,14 @@ function addVenueLighting() {
   scene.add(hemiLight);
 
   // The ceiling is 7 m now, so the general fixtures sit high with a long reach, and the booth
-  // islands get warm pools over their spines from the clip spots. Those pools are what make the
-  // islands read as lit stands rather than props on an evenly lit floor. The widened foyer gets
-  // two fixtures per side.
+  // islands get warm pools over their spines. Those pools are what make the islands read as lit
+  // stands rather than props on an evenly lit floor. The lobby gets fixtures over the deal
+  // corner, the photo wall / media hub, registration and the organizer stands.
   const ceilingFixtures = [
     [5.0, 6.6, -7.8], [14.4, 6.6, -7.8], [5.0, 6.6, -16.0], [14.4, 6.6, -16.0],
     [9.68, 6.6, -21.5],
-    [23.5, 6.6, -6.5], [29.0, 6.6, -17.5], [23.5, 6.6, -17.5], [29.0, 6.6, -6.5],
+    [23.5, 6.6, -5.5], [23.5, 6.6, -15.0], [30.5, 6.6, -10.0], [37.5, 6.6, -4.0],
+    [37.5, 6.6, -15.0], [46.0, 6.6, -10.0], [46.6, 6.6, -18.0],
   ];
   ceilingFixtures.forEach(([x, y, z], idx) => {
     if (isLowPowerDevice && idx % 2 === 1) return;
@@ -1155,13 +1191,13 @@ function attachTV(parent, localPos, meta, { w = TV_W, h = TV_H } = {}) {
   return group;
 }
 
-/** Booth back walls, counter fascias, island row totems, one TV per booth, and the venue signs. */
+/** Booth backwall prints, easel posters, island row totems and the venue signage. */
 function createBoothTVs() {
   venueSignage = createVenueSignage(scene, hallLayout, {
     lowPower: isLowPowerDevice,
     anisotropy: Math.min(8, renderer.capabilities.getMaxAnisotropy()),
   });
-  boothGrid = createBoothGrid(scene, hallLayout, BOOTH_POSITIONS, boothsData, {
+  boothGrid = createBoothGrid(scene, hallLayout, BOOTH_POSITIONS, boothsData, postersData, {
     lowPower: isLowPowerDevice,
     anisotropy: Math.min(8, renderer.capabilities.getMaxAnisotropy()),
     attachTV: (parent, localPos, b, size) => {
@@ -1210,7 +1246,7 @@ function createOrganizerBooths() {
         src: org.screenVideo || DEFAULT_SCREEN_VIDEO,
       }),
     });
-    // Stands line the foyer's curved east wall, each turned to face the middle of the curve.
+    // Stands line the lobby's north wall (Executive 3 frontage), facing south into the lobby.
     const yaw = Number.isFinite(org.yaw) ? org.yaw : -Math.PI / 2;
     group.position.set(org.x, 0, org.z);
     group.rotation.y = yaw;
@@ -1299,9 +1335,10 @@ let ledHole = null;
 
 function createStageSet() {
   const cy = LED.bottom + LED.height / 2;
-  const tex = new THREE.TextureLoader().load('/stage/led_idle.png');
+  // The LED wall shows the stage design; the keynote stream plays in its 16:9 window (LED.video).
+  const tex = new THREE.TextureLoader().load(LED.image || '/stage/led_idle.png');
   tex.colorSpace = THREE.SRGBColorSpace;
-  tex.anisotropy = 4;
+  tex.anisotropy = 8;
   const idle = new THREE.Mesh(
     new THREE.PlaneGeometry(LED.width, LED.height),
     new THREE.MeshBasicMaterial({ map: tex, toneMapped: false, fog: false }),
@@ -1311,7 +1348,7 @@ function createStageSet() {
   scene.add(idle);
 
   ledHole = new THREE.Mesh(
-    new THREE.PlaneGeometry(LED.width, LED.height),
+    new THREE.PlaneGeometry(LED_VIDEO.width, LED_VIDEO.height),
     new THREE.MeshBasicMaterial({
       color: 0x000000, transparent: true, opacity: 0, blending: THREE.NoBlending, fog: false,
     }),
@@ -1359,13 +1396,13 @@ function setupStageYouTubeScreen() {
   mount.id = 'stage-yt-mount';
   Object.assign(mount.style, {
     width: '1280px', height: '720px', pointerEvents: 'none', overflow: 'hidden',
-    background: '#1B2D5C url(/stage/led_idle.png) center / cover no-repeat',
+    background: `#1B2D5C url(${LED.image || '/stage/led_idle.png'}) center / cover no-repeat`,
   });
   mount.innerHTML = `<div id="stage-yt-player" style="width: 100%; height: 100%;"></div>`;
 
   stageCSSObject = new CSS3DObject(mount);
   stageCSSObject.position.set(LED.cx, LED.bottom + LED.height / 2, LED.z);
-  stageCSSObject.scale.set(LED.width / 1280, LED.height / 720, 1);
+  stageCSSObject.scale.set(LED_VIDEO.width / 1280, LED_VIDEO.height / 720, 1);
   cssScene.add(stageCSSObject);
 
   if (cssRenderer) cssRenderer.render(cssScene, camera);
@@ -1941,8 +1978,9 @@ function updateOnlineCount(count) {
 // The lectern works like a seat: the player is parked on the stage looking out at the hall
 // (the stage collider would otherwise push them straight back off the platform).
 const LECTERN_SPOT = {
-  id: 'lectern', x: 5.35, z: -25.35, y: STAGE.height + player.eyeHeight + 0.05, yaw: Math.PI, pitch: -0.08,
-  label: 'the speaker lectern', exit: { x: 4.2, z: -24.0 },
+  id: 'lectern', x: hallLayout.stageSet.lectern[0], z: hallLayout.stageSet.lectern[1] - 0.55,
+  y: STAGE.height + player.eyeHeight + 0.05, yaw: Math.PI, pitch: -0.08,
+  label: 'the speaker lectern', exit: { x: hallLayout.stageSet.lectern[0] - 1.3, z: STAGE.zFront + 0.75 },
 };
 
 function sitDownOnChair(chair) {
@@ -2080,8 +2118,8 @@ function setupControls() {
       case 'KeyM': toggleSound(); break;
       case 'KeyF': toggleFullscreen(); break;
       case 'KeyR':
-        teleportPlayer(9.68, 1.45, -2.5, 0);
-        showToast('Returned to the South Entrance.', { icon: '🚪' });
+        teleportPlayer(LOBBY.spawn.x, 1.45, LOBBY.spawn.z, LOBBY.spawn.yaw);
+        showToast('Returned to Registration.', { icon: '🚪' });
         break;
       case 'Escape':
         if (hasStarted && !isTouchDevice) showBlocker('paused');
@@ -2263,14 +2301,6 @@ function clampWorld(p, r) {
   if (p.x > WORLD_BOUNDS.maxX - r) p.x = WORLD_BOUNDS.maxX - r;
   if (p.z < WORLD_BOUNDS.minZ + r) p.z = WORLD_BOUNDS.minZ + r;
   if (p.z > WORLD_BOUNDS.maxZ - r) p.z = WORLD_BOUNDS.maxZ - r;
-  // Foyer: stay inside the curved east wall.
-  if (p.x > DIV_X) {
-    const w = FOYER_EAST_WALL;
-    const dx = p.x - w.cx, dz = p.z - w.cz;
-    const d = Math.hypot(dx, dz);
-    const lim = w.r - 0.3 - r;
-    if (d > lim) { p.x = w.cx + dx / d * lim; p.z = w.cz + dz / d * lim; }
-  }
 }
 
 /**
@@ -2338,6 +2368,10 @@ function resolveSolids(p, r) {
 
 /** Keeps the player `r` away from a wall segment (used for the chamfered stage-end corners). */
 function pushOutOfSegment(p, w, r) {
+  // The push below is a half-plane, so only apply it within the segment's own footprint —
+  // otherwise it would reach out of the hall and shove a player in the lobby back inside.
+  if (p.x < Math.min(w.ax, w.bx) - r || p.x > Math.max(w.ax, w.bx) + r
+      || p.z < Math.min(w.az, w.bz) - r || p.z > Math.max(w.az, w.bz) + r) return;
   const dx = w.bx - w.ax, dz = w.bz - w.az;
   const len2 = dx * dx + dz * dz;
   const t = Math.max(0, Math.min(1, ((p.x - w.ax) * dx + (p.z - w.az) * dz) / len2));
@@ -3084,9 +3118,13 @@ function openBoothModal(boothId, { tab = 'tab-overview', playWithSound = false }
   $('modal-quiz-pill').classList.toggle('hidden', !quizPassed.has(boothId));
   $('quiz-tab-dot').classList.toggle('on', !quizPassed.has(boothId) && !!(boothInfo.quiz && boothInfo.quiz.questions && boothInfo.quiz.questions.length));
 
+  // The team's poster (the one on the booth easel) at full size, where there is one.
   const screenImg = $('modal-screen-img');
-  screenImg.src = `/textures/booth_${pad2(boothId)}_screen.png`;
-  screenImg.alt = `${boothInfo.name || boothMeta.title} display terminal`;
+  const poster = postersData[String(boothId)];
+  screenImg.src = poster ? poster.lg : `/textures/booth_${pad2(boothId)}_screen.png`;
+  screenImg.alt = poster ? `${boothInfo.name || boothMeta.title} poster` : `${boothInfo.name || boothMeta.title} display terminal`;
+  $('modal-media-screen').classList.toggle('is-poster', !!poster);
+  $('modal-media-label').textContent = poster ? 'Team poster' : 'Presentation terminal';
   $('modal-media-id').textContent = pad2(boothId);
 
   const videoWrapper = $('modal-video-wrapper');
@@ -3743,12 +3781,16 @@ function updateVisitedHUD() {
 // --- Minimap Radar ---
 const MAP_SIZE = 200;
 let mapDpr = 1;
-// One scale for both axes so the hall keeps its proportions; 34 m covers the hall plus the
-// widened foyer, and z is offset so the stage end (≈ -29.2) sits at the top.
-const MAP_SPAN = 34;
-const MAP_Z_SPAN = 30;
-const mapX = (x) => 12 + (x / MAP_SPAN) * (MAP_SIZE - 24);
-const mapZ = (z) => 12 + ((MAP_Z_SPAN + z) / MAP_SPAN) * (MAP_SIZE - 24);
+// One scale for both axes so the venue keeps its proportions: 56 m across covers the hall and
+// the lobby east of it; the 34 m from the stage end (top) to the lobby's south bay is centred.
+const MAP_X0 = -1;
+const MAP_SPAN = 56;
+const MAP_Z0 = HALL_NORTH_Z - 0.5;
+const MAP_Z_SPAN = 34;
+const MAP_PX = (MAP_SIZE - 24) / MAP_SPAN;
+const MAP_Z_PAD = (MAP_SIZE - 24 - MAP_Z_SPAN * MAP_PX) / 2;
+const mapX = (x) => 12 + (x - MAP_X0) * MAP_PX;
+const mapZ = (z) => 12 + MAP_Z_PAD + (z - MAP_Z0) * MAP_PX;
 
 function setupMinimapCanvas() {
   const canvas = $('minimap-canvas');
@@ -3788,19 +3830,20 @@ function buildMinimapStatic() {
   ctx.closePath();
   ctx.stroke();
 
-  // Foyer perimeter, with its curved east wall
-  const foyerN = HALL_NORTH_Z + 4.0;
-  const ew = FOYER_EAST_WALL;
-  const wallX = (z) => ew.cx + Math.sqrt(Math.max(0, ew.r * ew.r - (z - ew.cz) ** 2));
+  // Lobby perimeter (its last edge is the hall's east wall), entrance doors and the pillar.
   ctx.strokeStyle = 'rgba(245, 158, 11, 0.45)';
   ctx.beginPath();
-  ctx.moveTo(mapX(19.35), mapZ(0.0));
-  for (let z = 0; z >= foyerN; z -= 0.5) ctx.lineTo(mapX(wallX(z)), mapZ(z));
-  ctx.lineTo(mapX(wallX(foyerN)), mapZ(foyerN));
-  ctx.lineTo(mapX(19.35), mapZ(foyerN));
+  LOBBY.outline.forEach(([x, z], i) => ctx[i ? 'lineTo' : 'moveTo'](mapX(x), mapZ(z)));
   ctx.stroke();
+  ctx.strokeStyle = 'rgba(125, 211, 252, 0.9)';
+  ctx.beginPath();
+  for (const [d0, d1] of LOBBY.doors) { ctx.moveTo(mapX(d0), mapZ(0)); ctx.lineTo(mapX(d1), mapZ(0)); }
+  ctx.stroke();
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+  ctx.fillRect(mapX(LOBBY.pillar.x) - 1.5, mapZ(LOBBY.pillar.z) - 1.5, 3, 3);
+  const foyerN = LOBBY.outline[LOBBY.outline.length - 1][1];
 
-  // Foyer set: event arch, cocktail tables, curved photo wall, partners wall.
+  // Lobby set: event arch, cocktail tables, curved photo wall, partners wall.
   ctx.fillStyle = 'rgba(255, 255, 255, 0.35)';
   for (const [tx, tz] of FOYER.dealCorner.tables) {
     ctx.beginPath();
@@ -3828,9 +3871,8 @@ function buildMinimapStatic() {
   // Divider wall with doors
   ctx.strokeStyle = 'rgba(255, 255, 255, 0.35)';
   ctx.beginPath();
-  ctx.moveTo(mapX(19.35), mapZ(0.0)); ctx.lineTo(mapX(19.35), mapZ(-7.0));
-  ctx.moveTo(mapX(19.35), mapZ(-8.8)); ctx.lineTo(mapX(19.35), mapZ(-11.4));
-  ctx.moveTo(mapX(19.35), mapZ(-13.2)); ctx.lineTo(mapX(19.35), mapZ(foyerN));
+  ctx.moveTo(mapX(19.35), mapZ(0.0)); ctx.lineTo(mapX(19.35), mapZ(-7.18));
+  ctx.moveTo(mapX(19.35), mapZ(-13.08)); ctx.lineTo(mapX(19.35), mapZ(foyerN));
   ctx.stroke();
 
   // Stage + LED wall
@@ -3856,14 +3898,14 @@ function buildMinimapStatic() {
     ctx.fillRect(mapX(spot.x) - 3, mapZ(spot.z) - 3, 6, 6);
   }
 
-  // Organizer booths (brand-coloured stands along the foyer's east side)
+  // Organizer booths: brand-coloured stands along the lobby's north wall, labelled underneath.
   for (const { org } of organizerBooths.values()) {
     ctx.fillStyle = brandHighlight(org);
-    ctx.fillRect(mapX(org.x) - 2.5, mapZ(org.z) - 6, 5, 12);
+    ctx.fillRect(mapX(org.x) - 5, mapZ(org.z) - 1.5, 10, 3);
     ctx.fillStyle = '#fff';
-    ctx.font = 'bold 7px sans-serif';
-    ctx.textAlign = 'right';
-    ctx.fillText(org.short.toUpperCase(), mapX(org.x) - 5, mapZ(org.z) + 3);
+    ctx.font = 'bold 6px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(org.short.toUpperCase(), mapX(org.x), mapZ(org.z) + 8);
   }
   ctx.textAlign = 'left';
 
@@ -4014,6 +4056,7 @@ const _lookDir = new THREE.Vector3();
 let lastPresenceHeartbeat = 0;
 let lastFrameMs = 0;
 
+let posterTick = 0;
 function animate() {
   requestAnimationFrame(animate);
 
@@ -4031,6 +4074,8 @@ function animate() {
   updatePlayer(delta);
   updateRemoteAvatars(delta);
   if (mascots) mascots.update(t, delta, player.pos, openModals.size > 0 || isBlockerVisible());
+  // Sharp easel posters near the player (about four times a second is plenty).
+  if (boothGrid && (++posterTick & 15) === 0) boothGrid.update(player.pos.x, player.pos.z);
   checkProximity();
   drawMinimap();
 
@@ -4132,6 +4177,8 @@ window.__diplomaticGame = {
   get tvScreens() { return tvScreens; },
   get sharedVideos() { return sharedVideos; },
   get mascots() { return mascots; },
+  get boothGrid() { return boothGrid; },
+  LOBBY,
   get organizerBooths() { return organizerBooths; },
   get presence() { return presence; },
   get hallModel() { return hallModel; },

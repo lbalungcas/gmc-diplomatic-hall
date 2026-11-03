@@ -1,7 +1,8 @@
 /**
  * Functional regression pass over the interactions most likely to break from the venue rebuild:
- * booth proximity, TV raycasting, modals, seating, the CSS3D stage screen, the pledge wall
- * canvas texture, the minimap layers, waypoints and collision.
+ * the registration spawn, booth proximity, easel posters, the venue signage prints, modals,
+ * seating, the CSS3D stage screen, the pledge wall canvas texture, the minimap layers, waypoints
+ * and collision in the hall and the lobby.
  */
 import { spawn } from 'node:child_process';
 import { createRequire } from 'node:module';
@@ -85,6 +86,12 @@ async function check(name, expr) {
 const G = 'window.__diplomaticGame';
 const settle = 'await new Promise(r => setTimeout(r, 450));';
 
+// ---- spawn: visitors start at registration in the lobby -------------------------------------
+await check('player starts at registration', `
+  const s = ${G}.LOBBY.spawn, p = ${G}.player.pos;
+  const d = Math.hypot(p.x - s.x, p.z - s.z);
+  return { ok: d < 1.0, detail: 'at (' + p.x.toFixed(2) + ', ' + p.z.toFixed(2) + '), ' + d.toFixed(2) + ' m from spawn' };`);
+
 // ---- venue loaded and materially correct --------------------------------------------------
 await check('venue GLB loaded with meshes', `
   let n = 0, mats = new Set();
@@ -121,12 +128,15 @@ await check('24 booths in 4 rows of 6', `
     && Object.keys(per).join('') === 'ABCD' && Object.values(per).every(n => n === 6);
   return { ok, detail: ids.length + ' booths, rows ' + JSON.stringify(per) };`);
 
-await check('LED wall: idle slide + window + 10 m CSS screen', `
+await check('LED wall: design + 16:9 stream window', `
   let idle = null, hole = null;
   ${G}.scene.traverse(o => { if (o.name === 'Stage_LED_Idle') idle = o; if (o.name === 'Stage_LED_Window') hole = o; });
   const css = ${G}.cssScene.children[0];
-  const w = css ? css.scale.x * 1280 : 0;
-  return { ok: !!idle && !!hole && w > 9.9, detail: 'css width ' + w.toFixed(2) + ' m' };`);
+  const w = css ? css.scale.x * 1280 : 0, h = css ? css.scale.y * 720 : 0;
+  const iw = idle ? idle.geometry.parameters.width : 0;
+  const hw = hole ? hole.geometry.parameters.width : 0;
+  const ok = iw > 8.9 && Math.abs(hw - w) < 0.01 && Math.abs(w / h - 16 / 9) < 0.01 && w < iw;
+  return { ok, detail: 'panel ' + iw.toFixed(2) + ' m, stream ' + w.toFixed(2) + ' x ' + h.toFixed(2) + ' m' };`);
 
 // ---- interaction --------------------------------------------------------------------------
 // yaw 0 faces -Z, so forward = (-sin(yaw), 0, -cos(yaw)); to face a point (dx, dz) away the yaw
@@ -139,46 +149,62 @@ await check('booth proximity prompt', `
   const t = ${G}.activeTarget;
   return { ok: !!t && t.type === 'booth' && t.id === 1, detail: t ? t.type + ' ' + (t.id ?? t.key) : 'none' };`);
 
-// pickTV raycasts from the camera, and the camera is only moved inside updatePlayer during a
-// frame — so this one has to wait for real frames rather than poke state directly.
-await check('TV raycast picks a booth screen', `
+// Every booth has a poster on its easel: 23 from posters.json and a stand-in for the one without.
+await check('easel posters on all 24 booths', `
+  const meshes = [];
+  ${G}.scene.traverse(o => { if (/^Booth_\\d\\d_Poster$/.test(o.name)) meshes.push(o); });
+  for (let i = 0; i < 40 && meshes.some(m => !m.material.map || !m.material.map.image); i++) await new Promise(r => setTimeout(r, 250));
+  const loaded = meshes.filter(m => m.material.map && m.material.map.image && m.material.map.image.width > 0);
+  return { ok: meshes.length === 24 && loaded.length === 24, detail: meshes.length + ' posters, ' + loaded.length + ' with an image' };`);
+
+// Walking up to an easel swaps in the sharp poster.
+await check('sharp poster loads near an easel', `
   const b = ${G}.BOOTH_POSITIONS[1];
-  const scr = ${G}.tvScreens.find(s => s.userData.boothId === 1);
-  const p = new window.THREE.Vector3();
-  scr.getWorldPosition(p);
-  const dx = p.x - b.ax, dz = p.z - b.az;
-  ${G}.teleportPlayer(b.ax, 1.45, b.az, Math.atan2(-dx, -dz));
-  ${G}.player.pitch = Math.atan2(p.y - 1.45, Math.hypot(dx, dz));
-  for (let i = 0; i < 3; i++) await new Promise(r => requestAnimationFrame(r));
-  const tv = ${G}.pickTV(0, 0);
-  return { ok: !!tv && tv.boothId === 1, detail: tv ? tv.key : 'no hit' };`);
+  ${G}.teleportPlayer(b.easelX, 1.45, b.easelZ + b.facing * 1.2, 0);
+  ${G}.boothGrid.update(b.easelX, b.easelZ + b.facing * 1.2);
+  let mesh = null;
+  ${G}.scene.traverse(o => { if (o.name === 'Booth_01_Poster') mesh = o; });
+  for (let i = 0; i < 40 && !(mesh.material.map.image && mesh.material.map.image.width > 1000); i++) await new Promise(r => setTimeout(r, 250));
+  const w = mesh.material.map.image ? mesh.material.map.image.width : 0;
+  return { ok: w > 1000, detail: 'poster texture ' + w + ' px wide' };`);
 
 await check('spine wall blocks walking through an island', `
   const b = ${G}.BOOTH_POSITIONS[14];
   const p = new window.THREE.Vector3(b.cx, 1.45, b.spineZ + 0.1);
   ${G}.checkCollision(p);
   const d = Math.abs(p.z - b.spineZ);
-  return { ok: d > 0.8, detail: 'pushed to ' + d.toFixed(2) + ' m from the spine' };`);
+  return { ok: d > 0.5, detail: 'pushed to ' + d.toFixed(2) + ' m from the spine' };`);
 
-// Open booths: a visitor can step in between two counters and stand inside a booth.
-await check('open booth can be entered between counters', `
+// Booths are open at the front: the table is solid, the aisle in front of it is clear.
+await check('booth table is solid, its front is open', `
   const b = ${G}.BOOTH_POSITIONS[14];
-  const gap = new window.THREE.Vector3(b.cx + 1.2, 1.45, b.spineZ + b.facing * 1.8);
-  const inside = new window.THREE.Vector3(b.cx, 1.45, b.spineZ + b.facing * 1.0);
-  const g0 = gap.clone(), i0 = inside.clone();
-  ${G}.checkCollision(gap);
-  ${G}.checkCollision(inside);
-  const moved = gap.distanceTo(g0) + inside.distanceTo(i0);
-  return { ok: moved < 0.01, detail: 'moved ' + moved.toFixed(3) + ' m' };`);
+  const front = new window.THREE.Vector3(b.ax, 1.45, b.az);
+  const table = new window.THREE.Vector3(b.x, 1.45, b.z);
+  const f0 = front.clone(), t0 = table.clone();
+  ${G}.checkCollision(front);
+  ${G}.checkCollision(table);
+  return { ok: front.distanceTo(f0) < 0.01 && table.distanceTo(t0) > 0.3,
+           detail: 'front moved ' + front.distanceTo(f0).toFixed(3) + ' m, table pushed ' + table.distanceTo(t0).toFixed(2) + ' m' };`);
 
-await check('widened foyer: curved east wall holds', `
-  // z = -6 is clear of furniture (inside the photo-wall curve, beside the media hub set).
-  const inside = new window.THREE.Vector3(31.6, 1.45, -6.0);
-  const outside = new window.THREE.Vector3(34.5, 1.45, -6.0);
-  const i0 = inside.clone();
-  ${G}.checkCollision(inside);
-  ${G}.checkCollision(outside);
-  return { ok: inside.distanceTo(i0) < 0.01 && outside.x < 33.0, detail: 'outside clamped to x=' + outside.x.toFixed(2) };`);
+await check('lobby walls hold, lobby floor is free', `
+  const T = window.THREE;
+  const probes = [
+    ['south bay', new T.Vector3(36.0, 1.45, 5.5), (p) => p.z < 3.6],
+    ['east wall', new T.Vector3(55.0, 1.45, -12.0), (p) => p.x < 53.6],
+    ['north of deal corner', new T.Vector3(30.0, 1.45, -20.6), (p) => p.z > -19.6],
+    ['hall south wall', new T.Vector3(9.0, 1.45, 0.5), (p) => p.z < -1.0],
+  ];
+  const bad = [];
+  for (const [name, p, ok] of probes) { ${G}.checkCollision(p); if (!ok(p)) bad.push(name + '@' + p.x.toFixed(1) + ',' + p.z.toFixed(1)); }
+  const free = new T.Vector3(48.0, 1.45, -12.0), f0 = free.clone();
+  ${G}.checkCollision(free);
+  if (free.distanceTo(f0) > 0.01) bad.push('open floor moved');
+  return { ok: bad.length === 0, detail: bad.length ? bad.join('; ') : 'all walls hold' };`);
+
+await check('event arch opening is walkable', `
+  const mid = new window.THREE.Vector3(20.45, 1.45, -10.13), m0 = mid.clone();
+  ${G}.checkCollision(mid);
+  return { ok: mid.distanceTo(m0) < 0.01, detail: 'opening moved ' + mid.distanceTo(m0).toFixed(3) + ' m' };`);
 
 await check('booth modal opens and closes', `
   ${G}.openBoothModal(3);
@@ -188,9 +214,14 @@ await check('booth modal opens and closes', `
   ${settle}
   return { ok: open && !${G}.openModals.includes('booth-modal'), detail: 'opened=' + open };`);
 
-await check('booth poster image resolves', `
-  const r = await fetch('/textures/booth_03_screen.png', { method: 'HEAD' });
-  return { ok: r.ok, detail: 'HTTP ' + r.status };`);
+await check('booth modal shows the team poster', `
+  ${G}.openBoothModal(3);
+  ${settle}
+  const img = document.getElementById('modal-screen-img');
+  const r = await fetch(img.src, { method: 'HEAD' });
+  document.querySelectorAll('[data-close="booth-modal"]').forEach(b => b.click());
+  ${settle}
+  return { ok: r.ok && /posters/.test(img.src), detail: img.src.replace(location.origin, '') + ' HTTP ' + r.status };`);
 
 await check('chair sit and stand', `
   const c0 = ${G}.CHAIR_LOCATIONS[0];
@@ -254,9 +285,13 @@ await check('adaptive quality governor responds', `
   q.forceLevel(0);
   return { ok: mid === 2 && q.level === 0, detail: 'stepped to ' + mid + ' and back to ' + q.level };`);
 
-await check('booth TVs all have a video texture', `
-  const bad = ${G}.tvScreens.filter(s => !s.material.map || !s.material.map.image);
-  return { ok: bad.length === 0, detail: ${G}.tvScreens.length + ' screens, ' + bad.length + ' without video' };`);
+await check('venue signage prints are in place', `
+  const want = ['EventArch_Front', 'EventArch_Back', 'StageBanner_W', 'StageBanner_E', 'PhotoWall_Print', 'MediaHub_Print'];
+  const found = {};
+  ${G}.scene.traverse(o => { if (want.includes(o.name)) found[o.name] = o; });
+  for (let i = 0; i < 40 && want.some(n => found[n] && found[n].material.map && !found[n].material.map.image); i++) await new Promise(r => setTimeout(r, 250));
+  const missing = want.filter(n => !found[n] || !found[n].material.map || !found[n].material.map.image);
+  return { ok: missing.length === 0, detail: missing.length ? 'missing ' + missing.join(',') : want.length + ' prints loaded' };`);
 
 console.log('\\n  RESULT  CHECK                                     DETAIL');
 console.log('  ' + '-'.repeat(96));

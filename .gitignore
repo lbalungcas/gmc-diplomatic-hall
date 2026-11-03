@@ -50,3 +50,8 @@ textures/*
 /Youth Innovation Marketplace - Tutu Logo Lookup.png
 
 
+
+# Client print-resolution source art (~45 MB). scripts/prepare_assets.py turns it into the web
+# versions under public/booths/posters and public/venue, which are committed.
+/YIM Booth Signages/
+/venue designs/

@@ -8,8 +8,8 @@
     "bg": "#1D1D1B",
     "accent": "#F38500",
     "ink": "#1D1D1B",
-    "x": 32.44,
-    "z": -13.52,
+    "x": 50.8,
+    "z": -20.75,
     "mascot": "tutu",
     "kicker": "ORGANIZER BOOTH",
     "overview": "Terre des hommes (Tdh) is the leading Swiss children's rights organisation. For more than 60 years it has worked hand in hand with children in over 30 countries to win protection and respect for their rights — in health, for children on the move, and in access to justice. Tdh co-organizes the Youth Innovations Marketplace; stop by to meet the team and find out how to stay involved after the summit.",
@@ -38,7 +38,12 @@
         "url": "https://www.tdh.org/en"
       }
     ],
-    "yaw": -1.4627
+    "yaw": 0,
+    "art": {
+      "backwall": "/venue/organizers/tdh-backwall.webp",
+      "table": "/venue/organizers/tdh-table.webp",
+      "banner": "/venue/organizers/tdh-banner.webp"
+    }
   },
   {
     "id": "knh",
@@ -49,8 +54,8 @@
     "bg": "#0050A0",
     "accent": "#F18B27",
     "ink": "#1A1A1A",
-    "x": 31.73,
-    "z": -17.41,
+    "x": 46.6,
+    "z": -20.75,
     "mascot": null,
     "kicker": "ORGANIZER BOOTH",
     "overview": "Kindernothilfe (KNH) is a Christian children's relief organisation founded in Duisburg, Germany, in 1959. It works exclusively through local project partners to secure a better future for children — strengthening child protection, education and self-help groups, and training more than 650 organisations worldwide. At the Marketplace, KNH co-hosts the organizer area and the partner network behind the youth innovations on show.",
@@ -79,7 +84,11 @@
         "url": "https://www.kindernothilfe.org/en/"
       }
     ],
-    "yaw": -1.3163
+    "yaw": 0,
+    "art": {
+      "backwall": "/venue/organizers/knh-backwall.webp",
+      "banner": "/venue/organizers/knh-banner.webp"
+    }
   },
   {
     "id": "vewu",
@@ -90,8 +99,8 @@
     "bg": "#1C3462",
     "accent": "#F2C667",
     "ink": "#1C3462",
-    "x": 30.39,
-    "z": -21.3,
+    "x": 42.4,
+    "z": -20.75,
     "mascot": "vewu-lighthouse",
     "kicker": "ORGANIZER BOOTH",
     "overview": "Violence Ends With Us (VEWU) is a regional youth-led movement dedicated to children, young people and survivors across the Asia-Pacific. Uniting voices from over 20 countries, VEWU turns youth ideas into action, brings lived realities into decision-making spaces, and grows a community of Lightkeepers working toward a violence-free future. Follow the lighthouse — and join the movement.",
@@ -120,6 +129,11 @@
         "url": "https://violenceendswithus.com/"
       }
     ],
-    "yaw": -1.164
+    "yaw": 0,
+    "art": {
+      "backwall": "/venue/organizers/vewu-backwall.webp",
+      "table": "/venue/organizers/vewu-table.webp",
+      "banner": "/venue/organizers/vewu-banner.webp"
+    }
   }
 ]

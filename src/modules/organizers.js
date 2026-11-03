@@ -333,6 +333,7 @@ function createBrochureTexture(org, i) {
  * Footprint stays inside ±1.75 m along X so neighbouring stands (3.5 m apart) never touch.
  */
 export function buildOrganizerBooth(org, { attachTV, castShadow = true } = {}) {
+  if (org.art && org.art.backwall) return buildArtBooth(org, { castShadow });
   const group = new THREE.Group();
   group.name = `Organizer_${org.id}`;
 
@@ -477,6 +478,134 @@ export function buildOrganizerBooth(org, { attachTV, castShadow = true } = {}) {
   // Collision: the backwall arc + counter as one solid (the staff gap behind the counter is
   // narrower than a visitor), the banner base and the rack each on their own.
   return { group, solids: [[front, body], [bannerBase], [rackFoot]] };
+}
+
+// ---------------------------------------------------------------------------------------------
+// Art mode: the organizers' own booth designs (venue designs/organizer booths, prepared into
+// public/venue/organizers by scripts/prepare_assets.py). A flat printed backwall on a frame, a
+// counter whose front carries the table print (a black draped table where there is no table
+// design), and a roll-up banner with the standing-banner print. No TV, as in the designs.
+// ---------------------------------------------------------------------------------------------
+const ART_WALL_W = 3.0;
+const ART_WALL_H = 2.3;
+const ART_TABLE = { w: 1.6, h: 0.8, d: 0.6, z: 1.05 };
+const ART_BANNER = { w: 0.85, h: 2.0, x: 1.95, z: 0.35, yaw: -0.3 };
+
+function artTexture(url, onLoad) {
+  const tex = new THREE.TextureLoader().load(url, onLoad);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.anisotropy = 8;
+  return tex;
+}
+
+function buildArtBooth(org, { castShadow = true } = {}) {
+  const group = new THREE.Group();
+  group.name = `Organizer_${org.id}`;
+  const art = org.art;
+  const frameMat = new THREE.MeshStandardMaterial({ color: 0xd9dde3, roughness: 0.3, metalness: 0.85 });
+  const cloth = new THREE.MeshStandardMaterial({ color: 0x141416, roughness: 0.92 });
+  const edge = new THREE.MeshStandardMaterial({ color: 0xf4f4f2, roughness: 0.7 });
+
+  // --- Backwall: a 3 m frame, the print sized by its own aspect and hung at the top; anything
+  // below the print (KNH's 2:1 design) is filled with the print's bottom-edge colour.
+  const shell = new THREE.Mesh(new THREE.BoxGeometry(ART_WALL_W + 0.06, ART_WALL_H + 0.06, 0.1), edge);
+  shell.position.set(0, ART_WALL_H / 2 + 0.02, -0.05);
+  shell.castShadow = castShadow;
+  shell.receiveShadow = true;
+  shell.name = 'panel';
+  group.add(shell);
+  const fill = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.8 });
+  const skirt = new THREE.Mesh(new THREE.PlaneGeometry(ART_WALL_W, 1), fill);
+  skirt.visible = false;
+  group.add(skirt);
+  const printMat = new THREE.MeshStandardMaterial({ roughness: 0.75, emissive: 0xffffff, emissiveIntensity: 0.12 });
+  const print = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), printMat);
+  print.position.z = 0.003;
+  group.add(print);
+  printMat.map = artTexture(art.backwall, (tex) => {
+    const img = tex.image;
+    const h = Math.min(ART_WALL_H, ART_WALL_W * img.height / img.width);
+    print.scale.set(ART_WALL_W, h, 1);
+    print.position.y = 0.05 + ART_WALL_H - h / 2;
+    const rest = ART_WALL_H - h;
+    if (rest > 0.01) {
+      // Sample the print's bottom row for the skirt colour.
+      const c = document.createElement('canvas');
+      c.width = 8; c.height = 1;
+      const ctx = c.getContext('2d');
+      ctx.drawImage(img, 0, img.height - 2, img.width, 1, 0, 0, 8, 1);
+      const d = ctx.getImageData(0, 0, 1, 1).data;
+      fill.color.setRGB(d[0] / 255, d[1] / 255, d[2] / 255, THREE.SRGBColorSpace);
+      skirt.scale.y = rest;
+      skirt.position.set(0, 0.05 + rest / 2, 0.003);
+      skirt.visible = true;
+    }
+  });
+  printMat.emissiveMap = printMat.map;
+  print.scale.set(ART_WALL_W, ART_WALL_W * 0.75, 1);
+  print.position.y = 0.05 + ART_WALL_H - ART_WALL_W * 0.375;
+  for (const sx of [-1, 1]) {
+    const foot = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.03, 0.6), frameMat);
+    foot.position.set(sx * (ART_WALL_W / 2 - 0.15), 0.015, 0.0);
+    group.add(foot);
+  }
+
+  // --- Counter: printed front panel (or plain black drape) with a dark top.
+  const t = ART_TABLE;
+  const body = new THREE.Mesh(new THREE.BoxGeometry(t.w, t.h, t.d), cloth);
+  body.position.set(0, t.h / 2, t.z);
+  body.castShadow = castShadow;
+  body.receiveShadow = true;
+  body.name = 'table';
+  group.add(body);
+  const top = new THREE.Mesh(new THREE.BoxGeometry(t.w + 0.04, 0.03, t.d + 0.04), cloth);
+  top.position.set(0, t.h + 0.015, t.z);
+  group.add(top);
+  if (art.table) {
+    const front = new THREE.Mesh(
+      new THREE.PlaneGeometry(t.w, t.h),
+      new THREE.MeshStandardMaterial({ map: artTexture(art.table), roughness: 0.6 }),
+    );
+    front.position.set(0, t.h / 2, t.z + t.d / 2 + 0.003);
+    group.add(front);
+  }
+  const paper = new THREE.MeshStandardMaterial({ color: 0xf1f0ec, roughness: 0.9 });
+  for (let i = 0; i < 2; i++) {
+    const stack = new THREE.Mesh(new THREE.BoxGeometry(0.21, 0.025, 0.28), paper);
+    stack.position.set(-0.35 + i * 0.6, t.h + 0.045, t.z - 0.05);
+    stack.rotation.y = (i - 0.5) * 0.3;
+    group.add(stack);
+  }
+
+  // --- Roll-up banner beside the backwall, turned toward the aisle.
+  const b = ART_BANNER;
+  const stand = new THREE.Group();
+  stand.position.set(b.x, 0, b.z);
+  stand.rotation.y = b.yaw;
+  group.add(stand);
+  const bannerMat = new THREE.MeshStandardMaterial({ roughness: 0.7, emissive: 0xffffff, emissiveIntensity: 0.12 });
+  bannerMat.map = artTexture(art.banner);
+  bannerMat.emissiveMap = bannerMat.map;
+  const banner = new THREE.Mesh(new THREE.PlaneGeometry(b.w, b.h), bannerMat);
+  banner.position.set(0, 0.08 + b.h / 2, 0.012);
+  stand.add(banner);
+  const backing = new THREE.Mesh(new THREE.PlaneGeometry(b.w, b.h), new THREE.MeshStandardMaterial({ color: 0xe6e6e6, roughness: 0.8 }));
+  backing.position.set(0, 0.08 + b.h / 2, 0.008);
+  backing.rotation.y = Math.PI;
+  stand.add(backing);
+  const bannerBase = new THREE.Mesh(new THREE.BoxGeometry(b.w + 0.05, 0.08, 0.22), frameMat);
+  bannerBase.position.y = 0.04;
+  bannerBase.name = 'bannerBase';
+  stand.add(bannerBase);
+  const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.008, b.h, 6), frameMat);
+  pole.position.set(0, 0.08 + b.h / 2, -0.03);
+  stand.add(pole);
+  const bar = new THREE.Mesh(new THREE.CylinderGeometry(0.01, 0.01, b.w + 0.02, 6), frameMat);
+  bar.rotation.z = Math.PI / 2;
+  bar.position.set(0, 0.08 + b.h, 0.012);
+  stand.add(bar);
+
+  return { group, solids: [[shell, body], [bannerBase]] };
 }
 
 /**

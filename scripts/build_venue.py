@@ -56,10 +56,12 @@ OUT = os.path.join(ROOT, 'public', 'models', 'diplomatic_hall.glb')
 # The walkable envelope, mirroring WORLD_BOUNDS in src/main.js (three.js z = -blender y), after
 # venue_set.reshape_hall() has stretched the hall north. Anything comfortably outside it can
 # never be seen, so it is dropped.
-# The foyer is widened east by the same pass, so the east limit moves with it — otherwise the
-# prune below would delete the very walls the reshape just moved.
-ENVELOPE = dict(min_x=0.0, max_x=28.0 + venue_set.LAYOUT['hall'].get('stretchEastBy', 0.0), min_y=0.0,
+# The east limit is the old corridor foyer's: the .blend's leftovers beyond it (old organizer
+# stands, props behind its east wall) must go. The lobby that venue_set.build_lobby() models east
+# of the hall reaches much further, so its objects are exempt (LOBBY_PREFIXES).
+ENVELOPE = dict(min_x=0.0, max_x=28.0, min_y=0.0,
                 max_y=-venue_set.LAYOUT['hall']['northWallZ'] + 1.0)
+LOBBY_PREFIXES = ('Lobby_', 'W_Lobby', 'Door_Lobby', 'Foyer_Set')
 
 # Meshes the runtime hides and rebuilds procedurally — HIDE_NODE_RE in src/main.js, plus the
 # organizer stands that src/modules/organizers.js replaces.
@@ -412,6 +414,8 @@ def step_prune():
         why = None
         if any(o.name.startswith(h) for h in HIDDEN_AT_RUNTIME):
             why = 'hidden at runtime'
+        elif o.name.startswith(LOBBY_PREFIXES):
+            pass
         else:
             pts = [o.matrix_world @ Vector(c) for c in o.bound_box]
             if (min(p.x for p in pts) > ENVELOPE['max_x'] or max(p.x for p in pts) < ENVELOPE['min_x']
@@ -629,6 +633,12 @@ def step_join_static():
 
 def step_export():
     os.makedirs(os.path.dirname(OUT), exist_ok=True)
+    # The exporter's meshopt path stores positions through the exponential filter with a 12-bit
+    # mantissa. With the lobby reaching x = 54 m that is 1-2 cm of error, enough for the runtime
+    # prints laid a few millimetres in front of baked boards (photo wall, standees, backwalls)
+    # to lose the depth test in strips. 20 bits brings it under 0.1 mm for a few % more geometry.
+    from io_scene_gltf2.io.exp import meshopt as gltf_meshopt
+    gltf_meshopt.EXP_FILTER_BITS = 20
     bpy.ops.export_scene.gltf(
         filepath=OUT,
         export_format='GLB',

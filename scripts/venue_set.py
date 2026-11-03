@@ -5,12 +5,14 @@ Imported by scripts/build_venue.py (runs under Blender). Everything is placed fr
 src/data/hallLayout.json, the same file src/main.js reads for interaction and collision, so the
 baked geometry and the runtime can never disagree about where a booth or the stage is.
 
-  reshape_hall()        stretch the hall north, widen the foyer east, lift the ceiling
+  reshape_hall()        stretch the hall north and lift the ceiling
   build_stage()         platform, side steps, LED wall frame, lighting truss, set furniture, speakers
   build_seating()       two upholstered audience benches, ten seats each
-  build_grid()          24 open-style booths in two back-to-back islands (October 19 floor plan)
-  build_foyer()         partners wall, event arch, deal-corner cocktail tables, curved photo wall +
-                        Youth Media Hub set, sign stands
+  build_lobby()         the lobby outside the hall, from the floor plan: floor, ceiling, walls,
+                        entrance doors, the restroom-block door and the pillar
+  build_grid()          24 booths in two back-to-back islands, after the booth-style reference
+  build_foyer()         partners wall, event arch returns, deal-corner cocktail tables, curved photo
+                        wall + Youth Media Hub set, standees
   build_hall_features() photo booth and the safeguarding area
 
 Coordinates: the layout is in three.js metres (x, z with y up); Blender is (x, y = -z, z up).
@@ -58,7 +60,7 @@ MATERIALS = {
     'Mat_Soil':           dict(color=srgb(62, 46, 34), roughness=0.95, metallic=0.0),
     'Mat_Plant_Leaf':     dict(color=srgb(58, 140, 70), roughness=0.55, metallic=0.0, double_sided=True),
     'Mat_Plant_Leaf_Lt':  dict(color=srgb(110, 182, 80), roughness=0.55, metallic=0.0, double_sided=True),
-    'Mat_Stage_Skirt':    dict(color=srgb(24, 38, 82), roughness=0.92, metallic=0.0),
+    'Mat_Stage_Skirt':    dict(color=srgb(48, 45, 42), roughness=0.9, metallic=0.0),
     'Mat_Stage_Glow':     dict(color=srgb(255, 214, 120), roughness=0.4, metallic=0.0,
                                emit_color=srgb(255, 200, 90), emit_strength=3.0),
     'Mat_LED_Frame':      dict(color=srgb(16, 18, 24), roughness=0.5, metallic=0.4),
@@ -98,6 +100,18 @@ MATERIALS = {
                                detail=('booth_fabric_normal', 'booth_fabric_orm', 9.0), normal_strength=0.6),
     'Mat_Screen_Glow':    dict(color=srgb(120, 180, 255), roughness=0.3, metallic=0.0,
                                emit_color=srgb(120, 190, 255), emit_strength=2.0),
+    # Booth-style reference: blue backwall returns, black draped tables, black chairs, easels.
+    'Mat_Booth_Edge':     dict(color=srgb(0, 80, 160), roughness=0.5, metallic=0.05),
+    'Mat_Table_Cloth':    dict(color=srgb(18, 18, 20), roughness=0.92, metallic=0.0,
+                               detail=('booth_fabric_normal', 'booth_fabric_orm', 8.0), normal_strength=0.6),
+    'Mat_Chair_Black':    dict(color=srgb(22, 22, 25), roughness=0.55, metallic=0.1),
+    'Mat_Foam':           dict(color=srgb(245, 245, 242), roughness=0.6, metallic=0.0),
+    # Stage design: charcoal deck, artificial grass, navy lectern; event arch navy.
+    'Mat_Stage_Deck':     dict(color=srgb(62, 59, 55), roughness=0.8, metallic=0.0),
+    'Mat_Grass':          dict(color=srgb(74, 118, 46), roughness=0.95, metallic=0.0,
+                               detail=('booth_fabric_normal', 'booth_fabric_orm', 20.0), normal_strength=1.2),
+    'Mat_Lectern_Navy':   dict(color=srgb(30, 52, 98), roughness=0.5, metallic=0.1),
+    'Mat_Arch_Navy':      dict(color=srgb(28, 52, 97), roughness=0.6, metallic=0.0),
 }
 
 # One material per booth-row colour zone, from the layout.
@@ -268,8 +282,6 @@ def reshape_hall(say):
     dy = hall['stretchBy']
     z_from = hall['ceilingFrom']
     dz = hall['ceilingBy']
-    x_from = hall.get('stretchEastFromX', 1e9)
-    dx = hall.get('stretchEastBy', 0.0)
 
     moved = 0
     for o in bpy.data.objects:
@@ -286,8 +298,6 @@ def reshape_hall(say):
             nw = w.copy()
             if w.y > y_from:
                 nw.y += dy
-            if w.x > x_from:
-                nw.x += dx
             if w.z > z_from:
                 nw.z += dz
             if nw != w:
@@ -296,16 +306,8 @@ def reshape_hall(say):
         if touched:
             me.update()
             moved += 1
-    say(f'  stretched hall north by {dy} m beyond z={hall["stretchFromZ"]}, widened the foyer east by '
-        f'{dx} m beyond x={x_from}, lifted the ceiling by {dz} m ({moved} objects reshaped)')
-
-    if dx:
-        # The last foyer door on the south wall ends at x = 25.15 and the curved east wall starts
-        # at 25.25; the widening opens that gap by dx, so close it with a wall section.
-        ceil = hall['ceilingHeight']
-        f = Builder('W_FoyerSouthFiller')
-        f.box('Mat_Acoustic_Wall', (25.15, -0.1, 0.0), (25.25 + dx, 0.1, ceil))
-        f.to_object()
+    say(f'  stretched hall north by {dy} m beyond z={hall["stretchFromZ"]} and lifted the ceiling by '
+        f'{dz} m ({moved} objects reshaped)')
 
 
 def remove_legacy(say):
@@ -323,154 +325,118 @@ def remove_legacy(say):
             continue
         stale_prop = (o.name.startswith(('Cube.', 'Cylinder.'))
                       and min((o.matrix_world @ v.co).x for v in o.data.vertices) > 27.0)
+        # The narrow corridor foyer is replaced by the lobby built from the floor plan.
+        # W_Right_1 is the stretch of hall wall between the two foyer doorways, right behind the
+        # event arch: it goes so the arch is one walk-through opening (DOORWAYS 'arch'), and the
+        # two door mats with it.
+        old_foyer = (o.name.startswith(('W_CorrEast', 'W_CorrSouth', 'DoorMark'))
+                     or o.name in ('Corridor_Floor', 'W_CorrNorth', 'W_Right_1', 'EX_R1', 'EX_R2'))
         if (o.name.startswith(('Booth_', 'Banquet_Chair')) or o.name in ('Stage', 'Podium', 'Media_Hub')
-                or stale_prop):
+                or stale_prop or old_foyer):
             bpy.data.objects.remove(o, do_unlink=True)
             gone += 1
+    # The ceiling is one object over hall and foyer: drop its foyer faces (east of the hall wall).
+    ceil = bpy.data.objects.get('Venue_Ceiling')
+    if ceil:
+        bm = bmesh.new()
+        bm.from_mesh(ceil.data)
+        mw = ceil.matrix_world
+        doomed = [f for f in bm.faces if min((mw @ v.co).x for v in f.verts) > 19.3]
+        bmesh.ops.delete(bm, geom=doomed, context='FACES')
+        bm.to_mesh(ceil.data)
+        bm.free()
     say(f'  removed {gone} legacy objects (booth rows, banquet chairs, old stage + podium, media hub, '
-        f'props behind the east wall)')
+        f'the corridor foyer shell, props behind its east wall)')
 
 
 # =============================================================================================
-# 2. Stage
+# 2. Stage — as the client's stage design
 # =============================================================================================
 def build_stage(say):
+    """Charcoal deck, LED wall flanked by two logo banners, and the set from the stage design:
+    navy lectern, white armchair, plant, four orange chairs on an artificial-grass runner.
+
+    The LED content, the banner prints and the keynote stream are laid on by the runtime
+    (src/main.js createStageSet / src/modules/venueSignage.js); this builds the hardware.
+    """
     st = LAYOUT['stage']
     led = LAYOUT['led']
+    bn = LAYOUT['stageBanners']
+    ss = LAYOUT['stageSet']
     h = st['height']
     x0, x1 = st['x0'], st['x1']
     y0, y1 = -st['zFront'], -st['zBack']       # Blender y: front < back
 
     b = Builder('Stage_Platform')
-    # Deck and skirt: the top face is wood, the sides navy fabric.
-    b.box('Mat_Stage_Skirt', (x0, y0, 0.0), (x1, y1, h - 0.04))
-    b.box(STAGE_WOOD, (x0 - 0.02, y0 - 0.02, h - 0.04), (x1 + 0.02, y1, h))
-    # Warm LED strip under the front nosing — reads as a lit stage edge from the audience.
-    b.box('Mat_Stage_Glow', (x0, y0 - 0.025, h - 0.075), (x1, y0 - 0.005, h - 0.055))
+    b.box('Mat_Stage_Skirt', (x0, y0, 0.0), (x1, y1, h - 0.03))
+    b.box('Mat_Stage_Deck', (x0 - 0.02, y0 - 0.02, h - 0.03), (x1 + 0.02, y1, h))
     # Side steps (two risers each) so presenters can walk up from the wings.
     for side in (-1, 1):
         xe = x0 if side < 0 else x1
         for k, (w, top) in enumerate(((0.6, h / 3), (0.3, 2 * h / 3))):
             xa, xb = (xe - w, xe) if side < 0 else (xe, xe + w)
             b.box('Mat_Stage_Skirt', (xa, 25.2, 0.0), (xb, 26.3, top - 0.03))
-            b.box(STAGE_WOOD, (xa, 25.2, top - 0.03), (xb, 26.3, top))
+            b.box('Mat_Stage_Deck', (xa, 25.2, top - 0.03), (xb, 26.3, top))
+    # Artificial-grass runner across the set.
+    g = ss['grass']
+    b.box('Mat_Grass', (g['x0'], -g['z1'], h), (g['x1'], -g['z0'], h + 0.02))
     b.to_object()
 
-    # LED wall frame: the runtime lays the video/idle slide on its front face.
+    # LED wall cabinet and the two banner frames; the runtime prints their faces.
     lf = Builder('Stage_LED_Frame')
     lw, lh, lb = led['width'], led['height'], led['bottom']
     cx = led['cx']
-    face_y = -led['z'] + 0.03            # frame face just behind the runtime LED plane
-    lf.box('Mat_LED_Frame', (cx - lw / 2 - 0.15, face_y, lb - 0.15), (cx + lw / 2 + 0.15, face_y + 0.18, lb + lh + 0.15))
-    # Ground-support legs down to the deck.
+    face_y = -led['z'] + 0.03
+    lf.box('Mat_LED_Frame', (cx - lw / 2 - 0.06, face_y, lb - 0.06), (cx + lw / 2 + 0.06, face_y + 0.18, lb + lh + 0.06))
     for lx in (cx - lw / 2 + 0.6, cx + lw / 2 - 0.6):
-        lf.box('Mat_LED_Frame', (lx - 0.06, face_y + 0.02, h), (lx + 0.06, face_y + 0.16, lb - 0.15))
+        lf.box('Mat_LED_Frame', (lx - 0.06, face_y + 0.02, h), (lx + 0.06, face_y + 0.16, lb - 0.06))
+    for s in (-1, 1):
+        bx = cx + s * (lw / 2 + bn['gap'] + bn['width'] / 2)
+        lf.box('Mat_Sign_Frame', (bx - bn['width'] / 2 - 0.02, face_y - 0.02, bn['bottom']),
+               (bx + bn['width'] / 2 + 0.02, face_y + 0.06, bn['bottom'] + bn['height'] + 0.02))
     lf.to_object()
 
-    # Lighting truss across the stage front, hung from the ceiling, with six can lights.
-    t = Builder('Stage_Truss')
-    tz0, tz1 = 6.15, 6.45
-    ty0, ty1 = y0 + 0.25, y0 + 0.55
-    tx0, tx1 = x0 - 0.2, x1 + 0.2
-    chords = [(ty0, tz0), (ty1, tz0), (ty0, tz1), (ty1, tz1)]
-    for (cy, cz) in chords:
-        t.rod('Mat_Truss', (tx0, cy, cz), (tx1, cy, cz), 0.028)
-    n = int((tx1 - tx0) / 0.5)
-    for i in range(n):
-        xa = tx0 + i * (tx1 - tx0) / n
-        xb = tx0 + (i + 1) * (tx1 - tx0) / n
-        t.rod('Mat_Truss', (xa, ty0, tz0), (xb, ty0, tz1), 0.012, 6)
-        t.rod('Mat_Truss', (xa, ty1, tz1), (xb, ty1, tz0), 0.012, 6)
-        t.rod('Mat_Truss', (xa, ty0, tz0), (xb, ty1, tz0), 0.012, 6)
-    ceil = LAYOUT['hall']['ceilingHeight']
-    for xh in (tx0 + 0.4, (tx0 + tx1) / 2, tx1 - 0.4):
-        t.rod('Mat_Truss', (xh, (ty0 + ty1) / 2, tz1), (xh, (ty0 + ty1) / 2, ceil), 0.006, 4)
-    for i in range(6):
-        lx = x0 + 0.9 + i * (x1 - x0 - 1.8) / 5
-        base = Vector((lx, (ty0 + ty1) / 2, tz0 - 0.02))
-        aim = Vector((cx + (lx - cx) * 0.5, (y0 + y1) / 2, h + 1.0))
-        d = (aim - base).normalized()
-        head = base + d * 0.12 + Vector((0, 0, -0.12))
-        t.rod('Mat_LED_Frame', base, head, 0.015, 6)
-        rot = d.to_track_quat('Z', 'Y').to_matrix().to_4x4()
-        t.cyl('Mat_LED_Frame', 0.09, 0.075, 0.26, Matrix.Translation(head - d * 0.13) @ rot, 14)
-        t.cyl('Mat_Lamp_Glow', 0.07, 0.07, 0.005, Matrix.Translation(head + d * 0.13) @ rot, 14)
-    t.to_object()
-
-    # Set furniture, after the stage design: lectern, white armchair, three orange lounge
-    # chairs, coffee table, two side tables and a dark rug.
     f = Builder('Stage_Furniture')
+
     def at(x, z3, yaw=0.0):
         return Matrix.Translation(B(x, z3, h)) @ Matrix.Rotation(yaw, 4, 'Z')
 
-    # Rug
-    f.box('Mat_Rug', (-2.6, -1.4, 0.0), (2.6, 1.4, 0.012), at(10.3, -26.7))
-
-    # Lectern (stage left, angled to the audience)
-    m = at(5.35, -25.7, math.radians(-12))
-    f.box('Mat_Wood_Dark', (-0.3, -0.24, 0.0), (0.3, 0.24, 0.05), m)
-    f.box(STAGE_WOOD, (-0.27, -0.2, 0.05), (0.27, 0.2, 1.05), m)
-    f.box('Mat_Wood_Dark', (-0.3, -0.22, 1.02), (0.3, 0.22, 1.05), m)
-    top = m @ Matrix.Translation((0, 0.02, 1.08)) @ Matrix.Rotation(math.radians(-18), 4, 'X')
-    f.box(STAGE_WOOD, (-0.32, -0.26, -0.03), (0.32, 0.26, 0.02), top)
-    p0 = m @ Vector((0.18, 0.12, 1.1))
-    p1 = m @ Vector((0.12, -0.12, 1.42))
+    # Lectern: navy column on a brushed base with a white logo panel across the top.
+    m = at(ss['lectern'][0], ss['lectern'][1], math.radians(-10))
+    f.box('Mat_Booth_Alu', (-0.32, -0.26, 0.0), (0.32, 0.26, 0.06), m)
+    f.box('Mat_Lectern_Navy', (-0.22, -0.16, 0.06), (0.22, 0.16, 1.05), m)
+    top = m @ Matrix.Translation((0, -0.02, 1.08)) @ Matrix.Rotation(math.radians(-15), 4, 'X')
+    f.box('Mat_Lectern_Navy', (-0.36, -0.24, -0.04), (0.36, 0.24, 0.02), top)
+    f.box('Mat_Table_White', (-0.36, -0.245, -0.11), (0.36, -0.235, 0.0), top)
+    p0 = m @ Vector((0.16, 0.1, 1.1))
+    p1 = m @ Vector((0.1, -0.14, 1.42))
     f.rod('Mat_Mic', p0, p1, 0.008, 6)
     f.cyl('Mat_Mic', 0.022, 0.016, 0.07, Matrix.Translation(p1), 10)
 
-    # White armchair + tree-stump side table
-    m = at(7.25, -26.7, math.radians(-8))
-    f.box('Mat_Armchair', (-0.38, -0.36, 0.08), (0.38, 0.36, 0.42), m)
-    f.box('Mat_Armchair', (-0.38, 0.2, 0.42), (0.38, 0.38, 0.92), m)
+    # White wing armchair on tapered wooden legs.
+    m = at(ss['armchair'][0], ss['armchair'][1], math.radians(-12))
+    f.box('Mat_Armchair', (-0.38, -0.36, 0.22), (0.38, 0.36, 0.46), m, bevel=0.03, segments=2)
+    f.box('Mat_Armchair', (-0.38, 0.2, 0.46), (0.38, 0.38, 1.0), m, bevel=0.03, segments=2)
     for s in (-1, 1):
-        f.box('Mat_Armchair', (s * 0.38 - 0.08, -0.36, 0.42), (s * 0.38 + 0.08, 0.38, 0.62), m)
+        f.box('Mat_Armchair', (s * 0.38 - 0.08, -0.36, 0.46), (s * 0.38 + 0.08, 0.38, 0.68), m, bevel=0.02, segments=2)
         for fy in (-0.3, 0.3):
-            f.cyl('Mat_Wood_Dark', 0.025, 0.02, 0.08, m @ Matrix.Translation((s * 0.32, fy, 0)), 8)
-    f.cyl('Mat_Wood_Dark', 0.2, 0.22, 0.46, at(6.45, -26.5), 18)
-    f.cyl('Mat_Soil', 0.17, 0.17, 0.005, at(6.45, -26.5) @ Matrix.Translation((0, 0, 0.46)), 18)
+            f.rod('Mat_Wood_Dark', m @ Vector((s * 0.32, fy, 0.0)), m @ Vector((s * 0.3, fy * 0.95, 0.22)), 0.02, 8)
 
-    # Round coffee table
-    m = at(8.55, -26.35)
-    f.cyl('Mat_Table_White', 0.32, 0.32, 0.03, m @ Matrix.Translation((0, 0, 0.44)), 24)
-    for k in range(3):
-        a = k * 2 * math.pi / 3
-        f.rod('Mat_Wood_Dark', m @ Vector((0.2 * math.cos(a), 0.2 * math.sin(a), 0.0)),
-              m @ Vector((0.08 * math.cos(a), 0.08 * math.sin(a), 0.44)), 0.015, 6)
+    plant(f, Matrix.Translation(B(ss['plant'][0], ss['plant'][1], h)), scale=1.4, seed=11)
 
-    # Three orange lounge chairs facing the audience
-    for lx in (9.85, 11.15, 12.45):
-        m = at(lx, -27.0)
-        f.box('Mat_Lounge_Orange', (-0.29, -0.27, 0.40), (0.29, 0.27, 0.48), m)
-        back = m @ Matrix.Translation((0, 0.25, 0.46)) @ Matrix.Rotation(math.radians(-12), 4, 'X')
-        f.box('Mat_Lounge_Orange', (-0.29, -0.04, 0.0), (0.29, 0.04, 0.58), back)
+    # Four orange shell chairs facing the audience.
+    for (cxx, czz) in ss['chairs']:
+        m = at(cxx, czz)
+        f.box('Mat_Lounge_Orange', (-0.25, -0.25, 0.44), (0.25, 0.23, 0.52), m, bevel=0.03, segments=2)
+        back = m @ Matrix.Translation((0, 0.22, 0.48))
+        f.curved_slab('Mat_Lounge_Orange', 0.52, 0.42, 0.05, 0.42, back @ Matrix.Rotation(math.pi, 4, 'Z'))
         for sx in (-1, 1):
             for sy in (-1, 1):
-                f.rod('Mat_Wood_Dark', m @ Vector((sx * 0.3, sy * 0.28, 0.0)),
-                      m @ Vector((sx * 0.22, sy * 0.2, 0.41)), 0.018, 6)
-
-    # Carved wood sculpture side table, stage right
-    m = at(13.85, -26.6)
-    f.cyl('Mat_Wood_Dark', 0.2, 0.1, 0.25, m, 16)
-    f.cyl('Mat_Wood_Dark', 0.1, 0.2, 0.25, m @ Matrix.Translation((0, 0, 0.25)), 16)
-    f.cyl('Mat_Table_White', 0.12, 0.12, 0.015, m @ Matrix.Translation((0, 0, 0.5)), 16)
+                f.rod('Mat_Wood_Dark', m @ Vector((sx * 0.21, sy * 0.2, 0.0)), m @ Vector((sx * 0.18, sy * 0.17, 0.44)), 0.014, 6)
     f.to_object()
 
-    # Floor speaker stacks either side of the stage, behind the side steps.
-    sp = Builder('Stage_Speakers')
-    for sx in (x0 - 0.65, x1 + 0.65):
-        m = Matrix.Translation(B(sx, -27.3, 0.0))
-        sp.box('Mat_Speaker', (-0.28, -0.26, 0.0), (0.28, 0.26, 1.7), m)
-        sp.box('Mat_Speaker_Grill', (-0.24, -0.265, 0.1), (0.24, -0.255, 1.6), m)
-    sp.to_object()
-
-    # Big plants at the stage-front corners soften the set.
-    pl = Builder('Stage_Plants')
-    for (px, pz) in ((x0 - 0.5, -24.45), (x1 + 0.5, -24.45)):
-        plant(pl, Matrix.Translation(B(px, pz, 0.0)), scale=1.6, seed=int(px * 10))
-    pl.to_object()
-
-    say(f'  stage {x1 - x0:.1f} x {y1 - y0:.1f} m at {h} m, LED wall frame {lw} x {lh} m, '
-        f'truss + 6 can lights, lectern, armchair, 3 lounge chairs, tables, rug, speakers')
+    say(f'  stage {x1 - x0:.1f} x {y1 - y0:.1f} m, charcoal deck + grass runner, LED wall {lw} x {lh} m '
+        f'with two {bn["width"]} x {bn["height"]} m banners, lectern, armchair, plant, 4 chairs')
 
 
 # =============================================================================================
@@ -501,8 +467,70 @@ def build_seating(say):
     say(f'  {n} bench seats on {len(s["blocks"]) * len(s["rows"])} upholstered benches')
 
 
+
 # =============================================================================================
-# 4. Open-style booth grid
+# 3b. Lobby — the area outside the hall, from the floor plan
+# =============================================================================================
+def build_lobby(say):
+    L = LAYOUT['lobby']
+    ceil = L['ceilingHeight']
+    pts = L['outline']
+
+    # Floor and ceiling: one polygon each over the whole outline.
+    for name, mat_name, y, flip in (('Lobby_Floor', 'Mat_Corridor_Tile', 0.0, False),
+                                    ('Lobby_Ceiling', 'Mat_Ceiling', ceil, True)):
+        b = Builder(name)
+        verts = [b.bm.verts.new(B(x, z, y)) for x, z in pts]
+        face = b.bm.faces.new(verts[::-1] if flip else verts)
+        face.material_index = b._slot(mat_name)
+        me = b.to_object()
+        # Builder recalculates normals outward; a lone polygon has no inside, so set it explicitly.
+        for p in me.data.polygons:
+            want_up = not flip
+            if (p.normal.z > 0) != want_up:
+                p.flip()
+        me.data.update()
+
+    walls = Builder('W_Lobby')
+    t = 0.2
+    edges = list(zip(pts, pts[1:]))          # the closing edge is the hall's existing east wall
+    doors = L['doors']
+    for (ax, az), (bx, bz) in edges:
+        if az == bz and az == 0.0 and doors:
+            # Entrance wall: solid between the door openings, lintels above them.
+            xs = [min(ax, bx)] + [v for dr in doors for v in dr] + [max(ax, bx)]
+            for i in range(0, len(xs), 2):
+                if xs[i + 1] - xs[i] > 0.01:
+                    wbox(walls, 'Mat_Acoustic_Wall', xs[i], xs[i + 1], -t / 2, t / 2, 0.0, ceil)
+            for (d0, d1) in doors:
+                wbox(walls, 'Mat_Acoustic_Wall', d0, d1, -t / 2, t / 2, 2.4, ceil)
+            continue
+        if az == bz:
+            wbox(walls, 'Mat_Acoustic_Wall', min(ax, bx) - t / 2, max(ax, bx) + t / 2, az - t / 2, az + t / 2, 0.0, ceil)
+        else:
+            wbox(walls, 'Mat_Acoustic_Wall', ax - t / 2, ax + t / 2, min(az, bz) - t / 2, max(az, bz) + t / 2, 0.0, ceil)
+    p = L['pillar']
+    wbox(walls, 'Mat_Acoustic_Wall', p['x'] - p['size'] / 2, p['x'] + p['size'] / 2,
+         p['z'] - p['size'] / 2, p['z'] + p['size'] / 2, 0.0, ceil)
+    walls.to_object()
+
+    # Glass entrance doors with push bars, and the closed door in the restroom block.
+    dr = Builder('Door_Lobby')
+    for (d0, d1) in doors:
+        mid = (d0 + d1) / 2
+        wbox(dr, 'Mat_LED_Frame', d0, d1, -0.06, 0.06, 2.34, 2.4)
+        for s0, s1 in ((d0 + 0.02, mid - 0.01), (mid + 0.01, d1 - 0.02)):
+            wbox(dr, 'Mat_Door_Glass', s0, s1, -0.03, 0.03, 0.0, 2.34)
+            wbox(dr, 'Mat_Truss', s0 + 0.08, s1 - 0.08, -0.08, -0.05, 0.98, 1.03)
+    cd = L['closedDoor']
+    wbox(dr, 'Mat_Door_Teal', cd['x0'], cd['x1'], cd['z'] + 0.1, cd['z'] + 0.14, 0.0, 2.3)
+    wbox(dr, 'Mat_LED_Frame', cd['x0'] - 0.05, cd['x1'] + 0.05, cd['z'] + 0.1, cd['z'] + 0.15, 2.3, 2.38)
+    dr.to_object()
+    say(f'  lobby: {len(pts)}-sided outline, {len(doors)} entrance doors, closed door, pillar, {ceil} m ceiling')
+
+
+# =============================================================================================
+# 4. Booths — the booth-style reference
 # =============================================================================================
 def plant(b, m, scale=1.0, seed=0):
     """Planter with a fan of curved blade leaves."""
@@ -534,112 +562,115 @@ def plant(b, m, scale=1.0, seed=0):
         b.quad_strip('Mat_Plant_Leaf' if i % 3 else 'Mat_Plant_Leaf_Lt', left, right)
 
 
-def stool(b, m):
-    """Bar stool: round seat, low back, four splayed legs and a foot ring."""
-    b.cyl('Mat_Stool', 0.17, 0.17, 0.05, m @ Matrix.Translation((0, 0, 0.7)), 16)
-    b.box('Mat_Stool', (-0.15, 0.12, 0.75), (0.15, 0.16, 1.02), m)
-    for k in range(4):
-        a = math.pi / 4 + k * math.pi / 2
-        b.rod('Mat_Stool', m @ Vector((0.17 * math.cos(a), 0.17 * math.sin(a), 0.0)),
-              m @ Vector((0.11 * math.cos(a), 0.11 * math.sin(a), 0.7)), 0.012, 6)
-    b.torus('Mat_Stool', 0.145, 0.008, m @ Matrix.Translation((0, 0, 0.3)), 16, 5)
+def chair_black(b, m):
+    """Plain black conference chair; the sitter faces local -Y."""
+    b.box('Mat_Chair_Black', (-0.22, -0.22, 0.42), (0.22, 0.2, 0.47), m, bevel=0.015, segments=2)
+    back = m @ Matrix.Translation((0, 0.19, 0.47)) @ Matrix.Rotation(math.radians(-8), 4, 'X')
+    b.box('Mat_Chair_Black', (-0.21, -0.02, 0.02), (0.21, 0.02, 0.42), back, bevel=0.012, segments=2)
+    for sx in (-0.19, 0.19):
+        for sy in (-0.19, 0.17):
+            b.rod('Mat_Chair_Black', m @ Vector((sx, sy, 0.0)), m @ Vector((sx, sy, 0.42)), 0.012, 6)
 
 
-def clip_spot(b, base, target):
-    """Arm-mounted spotlight on a wall top, aimed at `target`."""
-    head = base + Vector((0, 0, 0.1))
-    d = (target - head).normalized()
-    b.box('Mat_Stool', (-0.03, -0.03, -0.03), (0.03, 0.03, 0.03), Matrix.Translation(base))
-    b.rod('Mat_Stool', base, head, 0.008, 6)
-    rot = d.to_track_quat('Z', 'Y').to_matrix().to_4x4()
-    b.cyl('Mat_Stool', 0.05, 0.042, 0.14, Matrix.Translation(head - d * 0.07) @ rot, 12)
-    b.cyl('Mat_Lamp_Glow', 0.04, 0.04, 0.004, Matrix.Translation(head + d * 0.07) @ rot, 12)
+def easel(b, m, board_w, board_h, bottom, tilt):
+    """Black tripod easel (as in the booth-style reference) holding a foam board; the board's printed face looks along local -Y.
+
+    The runtime lays the team poster on the board using the same numbers.
+    """
+    tl = math.radians(tilt)
+    top = bottom + board_h * math.cos(tl)
+    lean = Matrix.Rotation(-tl, 4, 'X')
+    # Front legs splay outward and run parallel to the leaning board, just behind it, so the
+    # poster sits in front of them as on the reference; the back leg props them up.
+    slope = math.tan(tl)
+    behind = lambda z: 0.045 + (z - bottom) * slope          # local y of the legs at height z
+    for s in (-1, 1):
+        b.rod('Mat_Chair_Black', m @ Vector((s * 0.32, behind(0.0), 0.0)),
+              m @ Vector((s * 0.06, behind(top + 0.12), top + 0.12)), 0.013, 6)
+    b.rod('Mat_Chair_Black', m @ Vector((0.0, behind(top) + 0.45, 0.0)),
+          m @ Vector((0.0, behind(top + 0.08) + 0.015, top + 0.08)), 0.013, 6)
+    # Ledge the board rests on.
+    ledge = m @ Matrix.Translation((0, 0.02, bottom)) @ lean
+    b.box('Mat_Chair_Black', (-board_w / 2 - 0.04, -0.05, -0.03), (board_w / 2 + 0.04, 0.03, 0.0), ledge)
+    # Foam board.
+    b.box('Mat_Foam', (-board_w / 2, 0.0, 0.0), (board_w / 2, 0.006, board_h), ledge)
 
 
 def build_grid(say):
-    """Two islands of open booths sharing a spine wall, as in the October 19 floor plan.
+    """Two islands of open booths after the client's booth-style reference.
 
-    Each booth is a square floor tile with a printed back wall (the spine), a counter at the
-    front and nothing at the sides, so a visitor can see along the whole row and step in
-    between counters. The runtime prints each booth's graphic on the spine and its fascia on
-    the counter front (src/modules/boothGrid.js) from the same numbers used here.
+    Each booth: a free-standing printed backwall with blue returns (backed onto its neighbour
+    across the spine), a black draped table, two black chairs for the exhibitors, and an easel
+    with the team poster on the visitor's left. The runtime prints the backwall and the poster.
     """
     G = LAYOUT['grid']
     S, n = G['booth'], G['cols']
     X0 = G['x0']
     X1 = X0 + n * S
-    H = G['wallHeight']
-    sh = G['spineHalf']
-    c = G['counter']
+    bw = G['backwall']
+    tb = G['table']
+    ch = G['chairs']
+    ea = G['easel']
     total = 0
 
     for k, island in enumerate(G['islands']):
         b = Builder(f'Booth_Grid_{k + 1}')
         sz = island['spineZ']
+        H = bw['height']
 
-        # Spine: fabric core between the two printed faces, aluminium uprights at every booth
-        # boundary, top and kick rails, and taller end totems that carry the row signs.
-        wbox(b, 'Mat_Booth_Fabric', X0, X1, sz - sh, sz + sh, 0.06, H - 0.05)
-        for i in range(n + 1):
-            x = X0 + i * S
-            wbox(b, 'Mat_Booth_Alu', x - 0.035, x + 0.035, sz - sh - 0.012, sz + sh + 0.012, 0.0, H)
-        wbox(b, 'Mat_Booth_Alu', X0 - 0.035, X1 + 0.035, sz - sh - 0.012, sz + sh + 0.012, H - 0.05, H)
-        wbox(b, 'Mat_Booth_Alu', X0, X1, sz - sh - 0.012, sz + sh + 0.012, 0.0, 0.06)
+        # Taller end totems carry the row signs.
         for xe, sgn in ((X0, -1), (X1, 1)):
             wbox(b, 'Mat_Sign_Frame', xe, xe + sgn * 0.08, sz - 0.42, sz + 0.42, 0.0, H + 0.4)
-            wbox(b, 'Mat_Booth_Alu', xe, xe + sgn * 0.09, sz - 0.44, sz + 0.44, H + 0.4, H + 0.44)
+            wbox(b, 'Mat_Booth_Edge', xe, xe + sgn * 0.09, sz - 0.44, sz + 0.44, H + 0.4, H + 0.44)
 
         for row in island['rows']:
             f = row['facing']
             zone = f'Mat_Zone_{row["row"]}'
             za, zb = sz, sz + f * S
 
-            # Raised carpet-tile floor for the row, booth seams, and the zone colour on the
-            # front edge — the plan's square outlines, read from the aisle.
             wbox(b, 'Mat_Booth_Floor', X0, X1, za, zb, 0.0, 0.03)
             wbox(b, zone, X0, X1, zb - f * 0.07, zb, 0.0, 0.034)
             for i in range(1, n):
                 x = X0 + i * S
-                wbox(b, 'Mat_Booth_Line', x - 0.012, x + 0.012, za + f * sh, zb - f * 0.07, 0.0, 0.032)
+                wbox(b, 'Mat_Booth_Line', x - 0.012, x + 0.012, za + f * bw['d1'], zb - f * 0.07, 0.0, 0.032)
 
             for col in range(n):
-                xc = X0 + col * S + S / 2
-                hw = c['width'] / 2
-                z0, z1 = sz + f * c['d0'], sz + f * c['d1']
-                # Counter: dark recessed kick, white body, oak top; a zone-colour lip under the top.
-                wbox(b, 'Mat_Booth_Kick', xc - hw + 0.03, xc + hw - 0.03, z0 + f * 0.03, z1 - f * 0.03, 0.03, 0.1)
-                wbox(b, 'Mat_Booth_Counter', xc - hw, xc + hw, z0, z1, 0.1, c['height'] - 0.03)
-                wbox(b, zone, xc - hw - 0.005, xc + hw + 0.005, z0 - f * 0.005, z1 + f * 0.005,
-                     c['height'] - 0.075, c['height'] - 0.03)
-                wbox(b, 'Mat_Booth_Oak', xc - hw - 0.02, xc + hw + 0.02, z0 - f * 0.02, z1 + f * 0.02,
-                     c['height'] - 0.03, c['height'])
+                xw = X0 + col * S
+                xc = xw + S / 2
+                # Backwall box: blue shell, the print goes on its front face.
+                wbox(b, 'Mat_Booth_Edge', xw + bw['u0'], xw + bw['u1'], sz + f * bw['d0'], sz + f * bw['d1'], 0.03, H)
 
-                # Stool for the exhibitor behind the counter, facing the aisle. The stool's back is
-                # on its local +Y, so a north-opening row (f < 0, Blender +y) turns it round.
-                sm = Matrix.Translation(B(xc + 0.62, sz + f * 1.12, 0.03)) @ \
-                    Matrix.Rotation(math.pi if f < 0 else 0.0, 4, 'Z')
-                stool(b, sm)
+                # Black draped table: cloth body to the floor, a slightly proud top.
+                d0, d1 = tb['d'] - tb['depth'] / 2, tb['d'] + tb['depth'] / 2
+                wbox(b, 'Mat_Table_Cloth', xc - tb['width'] / 2, xc + tb['width'] / 2, sz + f * d0, sz + f * d1,
+                     0.03, tb['height'] - 0.02)
+                wbox(b, 'Mat_Table_Cloth', xc - tb['width'] / 2 - 0.015, xc + tb['width'] / 2 + 0.015,
+                     sz + f * (d0 - 0.015), sz + f * (d1 + 0.015), tb['height'] - 0.025, tb['height'], bevel=0.01, segments=1)
 
-                # Two clip spots on the top rail, aimed back at the print.
-                for du in (-0.62, 0.62):
-                    base = B(xc + du, sz + f * (sh + 0.02), H)
-                    out = B(xc + du, sz + f * 0.36, H + 0.02)
-                    b.rod('Mat_Stool', base, out, 0.008, 6)
-                    clip_spot(b, out, B(xc + du * 0.6, sz + f * 0.05, 1.4))
+                # Two chairs between table and backwall, facing the aisle (local -Y = aisle).
+                for off in ch['offsets']:
+                    m = Matrix.Translation(B(xc + off, sz + f * ch['d'], 0.03)) @ \
+                        Matrix.Rotation(0.0 if f > 0 else math.pi, 4, 'Z')
+                    chair_black(b, m)
 
-                # A plant tucked into the back corner of every other booth.
-                if col % 2 == 0:
-                    plant(b, Matrix.Translation(B(xc - S / 2 + 0.32, sz + f * 0.35, 0.03)),
-                          scale=0.8, seed=k * 100 + col * 7 + (1 if f > 0 else 0))
+                # Easel on the visitor's left (viewer faces -f, so their left is -f in x),
+                # turned slightly toward the middle of the aisle.
+                ex = xc - f * ea['side']
+                # A positive turn swings the board's face toward the booth's centre line for
+                # both facings (the base rotation already flips with the row).
+                turn = math.radians(ea['turn'])
+                m = Matrix.Translation(B(ex, sz + f * ea['d'], 0.03)) @ \
+                    Matrix.Rotation((0.0 if f > 0 else math.pi) + turn, 4, 'Z')
+                easel(b, m, ea['boardW'], ea['boardH'], ea['bottom'], ea['tilt'])
                 total += 1
 
         b.to_object()
-    say(f'  {total} open booths in {len(G["islands"])} islands ({S} m square, back-to-back spines, '
-        f'counters, stools, clip spots, zone-coloured floor edges)')
+    say(f'  {total} booths in {len(G["islands"])} islands ({S} m square): blue-edged backwalls, '
+        f'black draped tables, 2 chairs each, poster easels')
 
 
 # =============================================================================================
-# 5. Foyer set and hall features
+# 5. Lobby features and hall features
 # =============================================================================================
 def sign_frame(x, z3, yaw):
     """Matrix for a sign at (x, z3) with three.js rotation.y = yaw. Local X runs across the sign;
@@ -651,14 +682,15 @@ def sign_frame(x, z3, yaw):
 
 
 def standee(b, s):
-    """Two-post sign stand with a backing board; the runtime prints both faces."""
+    """Foam-board standee on a two-post stand; the runtime prints both faces."""
     m = sign_frame(s['x'], s['z'], s['yaw'])
     w, h, y0 = s['w'], s['h'], s['bottom']
-    b.box('Mat_Sign_Frame', (-w / 2 - 0.03, -0.02, y0 - 0.03), (w / 2 + 0.03, 0.02, y0 + h + 0.03), m)
+    b.box('Mat_Foam', (-w / 2 - 0.01, -0.012, y0 - 0.01), (w / 2 + 0.01, 0.012, y0 + h + 0.01), m)
     for sx in (-1, 1):
-        px = sx * (w / 2 + 0.05)
-        b.box('Mat_Booth_Alu', (px - 0.025, -0.025, 0.0), (px + 0.025, 0.025, y0 + h + 0.05), m)
-        b.box('Mat_Sign_Frame', (px - 0.06, -0.22, 0.0), (px + 0.06, 0.22, 0.025), m)
+        px = sx * (w / 2 + 0.04)
+        b.box('Mat_Booth_Alu', (px - 0.02, -0.02, 0.0), (px + 0.02, 0.02, y0 + h + 0.03), m)
+        b.box('Mat_Sign_Frame', (px - 0.06, -0.24, 0.0), (px + 0.06, 0.24, 0.025), m)
+    b.box('Mat_Booth_Alu', (-w / 2 - 0.06, -0.02, y0 - 0.05), (w / 2 + 0.06, 0.02, y0 - 0.01), m)
 
 
 def arc_points(cx, cz, r, a0, a1, seg):
@@ -707,30 +739,22 @@ def build_foyer(say):
     F = LAYOUT['foyer']
     b = Builder('Foyer_Set')
 
-    # Partners photo wall: backing board and feet; the runtime lays the partner lock-up on it.
+    # Partners photo wall on the restroom block: backing board and feet; the runtime prints it.
     pw = F['partnersWall']
     m = sign_frame(pw['x'], pw['z'], pw['yaw'])
     w, h, y0 = pw['width'], pw['height'], pw['bottom']
     b.box('Mat_Sign_Frame', (-w / 2 - 0.08, -0.03, y0 - 0.08), (w / 2 + 0.08, 0.05, y0 + h + 0.08), m)
     b.box('Mat_Booth_Alu', (-w / 2 - 0.1, -0.06, y0 + h + 0.08), (w / 2 + 0.1, 0.06, y0 + h + 0.13), m)
-    for sx in (-1, 1):
-        b.box('Mat_Sign_Frame', (sx * (w / 2 - 0.2) - 0.08, -0.35, 0.0), (sx * (w / 2 - 0.2) + 0.08, 0.15, 0.03), m)
 
-    # Event arch: two lattice truss towers and a header box the runtime prints on both faces.
+    # Event arch: the printed front and back faces are alpha-cut planes laid on by the runtime;
+    # this is the depth between them — the pillar and beam returns in the arch's navy.
     ea = F['eventArch']
-    ax, H = ea['x'], ea['height']
-    for zc in (ea['z0'], ea['z1']):
-        for dx in (-0.14, 0.14):
-            for dz in (-0.14, 0.14):
-                b.rod('Mat_Truss', B(ax + dx, zc + dz, 0.0), B(ax + dx, zc + dz, H), 0.022, 8)
-        for k in range(int(H / 0.4)):
-            y = k * 0.4
-            for (p0, p1) in (((-0.14, -0.14), (0.14, -0.14)), ((0.14, -0.14), (0.14, 0.14)),
-                             ((0.14, 0.14), (-0.14, 0.14)), ((-0.14, 0.14), (-0.14, -0.14))):
-                b.rod('Mat_Truss', B(ax + p0[0], zc + p0[1], y), B(ax + p1[0], zc + p1[1], y + 0.4), 0.01, 6)
-        wbox(b, 'Mat_Sign_Frame', ax - 0.3, ax + 0.3, zc - 0.3, zc + 0.3, 0.0, 0.03)
-    wbox(b, 'Mat_Sign_Frame', ax - 0.15, ax + 0.15, ea['z0'] - 0.2, ea['z1'] + 0.2, H - 1.0, H)
-    wbox(b, 'Mat_Booth_Alu', ax - 0.17, ax + 0.17, ea['z0'] - 0.22, ea['z1'] + 0.22, H, H + 0.04)
+    ax, dz = ea['x'], ea['depth'] / 2 - 0.01
+    # Seen from the lobby (facing -x) the artwork's left pillar is at +z (south).
+    pn, ps = ea['pillarNorth'], ea['pillarSouth']
+    wbox(b, 'Mat_Arch_Navy', ax - dz, ax + dz, ea['z0'] + 0.01, ea['z0'] + pn - 0.01, 0.0, ea['beamTop'] - 0.02)
+    wbox(b, 'Mat_Arch_Navy', ax - dz, ax + dz, ea['z1'] - ps + 0.01, ea['z1'] - 0.01, 0.0, ea['beamTop'] - 0.02)
+    wbox(b, 'Mat_Arch_Navy', ax - dz, ax + dz, ea['z0'] + 0.01, ea['z1'] - 0.01, ea['openingTop'], ea['beamTop'] - 0.02)
 
     # Deal corner: high cocktail tables in white stretch covers.
     dc = F['dealCorner']
@@ -740,24 +764,23 @@ def build_foyer(say):
         b.cyl('Mat_Spandex', 0.07, dc['tableRadius'] - 0.01, 0.46, mm @ Matrix.Translation((0, 0, 0.62)), 24)
         b.cyl('Mat_Table_White', dc['tableRadius'], dc['tableRadius'], 0.03, mm @ Matrix.Translation((0, 0, 1.08)), 28)
 
-    # Curved photo wall: white shell with aluminium top and bottom trims. The runtime prints the
-    # convex (outer) face.
+    # Curved photo wall: white shell with aluminium trims; the runtime prints both faces.
     pw2 = F['photoWall']
     r = pw2['r']
-    arc_wall(b, 'Mat_Photo_Wall', pw2['cx'], pw2['cz'], r - 0.06, r, pw2['a0'], pw2['a1'], 0.06, pw2['height'])
-    arc_wall(b, 'Mat_Booth_Alu', pw2['cx'], pw2['cz'], r - 0.08, r + 0.02, pw2['a0'], pw2['a1'], 0.0, 0.06)
+    arc_wall(b, 'Mat_Photo_Wall', pw2['cx'], pw2['cz'], r - 0.06, r, pw2['a0'], pw2['a1'], 0.06, pw2['height'], seg=40)
+    arc_wall(b, 'Mat_Booth_Alu', pw2['cx'], pw2['cz'], r - 0.08, r + 0.02, pw2['a0'], pw2['a1'], 0.0, 0.06, seg=40)
     arc_wall(b, 'Mat_Booth_Alu', pw2['cx'], pw2['cz'], r - 0.08, r + 0.02, pw2['a0'], pw2['a1'],
-             pw2['height'], pw2['height'] + 0.05)
+             pw2['height'], pw2['height'] + 0.05, seg=40)
 
-    # Youth Media Hub inside the curve: rug, two interview armchairs, side table, ring light and
-    # a camera on a tripod.
+    # Youth Media Hub on the concave (outside) side: rug, two interview armchairs, side table,
+    # ring light and a camera on a tripod, all facing back toward the curved wall.
     mh = F['mediaHub']
     hx, hz = mh['x'], mh['z']
     wbox(b, 'Mat_Rug', hx - 1.4, hx + 1.4, hz - 1.1, hz + 1.1, 0.0, 0.012)
     armchair(b, facing(hx - 0.3, hz - 0.75, hx + 0.6, hz))
     armchair(b, facing(hx - 0.3, hz + 0.75, hx + 0.6, hz))
     b.cyl('Mat_Wood_Dark', 0.2, 0.22, 0.46, Matrix.Translation(B(hx - 0.85, hz, 0.0)), 18)
-    lx, lz = hx + 1.3, hz
+    lx, lz = hx + 1.1, hz - 1.15          # ring light beside the camera, clear of the backdrop title
     b.rod('Mat_Stool', B(lx, lz, 0.0), B(lx, lz, 1.55), 0.015, 8)
     for k in range(3):
         a = k * 2 * math.pi / 3
@@ -770,17 +793,17 @@ def build_foyer(say):
         b.rod('Mat_Stool', B(tx, tz, 1.3), B(tx + 0.32 * math.cos(a), tz + 0.32 * math.sin(a), 0.0), 0.01, 6)
     b.box('Mat_Speaker', (-0.12, -0.08, 0.0), (0.12, 0.08, 0.14), facing(tx, tz, hx - 0.3, hz) @ Matrix.Translation((0, 0, 1.3)))
 
-    # Plants either side of the photo wall's ends.
-    for (ppx, ppz) in arc_points(pw2['cx'], pw2['cz'], r + 0.45, pw2['a0'] - 3, pw2['a1'] + 3, 1):
-        plant(b, Matrix.Translation(B(ppx, ppz, 0.0)), scale=1.3, seed=int(ppz * 10))
+    # Plants at both ends of the photo wall.
+    for (ppx, ppz) in arc_points(pw2['cx'], pw2['cz'], r - 0.5, pw2['a0'] - 2, pw2['a1'] + 2, 1):
+        plant(b, Matrix.Translation(B(ppx, ppz, 0.0)), scale=1.3, seed=int(abs(ppz) * 10))
 
-    # Free-standing signs (deal corner, booth entrance, registration, media hub, safeguarding).
+    # Area standees (registration, deal corner, media hub, booth entrance, safeguarding).
     for s in LAYOUT['signs']:
         standee(b, s)
 
     b.to_object()
-    say(f'  foyer: partners wall, event arch, {len(dc["tables"])} cocktail tables, curved photo wall + '
-        f'media hub set, {len(LAYOUT["signs"])} sign stands')
+    say(f'  lobby set: partners wall, event arch returns, {len(dc["tables"])} cocktail tables, curved photo wall + '
+        f'Youth Media Hub set, {len(LAYOUT["signs"])} standees')
 
 
 def build_hall_features(say):
@@ -853,12 +876,7 @@ DOORWAYS = [
     ('y', 0.0, 8.83, 10.33, +1, 'entrance'),   # EX_B2, main entrance
     ('x', 0.0, 2.21, 3.71, +1, 'exit'),        # EX_L1, west wall
     ('x', 0.0, 18.47, 19.97, +1, 'exit'),      # EX_L2, west wall
-    ('x', 19.35, 7.18, 8.68, -1, 'open'),      # EX_R1, hall <-> foyer
-    ('x', 19.35, 11.58, 13.08, -1, 'open'),    # EX_R2, hall <-> foyer
-    ('y', 0.0, 19.75, 20.80, +1, 'exit'),      # foyer doors on the south wall
-    ('y', 0.0, 21.20, 22.25, +1, 'exit'),
-    ('y', 0.0, 22.65, 23.70, +1, 'exit'),
-    ('y', 0.0, 24.10, 25.15, +1, 'exit'),
+    ('x', 19.35, 7.18, 13.08, -1, 'arch'),     # EX_R1 + EX_R2 merged behind the event arch
 ]
 
 
@@ -867,7 +885,8 @@ def build_doors(say):
     lintels = Builder('W_Lintels')
     doors = Builder('Door_Leaves')
     for i, (axis, w, a, b, inside, kind) in enumerate(DOORWAYS):
-        top = 2.6 if kind == 'open' else 2.4
+        # The arch opening's lintel sits behind the arch beam, so the opening reads as the arch's.
+        top = {'open': 2.6, 'arch': LAYOUT['foyer']['eventArch']['openingTop']}.get(kind, 2.4)
         def box(bld, mat_name, s0, s1, t0, t1, z0, z1):
             # s along the wall, t across it (thickness), z up
             if axis == 'y':
@@ -875,7 +894,7 @@ def build_doors(say):
             else:
                 bld.box(mat_name, (w + t0, s0, z0), (w + t1, s1, z1))
         box(lintels, 'Mat_Acoustic_Wall', a, b, -0.1, 0.1, top, ceil)
-        if kind == 'open':
+        if kind in ('open', 'arch'):
             continue
         leaf = 'Mat_Door_Glass' if kind == 'entrance' else 'Mat_Door_Teal'
         mid = (a + b) / 2
@@ -900,6 +919,7 @@ def build_all(say):
     build_doors(say)
     build_stage(say)
     build_seating(say)
+    build_lobby(say)
     build_grid(say)
     build_foyer(say)
     build_hall_features(say)

@@ -22,18 +22,24 @@ const PORT = 9333;
 // Camera poses chosen to cover every material group and the marketplace set. `fly: true` parks
 // the camera like a seat (sitDownOnChair with a custom pose) so it can sit above eye level.
 const POSES = [
-  { name: '1-entrance',  x: 9.68,  y: 1.45, z: -1.6,   yaw: 0,       pitch: -0.02, note: 'arrival: row D with the islands and the stage beyond' },
-  { name: '2-overview',  x: 9.68,  y: 5.6,  z: -0.9,   yaw: 0,       pitch: -0.42, note: 'high overview of both booth islands, benches and LED wall', fly: true },
-  { name: '3-alley',     x: 17.6,  y: 1.45, z: -12.33, yaw: 1.5708,  pitch: -0.05, note: 'the alleyway from the foyer door: rows B and C facing each other' },
-  { name: '4-booth',     x: 8.48,  y: 1.45, z: -4.9,   yaw: 0,       pitch: -0.04, note: 'booth 21 front on: back wall, TV, counter, stool, spots' },
-  { name: '5-row-a',     x: 9.68,  y: 1.45, z: -21.4,  yaw: 3.1416,  pitch: -0.05, note: 'from the benches back to row A (booths 1-6)' },
-  { name: '6-stage',     x: 9.68,  y: 1.45, z: -18.9,  yaw: 0,       pitch: 0.12,  note: 'stage set, LED wall, benches' },
-  { name: '7-deal',      x: 21.4,  y: 1.45, z: -3.6,   yaw: -0.6,    pitch: -0.02, note: 'foyer: event arch and deal-corner cocktail tables' },
-  { name: '8-media-hub', x: 25.0,  y: 1.45, z: -3.2,   yaw: -1.25,   pitch: -0.02, note: 'curved photo wall / Youth Media Hub' },
-  { name: '9-organizers', x: 27.0, y: 1.45, z: -16.0,  yaw: -1.5708, pitch: -0.02, note: 'organizer stands on the curved east wall, registration' },
-  { name: '10-north-walls', x: 25.5, y: 1.45, z: -18.6, yaw: 0,      pitch: 0.04,  note: 'policy (pledge) wall and partners photo wall' },
-  { name: '11-south-end', x: 10.2, y: 1.45, z: -5.6,   yaw: 3.1416,  pitch: -0.08, note: 'photo booth and safeguarding area' },
-  { name: '12-bench',    x: 6.2,   y: 1.25, z: -21.2,  yaw: 0,       pitch: -0.4,  note: 'audience bench close-up' },
+  { name: '01-spawn',        x: 44.5,  y: 1.45, z: -13.0,  yaw: 1.08,    pitch: -0.04, note: 'arrival at registration: desk, registration standee, organizer stands' },
+  { name: '02-lobby-high',   x: 53.2,  y: 5.4,  z: -6.0,   yaw: 1.05,    pitch: -0.38, note: 'high view across the lobby: registration, media hub curve, deal corner', fly: true },
+  { name: '03-organizers',   x: 46.6,  y: 1.45, z: -15.2,  yaw: 0,       pitch: 0.02,  note: 'VEWU, KNH and TdH stands from their designs' },
+  { name: '04-vewu',         x: 42.4,  y: 1.45, z: -17.0,  yaw: 0,       pitch: 0.06,  note: 'VEWU stand close: backwall, table print, banner' },
+  { name: '05-media-hub',    x: 39.5,  y: 1.45, z: -5.0,   yaw: 1.5708,  pitch: 0.0,   note: 'Youth Media Hub on the concave side of the curved wall' },
+  { name: '06-photo-wall',   x: 27.6,  y: 1.45, z: -3.5,   yaw: -1.35,   pitch: 0.0,   note: 'step-and-repeat photo wall on the convex side' },
+  { name: '07-deal-corner',  x: 30.5,  y: 1.45, z: -16.8,  yaw: 2.4,     pitch: -0.04, note: 'deal corner cocktail tables and its standee' },
+  { name: '08-north-walls',  x: 29.5,  y: 1.45, z: -15.2,  yaw: 0,       pitch: 0.04,  note: 'policy (pledge) wall and partners wall' },
+  { name: '09-arch-front',   x: 27.0,  y: 1.45, z: -10.13, yaw: 1.5708,  pitch: 0.14,  note: 'event arch from the lobby' },
+  { name: '10-arch-back',    x: 14.5,  y: 1.45, z: -10.13, yaw: -1.5708, pitch: 0.1,   note: 'event arch from the hall, booth entrance standee' },
+  { name: '11-overview',     x: 9.68,  y: 5.6,  z: -0.9,   yaw: 0,       pitch: -0.42, note: 'high overview of both booth islands, benches and LED wall', fly: true },
+  { name: '12-row-d',        x: 9.68,  y: 1.45, z: -2.2,   yaw: 0,       pitch: -0.04, note: 'row D: backwalls, tables, chairs, easels' },
+  { name: '13-booth',        x: 8.48,  y: 1.45, z: -4.4,   yaw: 0,       pitch: -0.06, note: 'booth 21 front on, against the booth-style reference' },
+  { name: '14-easel',        x: 7.75,  y: 1.45, z: -5.2,   yaw: 0.12,    pitch: -0.22, note: 'booth 21 easel poster, legibility' },
+  { name: '15-alley',        x: 17.6,  y: 1.45, z: -12.33, yaw: 1.5708,  pitch: -0.05, note: 'the alleyway: rows B and C facing each other' },
+  { name: '16-row-a',        x: 9.68,  y: 1.45, z: -21.4,  yaw: 3.1416,  pitch: -0.05, note: 'from the benches back to row A (booths 1-6)' },
+  { name: '17-stage',        x: 9.68,  y: 1.45, z: -19.6,  yaw: 0,       pitch: 0.12,  note: 'stage design: LED wall, banners, lectern, chairs, grass' },
+  { name: '18-south-end',    x: 10.2,  y: 1.45, z: -5.6,   yaw: 3.1416,  pitch: -0.08, note: 'photo booth, safeguarding area and standee' },
 ];
 
 mkdirSync(OUT, { recursive: true });

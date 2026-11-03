@@ -1,0 +1,163 @@
+{
+  "1": {
+    "lg": "/booths/posters/1.webp",
+    "sm": "/booths/posters/1-sm.webp",
+    "aspect": 0.7069,
+    "source": "YIM Booth Signages/5.png",
+    "confirmed": true
+  },
+  "2": {
+    "lg": "/booths/posters/2.webp",
+    "sm": "/booths/posters/2-sm.webp",
+    "aspect": 0.7069,
+    "source": "YIM Booth Signages/9.png",
+    "confirmed": true
+  },
+  "3": {
+    "lg": "/booths/posters/3.webp",
+    "sm": "/booths/posters/3-sm.webp",
+    "aspect": 0.7069,
+    "source": "YIM Booth Signages/7.png",
+    "confirmed": true
+  },
+  "4": {
+    "lg": "/booths/posters/4.webp",
+    "sm": "/booths/posters/4-sm.webp",
+    "aspect": 0.7069,
+    "source": "YIM Booth Signages/18.png",
+    "confirmed": true
+  },
+  "5": {
+    "lg": "/booths/posters/5.webp",
+    "sm": "/booths/posters/5-sm.webp",
+    "aspect": 0.7069,
+    "source": "YIM Booth Signages/8.png",
+    "confirmed": true
+  },
+  "6": {
+    "lg": "/booths/posters/6.webp",
+    "sm": "/booths/posters/6-sm.webp",
+    "aspect": 0.7069,
+    "source": "YIM Booth Signages/14.png",
+    "confirmed": true
+  },
+  "7": {
+    "lg": "/booths/posters/7.webp",
+    "sm": "/booths/posters/7-sm.webp",
+    "aspect": 0.7069,
+    "source": "YIM Booth Signages/2.png",
+    "confirmed": true
+  },
+  "8": {
+    "lg": "/booths/posters/8.webp",
+    "sm": "/booths/posters/8-sm.webp",
+    "aspect": 0.7069,
+    "source": "YIM Booth Signages/19.png",
+    "confirmed": false
+  },
+  "9": {
+    "lg": "/booths/posters/9.webp",
+    "sm": "/booths/posters/9-sm.webp",
+    "aspect": 0.7069,
+    "source": "YIM Booth Signages/17.png",
+    "confirmed": true
+  },
+  "10": {
+    "lg": "/booths/posters/10.webp",
+    "sm": "/booths/posters/10-sm.webp",
+    "aspect": 0.7069,
+    "source": "YIM Booth Signages/12.png",
+    "confirmed": true
+  },
+  "11": {
+    "lg": "/booths/posters/11.webp",
+    "sm": "/booths/posters/11-sm.webp",
+    "aspect": 0.7069,
+    "source": "YIM Booth Signages/6.png",
+    "confirmed": true
+  },
+  "13": {
+    "lg": "/booths/posters/13.webp",
+    "sm": "/booths/posters/13-sm.webp",
+    "aspect": 0.7069,
+    "source": "YIM Booth Signages/23.png",
+    "confirmed": true
+  },
+  "14": {
+    "lg": "/booths/posters/14.webp",
+    "sm": "/booths/posters/14-sm.webp",
+    "aspect": 0.7069,
+    "source": "YIM Booth Signages/11.png",
+    "confirmed": true
+  },
+  "15": {
+    "lg": "/booths/posters/15.webp",
+    "sm": "/booths/posters/15-sm.webp",
+    "aspect": 0.7069,
+    "source": "YIM Booth Signages/15.png",
+    "confirmed": true
+  },
+  "16": {
+    "lg": "/booths/posters/16.webp",
+    "sm": "/booths/posters/16-sm.webp",
+    "aspect": 0.7069,
+    "source": "YIM Booth Signages/22.png",
+    "confirmed": true
+  },
+  "17": {
+    "lg": "/booths/posters/17.webp",
+    "sm": "/booths/posters/17-sm.webp",
+    "aspect": 0.7069,
+    "source": "YIM Booth Signages/21.png",
+    "confirmed": true
+  },
+  "18": {
+    "lg": "/booths/posters/18.webp",
+    "sm": "/booths/posters/18-sm.webp",
+    "aspect": 0.7069,
+    "source": "YIM Booth Signages/1.png",
+    "confirmed": true
+  },
+  "19": {
+    "lg": "/booths/posters/19.webp",
+    "sm": "/booths/posters/19-sm.webp",
+    "aspect": 0.7069,
+    "source": "YIM Booth Signages/10.png",
+    "confirmed": true
+  },
+  "20": {
+    "lg": "/booths/posters/20.webp",
+    "sm": "/booths/posters/20-sm.webp",
+    "aspect": 0.7069,
+    "source": "YIM Booth Signages/20.png",
+    "confirmed": true
+  },
+  "21": {
+    "lg": "/booths/posters/21.webp",
+    "sm": "/booths/posters/21-sm.webp",
+    "aspect": 0.7069,
+    "source": "YIM Booth Signages/3.png",
+    "confirmed": true
+  },
+  "22": {
+    "lg": "/booths/posters/22.webp",
+    "sm": "/booths/posters/22-sm.webp",
+    "aspect": 0.7069,
+    "source": "YIM Booth Signages/4.png",
+    "confirmed": false
+  },
+  "23": {
+    "lg": "/booths/posters/23.webp",
+    "sm": "/booths/posters/23-sm.webp",
+    "aspect": 0.7069,
+    "source": "YIM Booth Signages/13.png",
+    "confirmed": true
+  },
+  "24": {
+    "lg": "/booths/posters/24.webp",
+    "sm": "/booths/posters/24-sm.webp",
+    "aspect": 0.7069,
+    "source": "YIM Booth Signages/16.png",
+    "confirmed": true
+  }
+}

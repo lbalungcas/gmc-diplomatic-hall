@@ -1,30 +1,36 @@
 /**
- * Open-style booth grid — 24 booths in two back-to-back islands (src/data/hallLayout.json `grid`),
- * as in the October 19 floor plan.
+ * Booth grid — 24 booths in two back-to-back islands (src/data/hallLayout.json `grid`), built
+ * after the client's booth-style reference: a printed backwall with blue returns, a black draped
+ * table with two chairs, and an easel carrying the team's poster on the visitor's left.
  *
- * The booth hardware (spine walls, floor tiles, counters, stools, clip spots, plants, end totems)
- * is baked into the venue GLB by scripts/venue_set.py from the same layout file. This module owns
- * everything that depends on booths.json and therefore has to stay live:
+ * scripts/venue_set.py bakes the hardware (backwall shells, tables, chairs, easels, floor tiles,
+ * end totems) into the venue GLB from the same layout file. This module owns everything that
+ * depends on team data and therefore has to stay live:
  *
- *  - the printed back wall of each booth (on its face of the spine)
- *  - the counter front fascia
+ *  - the printed front of each backwall (team art from booths.json `panelArt`, else a placeholder
+ *    in the reference's style)
+ *  - the team poster on each easel (src/data/posters.json, made by scripts/prepare_assets.py),
+ *    loaded small and swapped for a sharp version when a visitor walks up to read it
  *  - the row signs on the island end totems
  *
- * Geometry: a booth is a square tile between its spine (at the island's `spineZ`) and the aisle.
- * `facing` is the z direction the row opens toward, so a booth's frame is u along +x from its west
- * edge and d = distance from the spine toward the aisle.
+ * Geometry: a booth is a square tile between its spine (the island's `spineZ`) and the aisle.
+ * `facing` is the z direction the row opens toward, so a booth's frame is u along +x from its
+ * west edge and d = distance from the spine toward the aisle.
  */
 import * as THREE from 'three';
 
-const NAVY = '#1B2D5C';
-const BRAND = ['#F6B91A', '#1FA9E1', '#4CB848', '#EC2F7B', '#F47B20', '#9B4DCA', '#14B8A6'];
+const NAVY = '#1B3461';
+const ORANGE = '#DD9366';
+const FONT = 'system-ui, "Segoe UI", sans-serif';
+const POSTER_NEAR = 3.4;          // metres from an easel at which the sharp poster is loaded
+const POSTER_SHARP_MAX = 4;       // sharp posters kept on the GPU at once
 
 const pad2 = (n) => String(n).padStart(2, '0');
 
 /**
  * One record per booth, keyed by official booth number. Keeps the fields the rest of the game
- * already reads: `x/z` (counter), `ax/az` (where a visitor stands), `cx/cz` + `dirX/dirZ` (used to
- * decide which side of the spine you are on), `color`, `category`, `title`.
+ * already reads: `x/z` (table), `ax/az` (where a visitor stands), `cx/cz` + `dirX/dirZ` (which
+ * side of the spine you are on), `color`, `category`, `title`.
  */
 export function computeBoothPositions(layout) {
   const G = layout.grid;
@@ -50,9 +56,11 @@ export function computeBoothPositions(layout) {
           dirX: 0,
           dirZ: f,
           x: xc,
-          z: island.spineZ + f * (G.counter.d0 + G.counter.d1) / 2,
+          z: island.spineZ + f * G.table.d,
           ax: xc,
           az: island.spineZ + f * G.anchorDepth,
+          easelX: xc - f * G.easel.side,
+          easelZ: island.spineZ + f * G.easel.d,
         };
       });
     }
@@ -60,7 +68,7 @@ export function computeBoothPositions(layout) {
   return out;
 }
 
-/** Axis-aligned collision boxes: each island's spine (with its end totems) and every counter. */
+/** Collision boxes: each island's back-to-back walls (with end totems), every table and easel. */
 export function gridObstacles(layout, pad = 0.04) {
   const G = layout.grid;
   const x1 = G.x0 + G.cols * G.booth;
@@ -68,18 +76,22 @@ export function gridObstacles(layout, pad = 0.04) {
   for (const island of G.islands) {
     boxes.push({
       minX: G.x0 - 0.1, maxX: x1 + 0.1,
-      minZ: island.spineZ - 0.44, maxZ: island.spineZ + 0.44, label: 'booth-spine',
+      minZ: island.spineZ - G.spineHalf - pad, maxZ: island.spineZ + G.spineHalf + pad, label: 'booth-walls',
     });
     for (const row of island.rows) {
       const f = row.facing;
-      const za = island.spineZ + f * G.counter.d0;
-      const zb = island.spineZ + f * G.counter.d1;
+      const t = G.table;
+      const za = island.spineZ + f * (t.d - t.depth / 2);
+      const zb = island.spineZ + f * (t.d + t.depth / 2);
       for (let col = 0; col < G.cols; col++) {
         const xc = G.x0 + col * G.booth + G.booth / 2;
         boxes.push({
-          minX: xc - G.counter.width / 2 - pad, maxX: xc + G.counter.width / 2 + pad,
-          minZ: Math.min(za, zb) - pad, maxZ: Math.max(za, zb) + pad, label: 'booth-counter',
+          minX: xc - t.width / 2 - pad, maxX: xc + t.width / 2 + pad,
+          minZ: Math.min(za, zb) - pad, maxZ: Math.max(za, zb) + pad, label: 'booth-table',
         });
+        const ex = xc - f * G.easel.side;
+        const ez = island.spineZ + f * G.easel.d;
+        boxes.push({ minX: ex - 0.3, maxX: ex + 0.3, minZ: ez - 0.25, maxZ: ez + 0.25, label: 'booth-easel' });
       }
     }
   }
@@ -107,8 +119,6 @@ function rng(seed) {
     return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
   };
 }
-
-const FONT = 'system-ui, "Segoe UI", sans-serif';
 
 function wrapText(ctx, text, maxWidth, maxLines) {
   const words = String(text || '').split(/\s+/).filter(Boolean);
@@ -142,151 +152,156 @@ function fitWrapped(ctx, text, maxWidth, maxLines, size, min, weight = 900) {
   return { size: s, lines: wrapText(ctx, text, maxWidth, maxLines) };
 }
 
-/** Soft organic blobs and confetti — the marketplace's hand-made look, in the zone colour. */
-function paintBlobs(ctx, W, H, colour, seed, top) {
-  const r = rng(seed);
-  const accents = BRAND.filter((c) => c.toLowerCase() !== colour.toLowerCase());
-  const pick = () => accents[Math.floor(r() * accents.length)];
-  const blobs = [
-    { x: 0.05 + r() * 0.2, y: top + 0.32, rad: 0.42 + r() * 0.1, c: pick() },
-    { x: 0.78 + r() * 0.18, y: top + 0.22, rad: 0.38 + r() * 0.12, c: colour },
-    { x: 0.35 + r() * 0.3, y: top + 0.42, rad: 0.3 + r() * 0.08, c: pick() },
-  ];
-  ctx.save();
-  ctx.globalAlpha = 0.9;
-  for (const b of blobs) {
-    ctx.fillStyle = b.c;
-    ctx.beginPath();
-    ctx.ellipse(b.x * W, b.y * H, b.rad * W, b.rad * W * 1.05, 0, 0, Math.PI * 2);
-    ctx.fill();
+/** Shared image loads (the logo strip is drawn on every placeholder backwall). */
+const imageCache = new Map();
+function loadImage(url) {
+  if (!imageCache.has(url)) {
+    imageCache.set(url, new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => resolve(img);
+      img.onerror = () => resolve(null);
+      img.src = url;
+    }));
   }
-  ctx.restore();
-  for (let i = 0; i < 18; i++) {
-    ctx.fillStyle = BRAND[Math.floor(r() * BRAND.length)];
-    ctx.globalAlpha = 0.8;
-    ctx.beginPath();
-    ctx.arc(r() * W, (top - 0.12 + r() * 0.1) * H, (0.006 + r() * 0.01) * W, 0, Math.PI * 2);
-    ctx.fill();
-  }
-  ctx.globalAlpha = 1;
+  return imageCache.get(url);
 }
 
 /**
- * A booth's back wall, laid out by height above the floor so it lines up with the real things in
- * front of it: the header band is visible over the counter from across the hall, the organisation
- * sits just above the TV, the theme and the sound hint just under it, and everything below the
- * counter top is decoration.
+ * Placeholder backwall after the booth-style reference, until the team's own art arrives. Top to
+ * bottom: the booth number tab and the YIM logo, the innovation name in navy over the theme on an
+ * orange pill, a clothesline of pinned photo frames, then "organized by" with the team's
+ * organisation and the organizer / supporter logo strip. The bottom ~30 % sits behind the table.
+ * `imgs` holds the logo images once loaded ({ logos, yim }), or nothing on the first paint.
  */
-function drawBackWall(booth, info, G, W, H) {
-  const canvas = document.createElement('canvas');
-  canvas.width = W;
-  canvas.height = H;
-  const ctx = canvas.getContext('2d');
-  const g = G.graphic;
-  const panelW = g.u1 - g.u0;
-  const panelH = g.y1 - g.y0;
-  const px = W / panelW;                                  // canvas px per metre
-  const yPx = (m) => H - ((m - g.y0) / panelH) * H;       // height above floor -> canvas y
+function drawBackWall(ctx, W, H, booth, info, imgs = {}) {
   const name = (info && info.name) || booth.title;
-  const org = info && info.organization && info.organization !== name ? info.organization : '';
+  const org = (info && info.organization) || '';
   const theme = (info && (info.theme || info.category)) || '';
+  const r = rng(booth.id * 13 + 5);
 
-  const bg = ctx.createLinearGradient(0, 0, 0, H);
-  bg.addColorStop(0, '#FFFDF8');
-  bg.addColorStop(1, '#F4EFE5');
-  ctx.fillStyle = bg;
-  ctx.fillRect(0, 0, W, H);
-  paintBlobs(ctx, W, H, booth.color, booth.id * 11 + 3, 0.86);
-
-  // Header band in the row colour: number badge + innovation name.
-  const hTop = yPx(g.y1);
-  const hBot = yPx(2.06);
-  ctx.fillStyle = booth.color;
-  ctx.fillRect(0, hTop, W, hBot - hTop);
-  const badge = (hBot - hTop) * 0.74;
-  const bx = W * 0.04;
-  const by = hTop + (hBot - hTop - badge) / 2;
   ctx.fillStyle = '#FFFFFF';
-  ctx.beginPath();
-  ctx.roundRect(bx, by, badge * 1.25, badge, badge * 0.18);
-  ctx.fill();
+  ctx.fillRect(0, 0, W, H);
+  // Soft grey brush strokes, as on the reference print.
+  ctx.save();
+  ctx.globalAlpha = 0.05;
   ctx.fillStyle = NAVY;
+  for (let i = 0; i < 5; i++) {
+    ctx.beginPath();
+    ctx.ellipse(r() * W, H * (0.35 + r() * 0.5), W * (0.25 + r() * 0.2), H * 0.06, r() * Math.PI, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.restore();
+
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.font = `900 ${Math.round(badge * 0.62)}px ${FONT}`;
-  ctx.fillText(pad2(booth.id), bx + badge * 0.625, by + badge * 0.54);
 
-  const tx = bx + badge * 1.25 + W * 0.035;
-  const fit = fitWrapped(ctx, name.toUpperCase(), W - tx - W * 0.04, 2, Math.round(badge * 0.36), Math.round(badge * 0.2));
-  ctx.textAlign = 'left';
-  ctx.textBaseline = 'alphabetic';
-  ctx.fillStyle = '#FFFFFF';
-  const blockH = fit.lines.length * fit.size * 1.05;
-  let ty = hTop + (hBot - hTop - blockH) / 2 + fit.size * 0.86;
-  for (const line of fit.lines) { ctx.fillText(line, tx, ty); ty += fit.size * 1.05; }
-
-  // Row tag under the header, right-aligned.
-  ctx.font = `800 ${Math.round(px * 0.065)}px ${FONT}`;
+  // Booth number tab (row colour), top-left; the YIM logo top-right.
   ctx.fillStyle = booth.color;
-  ctx.textAlign = 'right';
-  ctx.fillText(`${booth.zone.toUpperCase()} · BOOTH ${pad2(booth.id)}`, W - W * 0.04, hBot + px * 0.09);
-
-  // Organisation, just above the TV.
-  if (org) {
-    ctx.textAlign = 'center';
-    const o = fitWrapped(ctx, org, W * 0.86, 1, Math.round(px * 0.075), Math.round(px * 0.045), 700);
-    ctx.fillStyle = 'rgba(27, 45, 92, 0.85)';
-    ctx.fillText(o.lines[0] || '', W / 2, yPx(1.86));
-  }
-
-  // Recess behind the TV so the bezel reads as mounted, not floating.
-  const tv = G.tv;
-  const tvH = tv.width * 9 / 16;
-  const cxPx = ((G.booth / 2 - g.u0) / panelW) * W;      // the TV is centred across the booth
-  const tw = (tv.width + 0.08) * px;
-  const top = yPx(tv.y + tvH / 2 + 0.04);
-  const bot = yPx(tv.y - tvH / 2 - 0.04);
-  ctx.fillStyle = NAVY;
   ctx.beginPath();
-  ctx.roundRect(cxPx - tw / 2, top, tw, bot - top, px * 0.03);
+  ctx.roundRect(W * 0.05, H * 0.035, W * 0.22, H * 0.065, H * 0.015);
   ctx.fill();
-
-  // Theme in the strip between the TV and the counter top. (The "tap for sound" hint lives in the
-  // on-screen proximity prompt; printed here it collided with the theme on long theme names.)
-  ctx.textAlign = 'center';
-  if (theme) {
-    const t = fitWrapped(ctx, theme.toUpperCase(), W * 0.9, 2, Math.round(px * 0.06), Math.round(px * 0.04), 800);
-    ctx.fillStyle = booth.color;
-    t.lines.forEach((line, i) => ctx.fillText(line, W / 2, yPx(1.12) + i * t.size * 1.1));
+  ctx.fillStyle = '#FFFFFF';
+  ctx.font = `900 ${Math.round(H * 0.04)}px ${FONT}`;
+  ctx.fillText(`BOOTH ${pad2(booth.id)}`, W * 0.16, H * 0.069);
+  if (imgs.yim) {
+    const lh = H * 0.1;
+    const lw = lh * imgs.yim.width / imgs.yim.height;
+    ctx.drawImage(imgs.yim, W * 0.95 - lw, H * 0.02, lw, lh);
   }
 
-  return canvas;
+  // Innovation name and theme pill.
+  ctx.fillStyle = NAVY;
+  const t = fitWrapped(ctx, name.toUpperCase(), W * 0.88, 2, Math.round(H * 0.072), Math.round(H * 0.04));
+  const lineH = t.size * 1.05;
+  let y = H * 0.215 - (t.lines.length - 1) * lineH / 2;
+  t.lines.forEach((line, i) => ctx.fillText(line, W / 2, y + i * lineH));
+  y = H * 0.215 + (t.lines.length - 1) * lineH / 2 + t.size * 0.95;
+  if (theme) {
+    ctx.font = `800 ${Math.round(H * 0.03)}px ${FONT}`;
+    const label = wrapText(ctx, theme, W * 0.74, 1)[0] || '';
+    const pw = Math.min(W * 0.84, ctx.measureText(label).width + H * 0.07);
+    ctx.fillStyle = ORANGE;
+    ctx.beginPath();
+    ctx.roundRect(W / 2 - pw / 2, y - H * 0.027, pw, H * 0.054, H * 0.027);
+    ctx.fill();
+    ctx.fillStyle = '#FFFFFF';
+    ctx.fillText(label, W / 2, y + 1);
+  }
+
+  // Clothesline of pinned photo frames, slightly askew.
+  const lineY = H * 0.41;
+  ctx.strokeStyle = 'rgba(27,52,97,0.35)';
+  ctx.lineWidth = Math.max(2, W * 0.003);
+  ctx.beginPath();
+  ctx.moveTo(W * 0.03, lineY - H * 0.012);
+  ctx.quadraticCurveTo(W / 2, lineY + H * 0.025, W * 0.97, lineY - H * 0.012);
+  ctx.stroke();
+  const tints = [['#F3D9C6', '#E7B998'], ['#D7E9F3', '#A9CDE3'], ['#F6E3B4', '#EBC877'], ['#EBD3E4', '#D9A9CB']];
+  for (let i = 0; i < 4; i++) {
+    const cx = W * (0.15 + i * 0.233);
+    const cy = lineY + H * 0.1;
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.rotate((r() - 0.5) * 0.16);
+    ctx.fillStyle = 'rgba(0,0,0,0.12)';
+    ctx.fillRect(-W * 0.1 + 4, -H * 0.088 + 6, W * 0.2, H * 0.176);
+    ctx.fillStyle = '#FFFFFF';
+    ctx.fillRect(-W * 0.1, -H * 0.088, W * 0.2, H * 0.176);
+    const [a, b] = tints[(i + booth.id) % tints.length];
+    const grad = ctx.createLinearGradient(0, -H * 0.078, 0, H * 0.05);
+    grad.addColorStop(0, a);
+    grad.addColorStop(1, b);
+    ctx.fillStyle = grad;
+    ctx.fillRect(-W * 0.086, -H * 0.076, W * 0.172, H * 0.126);
+    ctx.restore();
+    // Wooden peg.
+    ctx.fillStyle = '#C79A5B';
+    ctx.fillRect(cx - W * 0.008, lineY - H * 0.012, W * 0.016, H * 0.032);
+  }
+
+  // "organized by" + organisation on the left, the organizer / supporter logos on the right,
+  // just above the table line as on the reference.
+  const rowY = H * 0.635;
+  if (org) {
+    ctx.textAlign = 'left';
+    ctx.fillStyle = 'rgba(27,52,97,0.75)';
+    ctx.font = `700 ${Math.round(H * 0.024)}px ${FONT}`;
+    ctx.fillText('organized by:', W * 0.06, rowY);
+    ctx.fillStyle = NAVY;
+    const o = fitWrapped(ctx, org, W * 0.4, 2, Math.round(H * 0.034), Math.round(H * 0.022), 800);
+    o.lines.forEach((l, i) => ctx.fillText(l, W * 0.06, rowY + H * 0.042 + i * o.size * 1.1));
+    ctx.textAlign = 'center';
+  }
+  if (imgs.logos) {
+    const lw = W * 0.46;
+    const lh = lw * imgs.logos.height / imgs.logos.width;
+    ctx.drawImage(imgs.logos, W * 0.95 - lw, rowY - H * 0.02, lw, lh);
+  }
+
+  // Row-colour foot band (mostly hidden by the table).
+  ctx.fillStyle = booth.color;
+  ctx.fillRect(0, H * 0.965, W, H * 0.035);
 }
 
-function drawCounterFront(booth, info, W, H) {
-  const canvas = document.createElement('canvas');
-  canvas.width = W;
-  canvas.height = H;
-  const ctx = canvas.getContext('2d');
-  ctx.fillStyle = '#FBFAF7';
+/** Stand-in poster for a booth whose poster has not been supplied yet. */
+function drawPosterPlaceholder(booth, info, W, H) {
+  const c = document.createElement('canvas');
+  c.width = W;
+  c.height = H;
+  const ctx = c.getContext('2d');
+  ctx.fillStyle = ORANGE;
   ctx.fillRect(0, 0, W, H);
-  // Colour band along the bottom with a wave edge.
-  ctx.fillStyle = booth.color;
-  ctx.beginPath();
-  ctx.moveTo(0, H);
-  for (let x = 0; x <= W; x += 4) ctx.lineTo(x, H * 0.8 + Math.sin(x / W * Math.PI * 3) * H * 0.035);
-  ctx.lineTo(W, H);
-  ctx.fill();
-
-  const name = (info && info.name) || booth.title;
+  ctx.fillStyle = '#FFFFFF';
+  ctx.fillRect(0, 0, W, H * 0.12);
+  ctx.fillRect(0, H * 0.86, W, H * 0.14);
+  ctx.fillStyle = '#FFFFFF';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillStyle = NAVY;
-  ctx.font = `900 ${Math.round(H * 0.26)}px ${FONT}`;
-  ctx.fillText(pad2(booth.id), W / 2, H * 0.27);
-  const fit = fitWrapped(ctx, name.toUpperCase(), W * 0.86, 2, Math.round(H * 0.1), Math.round(H * 0.06), 800);
-  fit.lines.forEach((line, i) => ctx.fillText(line, W / 2, H * 0.5 + i * fit.size * 1.1));
-  return canvas;
+  const t = fitWrapped(ctx, ((info && info.name) || booth.title).toUpperCase(), W * 0.84, 3, Math.round(W * 0.11), Math.round(W * 0.06));
+  t.lines.forEach((l, i) => ctx.fillText(l, W / 2, H * 0.3 + i * t.size * 1.1));
+  ctx.font = `700 ${Math.round(W * 0.05)}px ${FONT}`;
+  ctx.fillText('Poster coming soon', W / 2, H * 0.62);
+  return c;
 }
 
 /**
@@ -306,8 +321,7 @@ function drawTotem(left, right, W, H) {
   ctx.font = `800 ${Math.round(W * 0.1)}px ${FONT}`;
   ctx.fillText('BOOTHS', W / 2, H * 0.07);
 
-  const blocks = [left, right];
-  blocks.forEach((b, i) => {
+  [left, right].forEach((b, i) => {
     const y0 = H * (0.14 + i * 0.42);
     ctx.fillStyle = b.color;
     ctx.beginPath();
@@ -324,37 +338,37 @@ function drawTotem(left, right, W, H) {
   return canvas;
 }
 
-function loadArt(url, anisotropy) {
-  const tex = new THREE.TextureLoader().load(url);
+function loadTexture(url, anisotropy, onLoad) {
+  const tex = new THREE.TextureLoader().load(url, onLoad);
   tex.colorSpace = THREE.SRGBColorSpace;
   tex.anisotropy = anisotropy;
   return tex;
 }
 
 /**
- * Builds the live booth dressing. `attachTV(parent, localPos, booth, size)` is provided by main.js
- * so the TVs share its video pool and raycast list.
+ * Builds the live booth dressing. `posters` is src/data/posters.json. `attachTV` is only used if
+ * the layout turns booth TVs back on (`grid.tv.enabled`).
  */
-export function createBoothGrid(scene, layout, booths, boothsData, { attachTV, lowPower = false, anisotropy = 4 } = {}) {
+export function createBoothGrid(scene, layout, booths, boothsData, posters, { attachTV, lowPower = false, anisotropy = 4 } = {}) {
   const G = layout.grid;
   const g = G.graphic;
-  const c = G.counter;
+  const ea = G.easel;
   const group = new THREE.Group();
   group.name = 'BoothGrid_Live';
   scene.add(group);
 
   const panelW = g.u1 - g.u0;
   const panelH = g.y1 - g.y0;
-  // ~250 px per metre on desktop keeps the 10 cm header lettering crisp from the aisle without
-  // putting 24 huge canvases on the GPU; phones get about half that.
-  const W = lowPower ? 320 : 576;
+  const W = lowPower ? 320 : 640;
   const H = Math.round(W * panelH / panelW);
   const aniso = lowPower ? 2 : anisotropy;
   const panelGeo = new THREE.PlaneGeometry(panelW, panelH);
-  const counterGeo = new THREE.PlaneGeometry(c.width - 0.04, c.height - 0.18);
-  const tvW = G.tv.width;
-  const tvH = tvW * 9 / 16;
+  const posterGeo = new THREE.PlaneGeometry(ea.boardW - 0.012, ea.boardH - 0.012);
   const disposables = [];
+  const easels = [];
+  // Logos for the placeholder backwalls: the organizer / supporter strip and the YIM logo.
+  const logoImages = Promise.all([loadImage('/venue/logos.webp'), loadImage('/landing/assets/web/logo-navbar.png')])
+    .then(([logos, yim]) => ({ logos, yim }));
 
   for (const booth of Object.values(booths)) {
     const info = boothsData.find((b) => b.id === booth.id) || {};
@@ -363,33 +377,68 @@ export function createBoothGrid(scene, layout, booths, boothsData, { attachTV, l
     const yaw = f > 0 ? 0 : Math.PI;            // plane normal +z, turned to face the aisle
     const west = booth.cx - G.booth / 2;
 
-    const map = art[0] ? loadArt(art[0], aniso) : makeTexture(drawBackWall(booth, info, G, W, H), aniso);
+    // --- Backwall print.
+    let map;
+    if (art[0]) {
+      map = loadTexture(art[0], aniso);
+    } else {
+      const canvas = document.createElement('canvas');
+      canvas.width = W;
+      canvas.height = H;
+      const ctx = canvas.getContext('2d');
+      drawBackWall(ctx, W, H, booth, info);
+      map = makeTexture(canvas, aniso);
+      logoImages.then((imgs) => {
+        if (!imgs.logos && !imgs.yim) return;
+        drawBackWall(ctx, W, H, booth, info, imgs);
+        map.needsUpdate = true;
+      });
+    }
     disposables.push(map);
-    const wall = new THREE.Mesh(panelGeo, new THREE.MeshStandardMaterial({ map, roughness: 0.82, metalness: 0 }));
+    const wall = new THREE.Mesh(panelGeo, new THREE.MeshStandardMaterial({ map, roughness: 0.8, metalness: 0 }));
     wall.position.set(west + (g.u0 + g.u1) / 2, g.y0 + panelH / 2, booth.spineZ + f * g.offset);
     wall.rotation.y = yaw;
     wall.receiveShadow = true;
     wall.name = `Booth_${pad2(booth.id)}_BackWall`;
     group.add(wall);
 
-    if (attachTV) {
+    // --- Poster on the easel: same placement as the baked board in scripts/venue_set.py easel().
+    const stand = new THREE.Group();
+    stand.position.set(booth.easelX, 0.03, booth.easelZ);
+    stand.rotation.y = yaw + THREE.MathUtils.degToRad(ea.turn);
+    const ledge = new THREE.Group();
+    ledge.position.set(0, ea.bottom, -0.02);
+    ledge.rotation.x = -THREE.MathUtils.degToRad(ea.tilt);
+    stand.add(ledge);
+    group.add(stand);
+
+    const entry = posters[String(booth.id)];
+    const posterMat = new THREE.MeshStandardMaterial({ roughness: 0.55, metalness: 0 });
+    if (entry) {
+      posterMat.map = loadTexture(entry.sm, aniso);
+      disposables.push(posterMat.map);
+    } else {
+      posterMat.map = makeTexture(drawPosterPlaceholder(booth, info, 300, 425), aniso);
+      disposables.push(posterMat.map);
+    }
+    const poster = new THREE.Mesh(posterGeo, posterMat);
+    poster.position.set(0, ea.boardH / 2, 0.004);
+    poster.name = `Booth_${pad2(booth.id)}_Poster`;
+    ledge.add(poster);
+    easels.push({ booth, entry, mat: posterMat, small: posterMat.map, sharp: null, x: booth.easelX, z: booth.easelZ });
+
+    // --- Optional wall TV (off in the booth-style reference).
+    if (G.tv && G.tv.enabled && attachTV) {
+      const tvW = G.tv.width;
       const mount = new THREE.Group();
       mount.position.set(booth.cx, G.tv.y, booth.spineZ + f * (g.offset + 0.004));
       mount.rotation.y = yaw;
       group.add(mount);
-      attachTV(mount, new THREE.Vector3(0, 0, 0.012), booth, { w: tvW, h: tvH });
+      attachTV(mount, new THREE.Vector3(0, 0, 0.012), booth, { w: tvW, h: tvW * 9 / 16 });
     }
-
-    const ctex = makeTexture(drawCounterFront(booth, info, lowPower ? 256 : 384, lowPower ? 224 : 320), aniso);
-    disposables.push(ctex);
-    const front = new THREE.Mesh(counterGeo, new THREE.MeshStandardMaterial({ map: ctex, roughness: 0.4 }));
-    front.position.set(booth.cx, 0.1 + (c.height - 0.18) / 2, booth.spineZ + f * (c.d1 + 0.008));
-    front.rotation.y = yaw;
-    front.name = `Booth_${pad2(booth.id)}_Counter`;
-    group.add(front);
   }
 
-  // End totems: one printed face on the outer end of each island spine.
+  // End totems: one printed face on the outer end of each island.
   const x1 = G.x0 + G.cols * G.booth;
   const totemH = G.wallHeight + 0.4 - 0.12;
   const totemGeo = new THREE.PlaneGeometry(0.8, totemH);
@@ -403,11 +452,10 @@ export function createBoothGrid(scene, layout, booths, boothsData, { attachTV, l
     for (const [xe, sgn] of [[G.x0, -1], [x1, 1]]) {
       // Looking at the east end (face +x) the north row is on the viewer's right; at the west
       // end it is on their left.
-      const northOnRight = sgn > 0;
       const north = rows.find((r) => r.north);
       const south = rows.find((r) => !r.north);
       const mk = (r, side) => ({ ...r, arrow: side === 'left' ? '◀' : '▶' });
-      const [left, right] = northOnRight ? [mk(south, 'left'), mk(north, 'right')] : [mk(north, 'left'), mk(south, 'right')];
+      const [left, right] = sgn > 0 ? [mk(south, 'left'), mk(north, 'right')] : [mk(north, 'left'), mk(south, 'right')];
       const tex = makeTexture(drawTotem(left, right, 256, Math.round(256 * totemH / 0.8)), aniso);
       disposables.push(tex);
       const face = new THREE.Mesh(totemGeo, new THREE.MeshStandardMaterial({ map: tex, roughness: 0.5 }));
@@ -418,5 +466,41 @@ export function createBoothGrid(scene, layout, booths, boothsData, { attachTV, l
     }
   }
 
-  return { group, dispose: () => disposables.forEach((t) => t.dispose()) };
+  /**
+   * Sharp posters near the visitor. Every easel shows a 384 px poster, which reads as a poster
+   * from the aisle; within POSTER_NEAR metres it swaps to the 1240 px version so the body text
+   * is legible, and the farthest sharp ones are released once more than POSTER_SHARP_MAX are held.
+   */
+  function update(px, pz) {
+    if (lowPower) return;
+    const near = [];
+    for (const e of easels) {
+      if (!e.entry) continue;
+      const d = Math.hypot(px - e.x, pz - e.z);
+      e.dist = d;
+      if (d < POSTER_NEAR) near.push(e);
+    }
+    for (const e of near) {
+      if (e.sharp) continue;
+      e.sharp = loadTexture(e.entry.lg, aniso, () => { if (e.sharp) e.mat.map = e.sharp; e.mat.needsUpdate = true; });
+    }
+    const held = easels.filter((e) => e.sharp).sort((a, b) => a.dist - b.dist);
+    held.forEach((e, i) => {
+      if (i >= POSTER_SHARP_MAX && e.dist > POSTER_NEAR) {
+        e.mat.map = e.small;
+        e.mat.needsUpdate = true;
+        e.sharp.dispose();
+        e.sharp = null;
+      }
+    });
+  }
+
+  return {
+    group,
+    update,
+    dispose: () => {
+      disposables.forEach((t) => t.dispose());
+      easels.forEach((e) => e.sharp && e.sharp.dispose());
+    },
+  };
 }

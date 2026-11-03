@@ -1418,6 +1418,19 @@ body.touch-device #proximity-prompt:active { transform: translateX(-50%) scale(0
   display: block;
 }
 
+/* A team poster is portrait: show it whole, centred, rather than stretched to the panel width. */
+.media-screen.is-poster {
+  background: #0b1220;
+  padding: 10px;
+}
+
+.media-screen.is-poster img {
+  width: auto;
+  max-width: 100%;
+  max-height: 72vh;
+  margin: 0 auto;
+}
+
 .media-caption {
   font-size: 12px;
   color: var(--text-muted);
