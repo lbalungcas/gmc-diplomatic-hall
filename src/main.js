@@ -7,6 +7,8 @@ import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
 import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js';
 import { RectAreaLightUniformsLib } from 'three/examples/jsm/lights/RectAreaLightUniformsLib.js';
 import { SMAAPass } from 'three/examples/jsm/postprocessing/SMAAPass.js';
+import { GTAOPass } from 'three/examples/jsm/postprocessing/GTAOPass.js';
+import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
@@ -25,6 +27,7 @@ import { createPerfHud, isPerfHudEnabled } from './modules/perfHud.js';
 import { createAdaptiveQuality } from './modules/adaptiveQuality.js';
 import { computeBoothPositions, createBoothGrid, gridObstacles } from './modules/boothGrid.js';
 import { createVenueSignage } from './modules/venueSignage.js';
+import { createLightPool } from './modules/lightPool.js';
 
 // --- State Variables ---
 let scene, camera, renderer, clock;
@@ -90,6 +93,9 @@ const organizerBooths = new Map(); // id -> { org, group }
 let mascots = null;
 let boothGrid = null;              // live booth dressing — src/modules/boothGrid.js
 let venueSignage = null;           // printed sign faces — src/modules/venueSignage.js
+let lightPool = null;              // shared point lights for the venue fixtures — src/modules/lightPool.js
+let gtaoPass = null, bloomPass = null;
+const zoneEnv = { hall: null, lobby: null, current: null };   // venue reflection captures
 const staticBoxes = [];            // world AABBs the player can't walk through
 
 // Player Locomotion & Physics (Normalized realistic height: 1.45m eye level)
@@ -126,7 +132,7 @@ let lookTouchId = null;
 let touchLookLastX = 0, touchLookLastY = 0;
 const joystickVec = { x: 0, y: 0 };
 
-// Audience seating: two blocks either side of the centre aisle, rows A (front) to D, facing the
+// Audience seating: twenty banquet chairs, ten either side of the centre aisle, facing the
 // stage. Generated from src/data/hallLayout.json — the same table scripts/venue_set.py bakes the
 // chairs into the GLB from.
 const SEATING = hallLayout.seating;
@@ -199,7 +205,22 @@ const LOBBY_WALL_BOXES = [];
     // Outward normal of edge a->b.
     const dx = Math.sign(bx - ax), dz = Math.sign(bz - az);
     const nx = dz * inSide, nz = -dx * inSide;
-    const inner = 0.12, outer = 3.0;
+    // The slab reaches outward until the next parallel wall that faces back across the gap (or
+    // 8 m), so a deep notch in the outline — the stair core — is solid all the way through.
+    let outer = 8.0;
+    const inner = 0.12;
+    for (let j = 0; j < pts.length - 1; j++) {
+      if (j === i) continue;
+      const [cx, cz] = pts[j], [ex, ez] = pts[j + 1];
+      if (nz && cz === ez && Math.min(cx, ex) < Math.max(ax, bx) && Math.max(cx, ex) > Math.min(ax, bx)) {
+        const d = (cz - az) * nz;
+        if (d > 0.05) outer = Math.min(outer, d - 0.25);
+      }
+      if (nx && cx === ex && Math.min(cz, ez) < Math.max(az, bz) && Math.max(cz, ez) > Math.min(az, bz)) {
+        const d = (cx - ax) * nx;
+        if (d > 0.05) outer = Math.min(outer, d - 0.25);
+      }
+    }
     const lo = (v, n) => (n < 0 ? v - outer : v - (n > 0 ? inner : 0));
     const hi = (v, n) => (n > 0 ? v + outer : v + (n < 0 ? inner : 0));
     LOBBY_WALL_BOXES.push({
@@ -208,7 +229,7 @@ const LOBBY_WALL_BOXES = [];
       label: 'lobby wall',
     });
   }
-  for (const p of LOBBY.pillars) {
+  for (const p of LOBBY.pillars || []) {
     LOBBY_WALL_BOXES.push({ minX: p.x - p.size / 2, maxX: p.x + p.size / 2, minZ: p.z - p.size / 2, maxZ: p.z + p.size / 2, label: 'pillar' });
   }
   // The short wall with the closed door, between the curved wall's top and the restroom block.
@@ -234,15 +255,10 @@ const LOBBY_WALL_BOXES = [];
 }
 // Stage platform plus its side steps — solid so you cannot walk onto the set.
 const STAGE_BOX = { minX: STAGE.x0 - 0.62, maxX: STAGE.x1 + 0.62, minZ: STAGE.zBack - 0.2, maxZ: STAGE.zFront + 0.02, label: 'stage' };
-// The audience benches are solid; a seat is still taken from either side (sitDownOnChair).
+// Each audience chair is solid; a seat is still taken by walking up to it (sitDownOnChair).
 const SEAT_ROW_BOXES = [];
-for (const z of SEATING.rows) {
-  for (const blk of SEATING.blocks) {
-    SEAT_ROW_BOXES.push({
-      minX: blk.x0 - SEATING.pitch / 2, maxX: blk.x0 + (blk.count - 1) * SEATING.pitch + SEATING.pitch / 2,
-      minZ: z - 0.24, maxZ: z + 0.24, label: 'bench',
-    });
-  }
+for (const c of CHAIR_LOCATIONS) {
+  SEAT_ROW_BOXES.push({ minX: c.x - 0.24, maxX: c.x + 0.24, minZ: c.z - 0.23, maxZ: c.z + 0.28, label: 'chair' });
 }
 
 // Booth islands (spines + counters) and the foyer / hall furniture of the October 19 layout.
@@ -619,6 +635,22 @@ function init() {
     composer.renderTarget2.samples = 4;
     composer.addPass(new RenderPass(scene, camera));
 
+    // Ambient occlusion (GTAO): contact darkening where furniture meets the floor, in the
+    // coffers, behind the booth tables and along the wainscot — the cue that most separates a
+    // lit set from a rendered one. It re-renders depth and normals, so it is the first thing
+    // the quality governor drops.
+    gtaoPass = new GTAOPass(scene, camera, window.innerWidth, window.innerHeight);
+    gtaoPass.output = GTAOPass.OUTPUT.Default;
+    gtaoPass.blendIntensity = 0.85;
+    gtaoPass.updateGtaoMaterial({ radius: 0.55, distanceExponent: 1.4, thickness: 1.2, scale: 1.0, samples: 12 });
+    gtaoPass.updatePdMaterial({ lumaPhi: 10, depthPhi: 2, normalPhi: 3, radius: 6, rings: 2, samples: 12 });
+    composer.addPass(gtaoPass);
+
+    // A restrained bloom: only the brightest emitters (chandelier candles, downlights, the LED
+    // wall's whites) bleed, as they do through a real lens.
+    bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth / 2, window.innerHeight / 2), 0.2, 0.45, 1.25);
+    composer.addPass(bloomPass);
+
     // Vignette, applied in linear space ahead of tone mapping.
     const VignetteShader = {
       uniforms: {
@@ -681,7 +713,11 @@ function init() {
     targetFps: 60,
     maxPixelRatio: Math.min(window.devicePixelRatio, isLowPowerDevice ? 1.5 : 2),
     minPixelRatio: 0.75,
-    onChange: (cfg) => console.info(`[quality] ${cfg.label} (dpr ${cfg.pixelRatio.toFixed(2)})`),
+    onChange: (cfg) => {
+      if (gtaoPass) gtaoPass.enabled = !!cfg.ao;
+      if (bloomPass) bloomPass.enabled = !!cfg.bloom;
+      console.info(`[quality] ${cfg.label} (dpr ${cfg.pixelRatio.toFixed(2)})`);
+    },
   });
 
   if (isPerfHudEnabled()) perfHud = createPerfHud(renderer);
@@ -720,6 +756,55 @@ function generateEnvMap() {
 
   room.dispose();
   pmrem.dispose();
+}
+
+/**
+ * Reflections from the venue itself. RoomEnvironment is a neutral white studio: right for
+ * start-up, but the marble and the brass then reflect a room that isn't there. Once the venue
+ * has loaded, a cube camera captures the hall and the lobby (lit by the same light pool), each
+ * is prefiltered with PMREM, and `scene.environment` follows the player between the two. The
+ * swap changes only the texture, so no material recompiles. `?env=room` keeps the studio.
+ */
+function captureZoneEnvironments() {
+  if (new URLSearchParams(location.search).get('env') === 'room') return;
+  const rt = new THREE.WebGLCubeRenderTarget(256, { type: THREE.HalfFloatType });
+  const cube = new THREE.CubeCamera(0.1, 120, rt);
+  scene.add(cube);
+  const pmrem = new THREE.PMREMGenerator(renderer);
+  // Interface-only objects stay out of the reflections.
+  const hidden = [...boothMarkers, ...boothLabels.values()].filter((o) => o.visible);
+  hidden.forEach((o) => { o.visible = false; });
+  const probes = { hall: [9.68, 2.2, -12.0], lobby: [39.0, 2.2, -8.5] };
+  for (const [zone, [x, y, z]] of Object.entries(probes)) {
+    cube.position.set(x, y, z);
+    if (lightPool) {
+      camera.position.set(x, y, z);
+      lightPool.update(camera, 0, { instant: true });
+    }
+    cube.update(renderer, scene);
+    if (zoneEnv[zone]) zoneEnv[zone].dispose();
+    zoneEnv[zone] = pmrem.fromCubemap(rt.texture).texture;
+  }
+  hidden.forEach((o) => { o.visible = true; });
+  scene.remove(cube);
+  rt.dispose();
+  pmrem.dispose();
+  // The capture is darker than the white studio it replaces, so lift its intensity to match.
+  scene.environmentIntensity = isLowPowerDevice ? 0.85 : 0.8;
+  zoneEnv.current = null;
+  if (lightPool) {
+    camera.position.copy(player.pos);
+    lightPool.update(camera, 0, { instant: true });
+  }
+  updateZoneEnvironment();
+}
+
+function updateZoneEnvironment() {
+  if (!zoneEnv.hall) return;
+  const zone = player.pos.x < 19.35 ? 'hall' : 'lobby';
+  if (zoneEnv.current === zone) return;
+  zoneEnv.current = zone;
+  scene.environment = zoneEnv[zone];
 }
 
 /** Floating translucent dust motes drifting near the ceiling. */
@@ -782,32 +867,31 @@ function addVenueLighting() {
   const hemiLight = new THREE.HemisphereLight(0xfff6ea, 0x2b2838, isLowPowerDevice ? 0.34 : 0.26);
   scene.add(hemiLight);
 
-  // The ceiling is 7 m now, so the general fixtures sit high with a long reach, and the booth
-  // islands get warm pools over their spines. Those pools are what make the islands read as lit
-  // stands rather than props on an evenly lit floor. The foyer, the vestibule and the lobby
-  // (media hub, registration and the organizer stands, the elevators) get fixtures too.
-  const ceilingFixtures = [
-    [5.0, 6.6, -7.8], [14.4, 6.6, -7.8], [5.0, 6.6, -16.0], [14.4, 6.6, -16.0],
-    [9.68, 6.6, -21.5],
-    [24.0, 6.6, -13.0], [27.0, 6.6, -5.0], [30.5, 6.6, 1.8], [36.0, 6.6, -6.5],
-    [42.0, 6.6, -14.0], [45.0, 6.6, -7.0], [53.0, 6.6, -12.0], [61.0, 6.6, -10.0],
-  ];
-  ceilingFixtures.forEach(([x, y, z], idx) => {
-    if (isLowPowerDevice && idx % 2 === 1) return;
-    const light = new THREE.PointLight(0xffe9d0, isLowPowerDevice ? 13 : 10, 20, 1.5);
-    light.position.set(x, y, z);
-    scene.add(light);
-  });
-
+  // Light fixtures: the hall's ceiling lights and the warm pools over the booth islands, the
+  // lobby's ceiling lights and its chandeliers. They share a fixed pool of real point lights that
+  // follows the viewer (src/modules/lightPool.js), so the shading cost stays flat however many
+  // fixtures the venue has.
+  const fixtures = [];
+  const ceilingLight = (x, z, intensity = 10) => fixtures.push({ x, y: 6.6, z, color: 0xffe9d0, intensity, distance: 20, decay: 1.5 });
+  [[5.0, -7.8], [14.4, -7.8], [5.0, -16.0], [14.4, -16.0], [9.68, -21.5]].forEach(([x, z]) => ceilingLight(x, z));
   const grid = hallLayout.grid;
   for (const island of grid.islands) {
-    if (isLowPowerDevice) break;   // phones rely on the baked emissive lamp heads + env light
     for (const k of [1, 3, 5]) {
-      const pool = new THREE.PointLight(0xffd6a0, 2.6, 5.5, 1.4);
-      pool.position.set(grid.x0 + k * grid.booth, 3.0, island.spineZ);
-      scene.add(pool);
+      fixtures.push({ x: grid.x0 + k * grid.booth, y: 3.0, z: island.spineZ, color: 0xffd6a0, intensity: 2.6, distance: 5.5, decay: 1.4 });
     }
   }
+  // Lobby: the foyer's ends, the vestibule, the elevator hall, the media hub, registration, the
+  // organizer stands and the east end; the chandeliers are warmer and brighter.
+  [[21.5, -15.5], [21.5, -3.0], [33.0, -14.0], [35.5, -6.0], [39.8, -12.6],
+   [41.5, -16.8], [46.5, -16.8], [44.0, -1.5], [55.0, -12.0]].forEach(([x, z]) => ceilingLight(x, z, 6));
+  // Under the vestibule and elevator-hall soffits the lights hang lower and reach less far.
+  [[24.0, 1.7], [30.5, 1.7], [37.0, 1.7], [33.85, 6.0], [33.85, 10.0]].forEach(([x, z]) => {
+    fixtures.push({ x, y: 4.0, z, color: 0xffe9d0, intensity: 3.2, distance: 9, decay: 1.5 });
+  });
+  for (const [x, z] of LOBBY.chandeliers || []) {
+    fixtures.push({ x, y: LOBBY.ceilingHeight - 2.3, z, color: 0xffd9aa, intensity: 10, distance: 15, decay: 1.5 });
+  }
+  lightPool = createLightPool(scene, fixtures, { size: isLowPowerDevice ? 6 : 10 });
 
   // Stage wash from the truss, plus two side fills, all aimed at the set rather than the LED
   // wall (the LED is emissive and would only wash out).
@@ -826,11 +910,6 @@ function addVenueLighting() {
     fill.target.position.set(LED.cx + (sx < LED.cx ? -1.5 : 1.5), STAGE.height + 0.8, -26.6);
     scene.add(fill); scene.add(fill.target);
   }
-
-  const entranceLight = new THREE.SpotLight(0xfff5e6, 1.6, 12, Math.PI / 3, 0.7, 1.8);
-  entranceLight.position.set(9.68, 6.5, -1.2);
-  entranceLight.target.position.set(9.68, 0, -2.5);
-  scene.add(entranceLight); scene.add(entranceLight.target);
 
   // Soft blue spill from the LED wall onto the stage and the front rows (desktop only).
   if (!isLowPowerDevice) {
@@ -926,6 +1005,10 @@ function loadHallModel() {
 
     console.info(`[venue] ${meshes} meshes, ${seen.size} materials`);
     markVenueLoaded(true);
+    // Capture the venue's own reflections once its textures have had a moment to upload, and
+    // again later so the booth prints and posters are in them.
+    setTimeout(captureZoneEnvironments, 1500);
+    setTimeout(captureZoneEnvironments, 9000);
   }, (xhr) => {
     if (xhr && xhr.total) {
       const ratio = xhr.loaded / xhr.total;
@@ -3642,6 +3725,11 @@ function teleportPlayer(x, y, z, yaw) {
   player.pitch = 0;
   closeAllModals();
   teleportSettleTimer = 0.2; // Start a 200ms landing settle ease
+  // Lights and reflections follow the player at once rather than fading in after a jump.
+  if (lightPool) {
+    camera.position.set(x, y, z);
+    lightPool.update(camera, 0, { instant: true });
+  }
 }
 
 // --- HUD Setup & Click Handlers ---
@@ -3808,11 +3896,11 @@ function updateVisitedHUD() {
 const MAP_SIZE = 200;
 let mapDpr = 1;
 // One scale for both axes so the venue keeps its proportions: 68 m across covers the hall, the
-// foyer and the lobby out to the elevators; the 34 m from the stage end (top) to the lobby's south bay is centred.
+// foyer and the lobby; 42.5 m from the stage end (top) reaches the bottom of the elevator hall; the 34 m from the stage end (top) to the lobby's south bay is centred.
 const MAP_X0 = -1;
 const MAP_SPAN = 68;
 const MAP_Z0 = HALL_NORTH_Z - 0.5;
-const MAP_Z_SPAN = 34;
+const MAP_Z_SPAN = 42.5;
 const MAP_PX = (MAP_SIZE - 24) / MAP_SPAN;
 const MAP_Z_PAD = (MAP_SIZE - 24 - MAP_Z_SPAN * MAP_PX) / 2;
 const mapX = (x) => 12 + (x - MAP_X0) * MAP_PX;
@@ -3880,7 +3968,7 @@ function buildMinimapStatic() {
   }
   ctx.stroke();
   ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
-  for (const p of LOBBY.pillars) ctx.fillRect(mapX(p.x) - 1.5, mapZ(p.z) - 1.5, 3, 3);
+  for (const p of LOBBY.pillars || []) ctx.fillRect(mapX(p.x) - 1.5, mapZ(p.z) - 1.5, 3, 3);
   const foyerN = LOBBY.outline[LOBBY.outline.length - 1][1];
 
   // Lobby set: event arch, cocktail tables, partners wall.
@@ -3950,11 +4038,9 @@ function buildMinimapStatic() {
     }
   }
 
-  // Seats (one row strip per block reads better than 80 dots at this scale)
-  ctx.fillStyle = 'rgba(245, 158, 11, 0.55)';
-  for (const r of SEAT_ROW_BOXES) {
-    ctx.fillRect(mapX(r.minX), mapZ(r.minZ - 0.45), mapX(r.maxX) - mapX(r.minX), 2.2);
-  }
+  // Audience chairs, one dot each.
+  ctx.fillStyle = 'rgba(245, 158, 11, 0.7)';
+  for (const c of CHAIR_LOCATIONS) ctx.fillRect(mapX(c.x) - 0.8, mapZ(c.z) - 0.8, 1.6, 1.6);
 
   // Booth islands: each booth as a square in its row colour, the shared spine in white, and the
   // row letter at the west end.
@@ -4105,6 +4191,8 @@ function animate() {
   updatePlayer(delta);
   updateRemoteAvatars(delta);
   if (mascots) mascots.update(t, delta, player.pos, openModals.size > 0 || isBlockerVisible());
+  if (lightPool) lightPool.update(camera, delta);
+  updateZoneEnvironment();
   // Sharp easel posters near the player (about four times a second is plenty).
   if (boothGrid && (++posterTick & 15) === 0) boothGrid.update(player.pos.x, player.pos.z);
   checkProximity();

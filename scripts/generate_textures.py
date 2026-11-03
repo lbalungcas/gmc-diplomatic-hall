@@ -48,6 +48,9 @@ OUT_SIZE = {
     'wood_stage': 1024,
     'ceiling_tiles': 1024,
     'table_linen': 512,
+    'lobby_carpet': 1024,
+    'wall_fabric': 1024,
+    'walnut': 512,
 }
 
 
@@ -373,6 +376,114 @@ def linen():
     emit('table_linen', base, height, ao, rough, metal, normal_strength=1.6)
 
 
+# =============================================================================================
+# 7. Lobby finishes — the hotel pre-function look: patterned foyer carpet, fabric wall panels,
+#    walnut wainscot. The marble floor is `corridor_tile` above.
+# =============================================================================================
+def lobby_carpet():
+    """Hotel broadloom: a deep navy field with a gold diamond lattice, a cream quatrefoil at each
+    crossing and a small gold rosette in each diamond. build_venue.py projects it at 1.6 m per
+    repeat (2 x 2 motifs), so a motif is 0.8 m, the scale of a ballroom pre-function carpet."""
+    s = 1024
+    motifs = 2
+    u = (np.linspace(0, motifs, s, endpoint=False, dtype=np.float32)[None, :] % 1.0)
+    v = (np.linspace(0, motifs, s, endpoint=False, dtype=np.float32)[:, None] % 1.0)
+    u = np.broadcast_to(u, (s, s))
+    v = np.broadcast_to(v, (s, s))
+    du, dv = u - 0.5, v - 0.5
+
+    # Diamond lattice through the motif edges' midpoints: |du| + |dv| = 0.5.
+    diamond = np.abs(np.abs(du) + np.abs(dv) - 0.5)
+    lattice = 1.0 - smoothstep(0.010, 0.022, diamond)
+    lattice_in = 1.0 - smoothstep(0.034, 0.042, np.abs(np.abs(du) + np.abs(dv) - 0.5 + 0.045))
+
+    # Quatrefoil at the lattice crossings (motif corners): four lobes round each corner.
+    cu, cv = np.minimum(u, 1 - u), np.minimum(v, 1 - v)
+    lobes = np.zeros((s, s), np.float32)
+    for ou, ov in ((0.07, 0.0), (0.0, 0.07)):
+        d = np.sqrt((cu - ou) ** 2 + (cv - ov) ** 2)
+        lobes = np.maximum(lobes, 1.0 - smoothstep(0.052, 0.062, d))
+    quatre = np.clip(lobes, 0, 1)
+    quatre_core = 1.0 - smoothstep(0.03, 0.04, np.sqrt(cu ** 2 + cv ** 2))
+
+    # Rosette in each diamond's centre: eight petals.
+    r = np.sqrt(du ** 2 + dv ** 2)
+    ang = np.arctan2(dv, du)
+    petal_r = 0.075 + 0.035 * np.cos(8 * ang)
+    rosette = 1.0 - np.clip((r - (petal_r - 0.008)) / 0.008, 0, 1)   # per-pixel edge, so no smoothstep
+    rosette_eye = 1.0 - smoothstep(0.022, 0.03, r)
+
+    pile = fbm(s, 300, octaves=3, seed=4040)
+    shade = blur(fbm(s, 8, octaves=3, seed=4141), 6)
+
+    navy = np.array((26, 38, 70), np.float32) / 255
+    navy_lt = np.array((40, 56, 98), np.float32) / 255
+    gold = np.array((196, 156, 84), np.float32) / 255
+    cream = np.array((232, 220, 192), np.float32) / 255
+
+    t = np.clip(0.5 + 0.35 * (pile - 0.5) + 0.25 * (shade - 0.5), 0, 1)[..., None]
+    base = navy * (1 - t) + navy_lt * t
+    # A tone-on-tone inner band just inside the lattice, then the lattice, quatrefoils, rosettes.
+    base = base * (1 - lattice_in[..., None] * 0.35) + navy_lt * (lattice_in[..., None] * 0.35)
+    for mask, col in ((lattice, gold), (quatre, cream), (quatre_core, gold), (rosette, gold),
+                      (rosette_eye, cream)):
+        m = mask[..., None]
+        base = base * (1 - m) + col * m
+    base = np.clip(base * (0.92 + 0.16 * pile[..., None]), 0, 1)
+
+    # Cut-pile: the pattern is tufted slightly higher than the field.
+    motif = np.clip(lattice + quatre + rosette, 0, 1)
+    height = norm01(0.55 * pile + 0.25 * motif + 0.2 * shade)
+    ao = cavity_ao(height, sigma=6.0, strength=0.8)
+    rough = np.clip(0.86 + 0.10 * (1 - pile) - 0.04 * motif, 0, 1)
+    metal = np.zeros((s, s), np.float32)
+    emit('lobby_carpet', base, height, ao, rough, metal, normal_strength=1.4)
+
+
+def wall_fabric():
+    """Fabric-wrapped wall panels: warm ivory linen, one vertical reveal per 1.2 m panel (two per
+    2.4 m repeat), with a faint horizontal weave."""
+    s = 1024
+    panels = 2
+    weft = stripes(s, 260, axis=0, duty=0.5, softness=0.3)
+    warp_t = stripes(s, 260, axis=1, duty=0.5, softness=0.3)
+    weave = 0.5 * weft + 0.5 * warp_t
+    slub = fbm(s, (40, 400), octaves=3, seed=4242)
+    cloud = blur(fbm(s, 5, octaves=3, seed=4343), 12)
+
+    gx = (np.linspace(0, panels, s, endpoint=False, dtype=np.float32) % 1.0)[None, :]
+    gx = np.broadcast_to(gx, (s, s))
+    reveal = 1.0 - smoothstep(0.004, 0.008, np.minimum(gx, 1 - gx))
+    pillow = smoothstep(0.0, 0.05, np.minimum(gx, 1 - gx))          # the wrapped edge rounds over
+
+    fabric = np.clip(0.78 + 0.10 * weave + 0.07 * (slub - 0.5) + 0.06 * (cloud - 0.5), 0, 1)
+    base = tint(fabric, (178, 164, 142), (232, 222, 204))
+    base = base * (1 - reveal[..., None] * 0.72)
+
+    height = norm01(0.35 * weave + 0.15 * slub + 0.5 * pillow - 0.6 * reveal)
+    ao = cavity_ao(height, sigma=10.0, strength=1.2)
+    rough = np.clip(0.84 + 0.10 * (1 - weave) + 0.05 * reveal, 0, 1)
+    metal = np.zeros((s, s), np.float32)
+    emit('wall_fabric', base, height, ao, rough, metal, normal_strength=1.8)
+
+
+def walnut():
+    """Satin walnut veneer for the wainscot, door surrounds and the coffer trim: long vertical
+    grain with cathedral figure, no plank joints (it's a veneered panel)."""
+    s = 1024
+    grain = ridged(s, (20, 520), octaves=6, seed=4444)
+    figure = fbm(s, (6, 160), octaves=4, seed=4545)
+    cathedral = np.sin(2 * np.pi * (np.linspace(0, 3, s, dtype=np.float32)[None, :]
+                                    + 0.35 * (figure - 0.5))) * 0.5 + 0.5
+    wood = np.clip(0.38 + 0.30 * grain + 0.18 * figure + 0.12 * cathedral, 0, 1)
+    base = tint(wood, (52, 32, 20), (138, 92, 58))
+    height = norm01(0.7 * grain + 0.3 * figure)
+    ao = cavity_ao(height, sigma=10.0, strength=0.8)
+    rough = np.clip(0.30 + 0.16 * (1 - grain) + 0.08 * figure, 0, 1)
+    metal = np.zeros((s, s), np.float32)
+    emit('walnut', base, height, ao, rough, metal, normal_strength=1.2)
+
+
 MATERIALS = {
     'carpet': carpet,
     'marble': marble,
@@ -380,6 +491,9 @@ MATERIALS = {
     'stage': stage_wood,
     'ceiling': ceiling,
     'linen': linen,
+    'lobby_carpet': lobby_carpet,
+    'wall_fabric': wall_fabric,
+    'walnut': walnut,
 }
 
 if __name__ == '__main__':

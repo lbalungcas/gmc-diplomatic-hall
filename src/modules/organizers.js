@@ -58,7 +58,7 @@ function makeTexture(canvas) {
 /**
  * Brand palette for an organizer (from organizers.json):
  *  - color:  primary brand colour (logo colour) — table cloth, emblem, minimap, modal badge
- *  - bg:     backdrop base (Tdh prints black with an orange logo, so bg ≠ color there)
+ *  - bg:     backdrop base (set separately where a brand prints on a different base)
  *  - accent: highlight used on top of bg (kicker, bullets, rail, footer strip)
  *  - ink:    dark text colour used on top of the accent
  */

@@ -23,9 +23,9 @@ const PORT = 9333;
 // the camera like a seat (sitDownOnChair with a custom pose) so it can sit above eye level.
 const POSES = [
   { name: '01-spawn',        x: 45.0,  y: 1.45, z: -11.0,  yaw: 1.249,   pitch: -0.04, note: 'arrival at registration: desk, standee, organizer stands' },
-  { name: '02-lobby-high',   x: 64.5,  y: 5.4,  z: -2.0,   yaw: 1.2,     pitch: -0.36, note: 'high view across the lobby from the elevators', fly: true },
+  { name: '02-lobby-high',   x: 57.0,  y: 5.4,  z: -5.0,   yaw: 1.05,    pitch: -0.34, note: 'high view across the lobby: chandeliers, coffers, registration, curved wall', fly: true },
   { name: '03-organizers',   x: 43.45, y: 1.45, z: -14.0,  yaw: 0,       pitch: 0.02,  note: 'VEWU, KNH and TdH stands along Executive 3' },
-  { name: '04-elevators',    x: 56.0,  y: 1.45, z: -11.0,  yaw: -1.5708, pitch: 0.0,   note: 'elevator doors on the east wall' },
+  { name: '04-elevators',    x: 33.85, y: 1.45, z: 2.0,    yaw: 3.1416,  pitch: 0.05,  note: 'elevator hall: two banks of three cars' },
   { name: '05-media-hub',    x: 38.6,  y: 1.45, z: -5.6,   yaw: 1.5708,  pitch: 0.02,  note: 'Youth Media Hub on the outside of the curved wall' },
   { name: '06-passage',      x: 38.0,  y: 1.45, z: -9.0,   yaw: 2.9,     pitch: -0.02, note: 'from the lobby south toward the vestibule, pillar, curved wall end' },
   { name: '07-vestibule',    x: 37.5,  y: 1.45, z: 1.8,    yaw: 1.5708,  pitch: 0.0,   note: 'vestibule: foyer entrance doors on the right, exterior doors on the left' },
@@ -37,6 +37,7 @@ const POSES = [
   { name: '13-overview',     x: 9.68,  y: 5.6,  z: -0.9,   yaw: 0,       pitch: -0.42, note: 'high overview of both booth islands, benches and LED wall', fly: true },
   { name: '14-booth',        x: 8.48,  y: 1.45, z: -4.4,   yaw: 0,       pitch: -0.06, note: 'booth 21 front on, against the booth-style reference' },
   { name: '15-easel',        x: 7.75,  y: 1.45, z: -5.2,   yaw: 0.12,    pitch: -0.22, note: 'booth 21 easel poster, legibility' },
+  { name: '17-chairs',       x: 9.68,  y: 1.45, z: -20.4,  yaw: 0,       pitch: -0.3,  note: 'the 20 audience chairs, 10 each side of the aisle' },
   { name: '16-stage',        x: 9.68,  y: 1.45, z: -19.6,  yaw: 0,       pitch: 0.12,  note: 'stage design: LED wall, banners, lectern, chairs, grass' },
 ];
 

@@ -189,8 +189,9 @@ await check('booth table is solid, its front is open', `
 await check('lobby walls hold, lobby floor is free', `
   const T = window.THREE;
   const probes = [
-    ['vestibule south wall', new T.Vector3(30.0, 1.45, 4.5), (p) => p.z < 3.5],
-    ['east wall', new T.Vector3(67.0, 1.45, -12.0), (p) => p.x < 65.9],
+    ['vestibule south wall', new T.Vector3(25.0, 1.45, 4.5), (p) => p.z < 3.3],
+    ['east wall', new T.Vector3(59.0, 1.45, -12.0), (p) => p.x < 57.9],
+    ['stair core', new T.Vector3(43.0, 1.45, -1.0), (p) => p.z < -3.0 || p.x < 40.2],
     ['restroom block', new T.Vector3(30.0, 1.45, -18.2), (p) => p.z > -17.36],
     ['hall south wall', new T.Vector3(9.0, 1.45, 0.5), (p) => p.z < -1.0],
     ['curved wall, foyer side', new T.Vector3(30.6, 1.45, -4.66), (p) => p.x < 30.45],
@@ -199,7 +200,7 @@ await check('lobby walls hold, lobby floor is free', `
   const bad = [];
   for (const [name, p, ok] of probes) { ${G}.checkCollision(p); if (!ok(p)) bad.push(name + '@' + p.x.toFixed(1) + ',' + p.z.toFixed(1)); }
   // Open floor in the vestibule and through an entrance doorway.
-  for (const [fx, fz] of [[30.0, 1.8], [27.3, 0.0]]) {
+  for (const [fx, fz] of [[30.0, 1.8], [27.3, 0.0], [33.85, 9.0]]) {
     const q = new T.Vector3(fx, 1.45, fz), q0 = q.clone();
     ${G}.checkCollision(q);
     if (q.distanceTo(q0) > 0.01) bad.push('open floor moved at ' + fx + ',' + fz);
@@ -292,6 +293,21 @@ await check('adaptive quality governor responds', `
   const mid = q.level;
   q.forceLevel(0);
   return { ok: mid === 2 && q.level === 0, detail: 'stepped to ' + mid + ' and back to ' + q.level };`);
+
+await check('20 individual audience chairs, 10 each side', `
+  const C = ${G}.CHAIR_LOCATIONS;
+  const left = C.filter(c => c.x < 9.68).length, right = C.filter(c => c.x > 9.68).length;
+  return { ok: C.length === 20 && left === 10 && right === 10, detail: left + ' + ' + right + ' chairs' };`);
+
+await check('light pool keeps a fixed light count', `
+  let n = 0;
+  ${G}.scene.traverse(o => { if (o.isPointLight) n++; });
+  const T = window.THREE;
+  ${G}.teleportPlayer(45.0, 1.45, -11.0, 1.2);
+  let m = 0;
+  ${G}.scene.traverse(o => { if (o.isPointLight) m++; });
+  const lit = ${G}.scene.children.filter(o => o.isPointLight && o.intensity > 0).length;
+  return { ok: n === m && n <= 12 && lit > 3, detail: n + ' point lights before and after a jump, ' + lit + ' lit at registration' };`);
 
 await check('venue signage prints are in place', `
   const want = ['EventArch_Front', 'EventArch_Back', 'StageBanner_W', 'StageBanner_E', 'MediaHub_Print'];

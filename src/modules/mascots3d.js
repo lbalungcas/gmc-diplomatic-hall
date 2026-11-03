@@ -1,5 +1,5 @@
 /**
- * 3D hall mascots — Tutu the elephant (Terre des hommes) and the VEWU lighthouse — built from
+ * 3D hall mascots — Tutu the elephant (Terre des Hommes Netherlands) and the VEWU lighthouse — built from
  * primitives so they need no extra downloads. Each mascot is tinted with its organizer's brand
  * palette (organizers.json: color / accent / ink); copy follows the 2D GMC hall's mascots.json.
  *

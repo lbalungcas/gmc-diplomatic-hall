@@ -1,31 +1,31 @@
 [
   {
     "id": "tdh",
-    "short": "Tdh",
-    "name": "Terre des hommes",
-    "tagline": "Hand in hand with children.",
-    "color": "#F38500",
-    "bg": "#1D1D1B",
-    "accent": "#F38500",
-    "ink": "#1D1D1B",
-    "x": 46.55,
-    "z": -18.6,
+    "short": "TdH NL",
+    "name": "Terre des Hommes Netherlands",
+    "tagline": "Stop child exploitation.",
+    "color": "#262635",
+    "bg": "#262635",
+    "accent": "#DD9366",
+    "ink": "#262635",
+    "x": 46.8,
+    "z": -18.5,
     "mascot": "tutu",
     "kicker": "ORGANIZER BOOTH",
-    "overview": "Terre des hommes (Tdh) is the leading Swiss children's rights organisation. For more than 60 years it has worked hand in hand with children in over 30 countries to win protection and respect for their rights — in health, for children on the move, and in access to justice. Tdh co-organizes the Youth Innovations Marketplace; stop by to meet the team and find out how to stay involved after the summit.",
+    "overview": "Terre des Hommes Netherlands works to prevent and stop child exploitation — child labour, sexual exploitation, child trafficking and child marriage. Founded in the Netherlands in 1965, it works through local partners in Asia, Africa, Europe and the Middle East, including here in the Philippines, and its ListenUp! strategy aims to stop child exploitation by 2030. TdH NL co-organizes the Youth Innovations Marketplace; stop by to meet the team and find out how to stay involved after the summit.",
     "bullets": [
-      "Children's health",
-      "Children on the move",
-      "Access to justice"
+      "Stop child exploitation",
+      "Child labour & trafficking",
+      "Local partners in Asia & Africa"
     ],
     "stats": [
       {
-        "value": "60+",
-        "label": "Years with children"
+        "value": "1965",
+        "label": "Founded"
       },
       {
-        "value": "30+",
-        "label": "Countries"
+        "value": "4",
+        "label": "Regions"
       },
       {
         "value": "Organizer",
@@ -34,8 +34,8 @@
     ],
     "links": [
       {
-        "label": "tdh.org",
-        "url": "https://www.tdh.org/en"
+        "label": "terredeshommes.nl",
+        "url": "https://www.terredeshommes.nl/en"
       }
     ],
     "yaw": 0,
@@ -54,8 +54,8 @@
     "bg": "#0050A0",
     "accent": "#F18B27",
     "ink": "#1A1A1A",
-    "x": 43.45,
-    "z": -18.6,
+    "x": 43.85,
+    "z": -18.5,
     "mascot": null,
     "kicker": "ORGANIZER BOOTH",
     "overview": "Kindernothilfe (KNH) is a Christian children's relief organisation founded in Duisburg, Germany, in 1959. It works exclusively through local project partners to secure a better future for children — strengthening child protection, education and self-help groups, and training more than 650 organisations worldwide. At the Marketplace, KNH co-hosts the organizer area and the partner network behind the youth innovations on show.",
@@ -99,8 +99,8 @@
     "bg": "#1C3462",
     "accent": "#F2C667",
     "ink": "#1C3462",
-    "x": 40.35,
-    "z": -18.6,
+    "x": 40.9,
+    "z": -18.5,
     "mascot": "vewu-lighthouse",
     "kicker": "ORGANIZER BOOTH",
     "overview": "Violence Ends With Us (VEWU) is a regional youth-led movement dedicated to children, young people and survivors across the Asia-Pacific. Uniting voices from over 20 countries, VEWU turns youth ideas into action, brings lived realities into decision-making spaces, and grows a community of Lightkeepers working toward a violence-free future. Follow the lighthouse — and join the movement.",

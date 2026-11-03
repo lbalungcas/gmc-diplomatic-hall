@@ -9,9 +9,10 @@
  * This measures what the device actually delivers and steps quality down — then back up — in
  * the order that costs the least visually per millisecond recovered:
  *
- *   1. pixel ratio   — the cheapest large win; the scene is fill-rate bound, not vertex bound
- *   2. shadows       — one spot light's shadow map
- *   3. post chain    — SMAA and the vignette
+ *   1. ambient occlusion — GTAO re-renders depth and normals, so it goes first
+ *   2. pixel ratio   — the cheapest large win; the scene is fill-rate bound, not vertex bound
+ *   3. shadows and bloom
+ *   4. post chain    — SMAA and the vignette
  *
  * Steps are deliberately sticky: quality only drops after a sustained bad patch and only
  * recovers after a longer good one, so a single stall while a texture uploads cannot start an
@@ -33,10 +34,11 @@ export function createAdaptiveQuality(renderer, composer, {
 
   // Level 0 is full quality; each step up disables one more thing.
   const levels = [
-    { pixelRatio: maxPixelRatio, shadows: true, post: true, label: 'full' },
-    { pixelRatio: Math.max(minPixelRatio, maxPixelRatio * 0.75), shadows: true, post: true, label: 'reduced resolution' },
-    { pixelRatio: Math.max(minPixelRatio, maxPixelRatio * 0.6), shadows: false, post: true, label: 'no shadows' },
-    { pixelRatio: minPixelRatio, shadows: false, post: false, label: 'minimum' },
+    { pixelRatio: maxPixelRatio, shadows: true, post: true, ao: true, bloom: true, label: 'full' },
+    { pixelRatio: maxPixelRatio, shadows: true, post: true, ao: false, bloom: true, label: 'no ambient occlusion' },
+    { pixelRatio: Math.max(minPixelRatio, maxPixelRatio * 0.75), shadows: true, post: true, ao: false, bloom: true, label: 'reduced resolution' },
+    { pixelRatio: Math.max(minPixelRatio, maxPixelRatio * 0.6), shadows: false, post: true, ao: false, bloom: false, label: 'no shadows' },
+    { pixelRatio: minPixelRatio, shadows: false, post: false, ao: false, bloom: false, label: 'minimum' },
   ];
 
   let level = 0;

@@ -260,6 +260,13 @@ SURFACES = {
     'Mat_Stage_Backdrop': dict(uv='world', tile=3.0, base='stage_backdrop',
                                roughness=0.62, metallic=0.0),
     'Mat_Media_Hub':      dict(uv='face', base='media_hub', roughness=0.45, metallic=0.0),
+    # Lobby finishes: patterned foyer carpet, fabric-wrapped wall panels, walnut wainscot.
+    'Mat_Lobby_Carpet':   dict(uv='world', tile=1.6, base='lobby_carpet', normal='lobby_carpet_normal',
+                               orm='lobby_carpet_orm', normal_strength=0.8),
+    'Mat_Wall_Fabric':    dict(uv='world', tile=2.4, base='wall_fabric', normal='wall_fabric_normal',
+                               orm='wall_fabric_orm', normal_strength=0.8),
+    'Mat_Walnut':         dict(uv='world', tile=1.5, base='walnut', normal='walnut_normal',
+                               orm='walnut_orm', normal_strength=0.6),
     'Mat_Table_Linen':    dict(uv='world', tile=1.2, base='table_linen', normal='table_linen_normal',
                                orm='table_linen_orm'),
 }
@@ -612,6 +619,7 @@ def step_join_static():
         ('Venue_Seating', lambda o: o.name.startswith('Seat_')),
         ('Venue_Doors',  lambda o: o.name.startswith('Door_')),
         ('Venue_Foyer',  lambda o: o.name.startswith(('Foyer_', 'HallSet_'))),
+        ('Venue_Lobby',  lambda o: o.name.startswith('Lobby_')),
     ]
     for new_name, pred in FAMILIES:
         members = [o for o in bpy.data.objects if o.type == 'MESH' and pred(o)]

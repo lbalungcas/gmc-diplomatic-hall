@@ -31,7 +31,7 @@
     "image": "/venue/stage/led.webp"
   },
   "seating": {
-    "_comment": "Twenty seats on two upholstered backless benches (ten each) either side of the centre aisle, facing the stage. `pitch` is the seat spacing used for sitting.",
+    "_comment": "Twenty individual banquet chairs in one row, ten either side of the centre aisle, facing the stage. `pitch` is the chair spacing.",
     "rows": [
       -22.6
     ],
@@ -46,7 +46,7 @@
       }
     ],
     "pitch": 0.62,
-    "style": "bench"
+    "style": "chairs"
   },
   "standees": {
     "_comment": "Freestanding cut-outs from the stage design, placed on the hall floor either side of the stage so they never cover the LED wall.",
@@ -204,12 +204,12 @@
     "_comment": "Lobby features, placed from the floor plan. Hardware is baked by scripts/venue_set.py; prints, the arch and sign faces are drawn live by src/modules/venueSignage.js from the client art in public/venue (made by scripts/prepare_assets.py).",
     "policyWall": {
       "x": 25.8,
-      "z": -17.26,
+      "z": -17.16,
       "yaw": 0
     },
     "partnersWall": {
       "x": 33.4,
-      "z": -17.28,
+      "z": -17.18,
       "yaw": 0,
       "width": 6.0,
       "height": 2.6,
@@ -365,66 +365,90 @@
     }
   ],
   "lobby": {
-    "_comment": "The Diplomatic Hall foyer and the pre-function lobby east of it, from the Marriott plan (hall 64.3 ft wide; foyer 42.3 ft from the hall to the curved wall and 56.4 ft from the restroom block to the entrance doors). The foyer sits between the hall, the restroom block (M/W), the curved wall and the entrance doors; the doors open onto a vestibule that runs east into the lobby with registration, the Youth Media Hub (on the curved wall's outside), the organizer stands along Executive 3 and the elevators. `outline` is the outer walkable boundary, clockwise from the hall's south-east corner; its last edge is the hall's own east wall. The curved wall, the closed-door wall and the entrance door line are inside it.",
+    "_comment": "The Diplomatic Hall foyer and the pre-function lobby around it, from the Marriott plans. The foyer (dimensioned plan: 42.3 ft from the hall to the curved wall, 56.4 ft from the restroom block to the entrance doors) sits between the hall, the restroom block, the curved wall and the glass entrance doors. From maps.svg: the doors open onto a vestibule; south of it the elevator hall with two banks of three cars; east of the curved wall the lobby with registration, the Youth Media Hub on the wall's outside, the organizer stands along Executive 3, the stair core and two corridors north. `outline` is the outer walkable boundary, clockwise from the hall's south-east corner; its last edge is the hall's own east wall.",
     "outline": [
       [
         19.35,
         0.0
       ],
       [
-        20.5,
-        0.0
+        19.35,
+        3.38
       ],
       [
-        20.5,
-        3.6
+        31.6,
+        3.38
       ],
       [
-        41.0,
-        3.6
+        31.6,
+        12.3
       ],
       [
-        41.0,
-        -4.15
+        36.1,
+        12.3
       ],
       [
-        51.3,
-        -4.15
+        36.1,
+        3.38
       ],
       [
-        51.3,
-        0.0
+        40.3,
+        3.38
       ],
       [
-        66.0,
-        0.0
+        40.3,
+        -2.9
       ],
       [
-        66.0,
-        -19.2
+        47.1,
+        -2.9
       ],
       [
-        55.2,
-        -19.2
+        47.1,
+        -4.0
       ],
       [
-        55.2,
+        51.0,
+        -4.0
+      ],
+      [
+        58.0,
+        -4.0
+      ],
+      [
+        58.0,
+        -19.0
+      ],
+      [
+        56.2,
+        -19.0
+      ],
+      [
+        56.2,
         -25.0
       ],
       [
-        48.1,
+        48.3,
         -25.0
       ],
       [
-        48.1,
-        -18.8
+        48.3,
+        -18.7
       ],
       [
-        38.8,
-        -18.8
+        39.4,
+        -18.7
       ],
       [
-        38.8,
+        39.4,
+        -25.0
+      ],
+      [
+        37.7,
+        -25.0
+      ],
+      [
+        37.7,
         -17.36
       ],
       [
@@ -450,7 +474,7 @@
     },
     "closedDoorWall": {
       "x": 37.5,
-      "thickness": 0.5,
+      "thickness": 0.2,
       "z0": -17.36,
       "z1": -15.18,
       "door": {
@@ -471,60 +495,183 @@
         31.45
       ]
     },
-    "exteriorDoors": {
-      "z": 3.6,
-      "spans": [
-        [
-          21.8,
-          23.8
-        ],
-        [
-          23.9,
-          25.9
-        ]
+    "elevators": {
+      "width": 1.2,
+      "height": 2.4,
+      "cars": [
+        {
+          "x": 31.6,
+          "z": 4.85,
+          "facing": 1
+        },
+        {
+          "x": 31.6,
+          "z": 7.58,
+          "facing": 1
+        },
+        {
+          "x": 31.6,
+          "z": 10.57,
+          "facing": 1
+        },
+        {
+          "x": 36.1,
+          "z": 4.85,
+          "facing": -1
+        },
+        {
+          "x": 36.1,
+          "z": 7.58,
+          "facing": -1
+        },
+        {
+          "x": 36.1,
+          "z": 10.57,
+          "facing": -1
+        }
       ]
     },
-    "corridorDoors": [
-      {
-        "z": -23.0,
-        "x0": 19.35,
-        "x1": 22.66
-      },
-      {
-        "z": -25.0,
-        "x0": 48.1,
-        "x1": 55.2
-      }
-    ],
-    "elevators": {
-      "x": 66.0,
-      "z": [
-        -15.5,
-        -12.0,
-        -8.5
-      ],
-      "width": 1.2,
-      "height": 2.4
-    },
-    "pillars": [
-      {
-        "x": 39.6,
-        "z": -4.1,
-        "size": 0.8
-      },
-      {
-        "x": 55.5,
-        "z": -3.7,
-        "size": 0.8
-      }
-    ],
     "ceilingHeight": 7.0,
     "spawn": {
       "_comment": "Visitors start at the registration desk, as at the venue.",
       "x": 45.0,
       "z": -11.0,
       "yaw": 1.249
-    }
+    },
+    "wallDoors": [
+      {
+        "wall": "z",
+        "at": 3.38,
+        "span": [
+          21.1,
+          23.2
+        ],
+        "kind": "glass",
+        "note": "escalators"
+      },
+      {
+        "wall": "z",
+        "at": 3.38,
+        "span": [
+          25.3,
+          27.2
+        ],
+        "kind": "glass",
+        "note": "escalators"
+      },
+      {
+        "wall": "z",
+        "at": 3.38,
+        "span": [
+          38.6,
+          40.0
+        ],
+        "kind": "teal",
+        "note": "service"
+      },
+      {
+        "wall": "x",
+        "at": 19.35,
+        "span": [
+          0.9,
+          2.5
+        ],
+        "kind": "teal",
+        "note": "hall side corridor"
+      },
+      {
+        "wall": "x",
+        "at": 40.3,
+        "span": [
+          -0.2,
+          1.3
+        ],
+        "kind": "teal",
+        "note": "stairs"
+      },
+      {
+        "wall": "z",
+        "at": -23.0,
+        "span": [
+          19.85,
+          22.15
+        ],
+        "kind": "teal",
+        "note": "corridor"
+      },
+      {
+        "wall": "z",
+        "at": -25.0,
+        "span": [
+          37.9,
+          39.2
+        ],
+        "kind": "teal",
+        "note": "corridor"
+      },
+      {
+        "wall": "z",
+        "at": -25.0,
+        "span": [
+          50.6,
+          53.9
+        ],
+        "kind": "teal",
+        "note": "meal venue"
+      }
+    ],
+    "coffers": [
+      [
+        19.47,
+        37.35,
+        -17.24,
+        -0.12,
+        3.6
+      ],
+      [
+        37.8,
+        57.9,
+        -18.6,
+        -4.1,
+        3.6
+      ]
+    ],
+    "chandeliers": [
+      [
+        24.83,
+        -8.68
+      ],
+      [
+        28.41,
+        -8.68
+      ],
+      [
+        42.8,
+        -9.54
+      ],
+      [
+        49.5,
+        -9.54
+      ]
+    ],
+    "soffits": [
+      {
+        "_comment": "dropped ceiling over the vestibule",
+        "x0": 19.45,
+        "x1": 40.2,
+        "z0": 0.1,
+        "z1": 3.28,
+        "y": 4.2
+      },
+      {
+        "_comment": "and over the elevator hall",
+        "x0": 31.7,
+        "x1": 36.0,
+        "z0": 3.28,
+        "z1": 12.2,
+        "y": 4.2
+      }
+    ]
   },
   "stageBanners": {
     "width": 1.1,

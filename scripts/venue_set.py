@@ -7,9 +7,10 @@ baked geometry and the runtime can never disagree about where a booth or the sta
 
   reshape_hall()        stretch the hall north and lift the ceiling
   build_stage()         platform, side steps, LED wall frame, lighting truss, set furniture, speakers
-  build_seating()       two upholstered audience benches, ten seats each
-  build_lobby()         the lobby outside the hall, from the floor plan: floor, ceiling, walls,
-                        entrance doors, the restroom-block door and the pillar
+  build_seating()       twenty banquet chairs, ten either side of the aisle
+  build_lobby()         the foyer and the lobby from the Marriott plans: marble floor, foyer carpet,
+                        fabric walls with walnut wainscot, curved wall, entrance doors, elevator hall,
+                        coffered ceiling and soffits, crystal chandeliers
   build_grid()          24 booths in two back-to-back islands, after the booth-style reference
   build_foyer()         partners wall, event arch returns, deal-corner cocktail tables, curved photo
                         wall + Youth Media Hub set, standees
@@ -112,6 +113,13 @@ MATERIALS = {
                                detail=('booth_fabric_normal', 'booth_fabric_orm', 20.0), normal_strength=1.2),
     'Mat_Lectern_Navy':   dict(color=srgb(30, 52, 98), roughness=0.5, metallic=0.1),
     'Mat_Arch_Navy':      dict(color=srgb(28, 52, 97), roughness=0.6, metallic=0.0),
+    # Lobby finishes: plaster coffers, brass trim, crystal and candle bulbs on the chandeliers.
+    'Mat_Plaster':        dict(color=srgb(240, 236, 228), roughness=0.88, metallic=0.0),
+    'Mat_Brass':          dict(color=srgb(214, 172, 96), roughness=0.26, metallic=1.0),
+    'Mat_Crystal':        dict(color=srgb(236, 242, 250), roughness=0.04, metallic=0.35,
+                               emit_color=srgb(255, 236, 205), emit_strength=0.6),
+    'Mat_Bulb':           dict(color=srgb(255, 236, 200), roughness=0.3, metallic=0.0,
+                               emit_color=srgb(255, 222, 170), emit_strength=8.0),
 }
 
 # One material per booth-row colour zone, from the layout.
@@ -206,10 +214,10 @@ class Builder:
         for f in made:
             f.material_index = idx
 
-    def cyl(self, mat_name, r1, r2, depth, m=Matrix(), segments=16):
+    def cyl(self, mat_name, r1, r2, depth, m=Matrix(), segments=16, caps=True):
         """Cylinder/cone along local +Z, base at z=0."""
         mm = m @ Matrix.Translation((0, 0, depth / 2))
-        res = bmesh.ops.create_cone(self.bm, cap_ends=True, cap_tris=False, segments=segments,
+        res = bmesh.ops.create_cone(self.bm, cap_ends=caps, cap_tris=False, segments=segments,
                                     radius1=r1, radius2=r2, depth=depth, matrix=mm)
         self._tag(res['verts'], mat_name)
 
@@ -220,7 +228,8 @@ class Builder:
         if d.length < 1e-6:
             return
         rot = d.to_track_quat('Z', 'Y').to_matrix().to_4x4()
-        self.cyl(mat_name, r, r, d.length, Matrix.Translation(a) @ rot, segments)
+        # Rods always meet something at both ends, so their caps are never seen.
+        self.cyl(mat_name, r, r, d.length, Matrix.Translation(a) @ rot, segments, caps=False)
 
     def torus(self, mat_name, major, minor, m=Matrix(), seg=16, ring=6):
         verts = []
@@ -448,44 +457,133 @@ def wbox(b, mat_name, x0, x1, za, zb, y0, y1, bevel=0.0, segments=2):
           bevel=bevel, segments=segments)
 
 
+def banquet_chair(b, x, z3):
+    """Hotel banquet chair facing the stage (north): gold frame, navy upholstered seat and back."""
+    # Legs, slightly splayed, and the seat frame.
+    for sx in (-1, 1):
+        for sz, top_z in ((-0.19, -0.17), (0.2, 0.2)):
+            b.rod('Mat_Brass', B(x + sx * 0.215, z3 + sz, 0.0), B(x + sx * 0.2, z3 + top_z, 0.43), 0.012, 6)
+    wbox(b, 'Mat_Brass', x - 0.225, x + 0.225, z3 - 0.2, z3 + 0.22, 0.41, 0.44)
+    wbox(b, 'Mat_Seat_Fabric', x - 0.215, x + 0.215, z3 - 0.21, z3 + 0.2, 0.44, 0.52, bevel=0.03, segments=2)
+    # Back: two posts and a top rail round an upholstered pad, raked back a little.
+    for sx in (-1, 1):
+        b.rod('Mat_Brass', B(x + sx * 0.2, z3 + 0.2, 0.43), B(x + sx * 0.19, z3 + 0.26, 0.98), 0.012, 6)
+    b.rod('Mat_Brass', B(x - 0.19, z3 + 0.26, 0.98), B(x + 0.19, z3 + 0.26, 0.98), 0.013, 6)
+    wbox(b, 'Mat_Seat_Fabric', x - 0.18, x + 0.18, z3 + 0.2, z3 + 0.25, 0.56, 0.94, bevel=0.02, segments=2)
+
+
 def build_seating(say):
+    """Twenty individual banquet chairs in one row, ten either side of the centre aisle."""
     s = LAYOUT['seating']
-    b = Builder('Seat_Benches')
+    b = Builder('Seat_Chairs')
     n = 0
     for z3 in s['rows']:
         for blk in s['blocks']:
-            x0 = blk['x0'] - s['pitch'] / 2
-            x1 = blk['x0'] + (blk['count'] - 1) * s['pitch'] + s['pitch'] / 2
-            # Padded seat on a dark shell, on three brushed-steel plate legs.
-            wbox(b, 'Mat_Seat_Shell', x0 + 0.02, x1 - 0.02, z3 - 0.21, z3 + 0.21, 0.33, 0.37, bevel=0.01, segments=1)
-            wbox(b, 'Mat_Seat_Fabric', x0, x1, z3 - 0.23, z3 + 0.23, 0.36, 0.46, bevel=0.035, segments=3)
-            for xl in (x0 + 0.18, (x0 + x1) / 2, x1 - 0.18):
-                wbox(b, 'Mat_Seat_Frame', xl - 0.015, xl + 0.015, z3 - 0.19, z3 + 0.19, 0.02, 0.33)
-                wbox(b, 'Mat_Seat_Glide', xl - 0.02, xl + 0.02, z3 - 0.2, z3 + 0.2, 0.0, 0.02)
-            n += blk['count']
+            for k in range(blk['count']):
+                banquet_chair(b, blk['x0'] + k * s['pitch'], z3)
+                n += 1
     b.to_object()
-    say(f'  {n} bench seats on {len(s["blocks"]) * len(s["rows"])} upholstered benches')
-
+    say(f'  {n} banquet chairs in {len(s["rows"])} row(s), {len(s["blocks"])} blocks')
 
 
 # =============================================================================================
 # 3b. Lobby — the area outside the hall, from the floor plan
 # =============================================================================================
+def _outline_inward(pts):
+    """Inward normal (nx, nz) per outline edge, from the winding of the outline."""
+    area = sum(pts[i][0] * pts[(i + 1) % len(pts)][1] - pts[(i + 1) % len(pts)][0] * pts[i][1]
+               for i in range(len(pts)))
+    s = 1 if area > 0 else -1
+    out = []
+    for (ax, az), (bx, bz) in zip(pts, pts[1:] + pts[:1]):
+        dx, dz = (bx > ax) - (bx < ax), (bz > az) - (bz < az)
+        # Outward normal is (dz*s, -dx*s) for this winding (matches src/main.js LOBBY_WALL_BOXES).
+        out.append((-dz * s, dx * s))
+    return out
+
+
+def _spans_minus(a, b, holes):
+    """[a, b] with the given (h0, h1) intervals removed, as a list of spans."""
+    spans = [(a, b)]
+    for h0, h1 in sorted(holes):
+        nxt = []
+        for s0, s1 in spans:
+            if h1 <= s0 or h0 >= s1:
+                nxt.append((s0, s1))
+                continue
+            if h0 > s0:
+                nxt.append((s0, h0))
+            if h1 < s1:
+                nxt.append((h1, s1))
+        spans = nxt
+    return [(s0, s1) for s0, s1 in spans if s1 - s0 > 0.02]
+
+
+def chandelier(b, x, z3, ceil, drop=2.6, scale=1.0, seed=0):
+    """Crystal chandelier hung from the ceiling at (x, z3): brass canopy, rod and column, three
+    tiers of brass rings with candle arms, crystal drops on every ring and a crystal finial.
+    About 2.5k triangles; the runtime adds the light it gives off."""
+    k = scale
+    base = Matrix.Translation(B(x, z3, 0.0))
+    top = ceil - 0.02
+    bottom = ceil - drop
+    b.cyl('Mat_Brass', 0.26 * k, 0.18 * k, 0.07, base @ Matrix.Translation((0, 0, top - 0.07)), 24)
+    b.rod('Mat_Brass', base @ Vector((0, 0, bottom + 1.15 * k)), base @ Vector((0, 0, top - 0.07)), 0.018, 8)
+    # Central column with two bulges.
+    b.cyl('Mat_Brass', 0.05 * k, 0.08 * k, 0.5 * k, base @ Matrix.Translation((0, 0, bottom + 0.2 * k)), 12)
+    b.cyl('Mat_Brass', 0.08 * k, 0.04 * k, 0.45 * k, base @ Matrix.Translation((0, 0, bottom + 0.7 * k)), 12)
+    tiers = ((0.95 * k, bottom + 0.42 * k, 2), (0.66 * k, bottom + 0.82 * k, 1), (0.38 * k, bottom + 1.12 * k, 1))
+    for ti, (R, h, strands) in enumerate(tiers):
+        ring = base @ Matrix.Translation((0, 0, h))
+        b.torus('Mat_Brass', R, 0.016 * k, ring, 32 if ti == 0 else 20, 5)
+        n = max(10, int(2 * math.pi * R / 0.16))
+        for i in range(n):
+            a = 2 * math.pi * (i + 0.5 * (ti % 2)) / n
+            cx, cy = R * math.cos(a), R * math.sin(a)
+            zz = h - 0.03
+            for sidx in range(strands):
+                length = (0.075 if sidx == 0 else 0.06) * k
+                m = base @ Matrix.Translation((cx, cy, zz - length))
+                b.cyl('Mat_Crystal', 0.0, 0.024 * k, length * 0.55, m @ Matrix.Translation((0, 0, length * 0.45)), 4)
+                b.cyl('Mat_Crystal', 0.024 * k, 0.0, length * 0.45, m, 4)
+                zz -= length + 0.012
+        if ti == 0:
+            # Candle arms from the column to the bottom ring, a bulb on each.
+            arms = 8
+            for i in range(arms):
+                a = 2 * math.pi * i / arms
+                tip = Vector((R * 0.92 * math.cos(a), R * 0.92 * math.sin(a), h + 0.06))
+                b.rod('Mat_Brass', base @ Vector((0, 0, bottom + 0.3 * k)), base @ tip, 0.011, 6)
+                b.cyl('Mat_Brass', 0.03 * k, 0.025 * k, 0.04, base @ Matrix.Translation(tip), 8)
+                b.cyl('Mat_Bulb', 0.016 * k, 0.016 * k, 0.09 * k, base @ Matrix.Translation(tip + Vector((0, 0, 0.04))), 6)
+                b.cyl('Mat_Bulb', 0.024 * k, 0.0, 0.05 * k, base @ Matrix.Translation(tip + Vector((0, 0, 0.13 * k))), 6)
+    # Finial: a long crystal drop under the column.
+    fin = base @ Matrix.Translation((0, 0, bottom - 0.08 * k))
+    b.cyl('Mat_Crystal', 0.0, 0.05 * k, 0.14 * k, fin, 6)
+    b.cyl('Mat_Crystal', 0.05 * k, 0.0, 0.1 * k, fin @ Matrix.Translation((0, 0, 0.14 * k)), 6)
+
+
 def build_lobby(say):
-    """The foyer and the pre-function lobby east of the hall, from the Marriott plan.
+    """The foyer and the pre-function lobby around it, from the Marriott plans, in a grand hotel
+    finish: cream fabric-wrapped wall panels over a walnut wainscot with brass caps and a brass
+    frieze line, a navy-and-gold carpet in the Diplomatic Hall foyer on the polished marble, a
+    coffered plaster ceiling with downlights, and crystal chandeliers.
 
     Floor and ceiling over the whole outline; walls along every outline edge but the last (the
-    hall's own east wall); then the walls inside it: the curved wall between the foyer and the
-    lobby, the short wall with the closed door by the restroom block, and the entrance door line
-    with its glass doors held open. Exterior doors on the vestibule, closed doors at the end of
-    the two corridor stubs, elevator doors on the east wall, and the pillars.
+    hall's own east wall, clad on its foyer side here); the curved wall between the foyer and the
+    lobby, the closed-door wall, the entrance door line with its glass doors held open, doors cut
+    into the outline walls (escalators, stairs, service, corridors) and the elevator cars.
     """
     L = LAYOUT['lobby']
+    F = LAYOUT['foyer']
     ceil = L['ceilingHeight']
     pts = L['outline']
+    cw = L['curvedWall']
+    t = 0.2
+    WAIN, CAP, FRIEZE = 1.05, 0.03, 4.6
 
     for name, mat_name, y, flip in (('Lobby_Floor', 'Mat_Corridor_Tile', 0.0, False),
-                                    ('Lobby_Ceiling', 'Mat_Ceiling', ceil, True)):
+                                    ('Lobby_Ceiling', 'Mat_Plaster', ceil, True)):
         b = Builder(name)
         verts = [b.bm.verts.new(B(x, z, y)) for x, z in pts]
         face = b.bm.faces.new(verts[::-1] if flip else verts)
@@ -498,95 +596,229 @@ def build_lobby(say):
                 p.flip()
         me.data.update()
 
+    # --- Foyer carpet: inset 0.35 m from the hall wall, the entrance line, the restroom block and
+    # the curved wall, which bulges into it.
+    R = cw['r'] + 0.35
+    a_s = 180.0 - math.degrees(math.asin((-0.35 - cw['cz']) / R))
+    a_e = 360.0 - math.degrees(math.acos((36.9 - cw['cx']) / R))
+    poly = [(19.7, -0.35)]
+    for i in range(33):
+        a = math.radians(a_s + (a_e - a_s) * i / 32)
+        poly.append((cw['cx'] + R * math.cos(a), cw['cz'] + R * math.sin(a)))
+    poly += [(36.9, -17.0), (19.7, -17.0)]
+    cb = Builder('Lobby_Carpet')
+    verts = [cb.bm.verts.new(B(x, z, 0.006)) for x, z in poly]
+    face = cb.bm.faces.new(verts)
+    face.material_index = cb._slot('Mat_Lobby_Carpet')
+    me = cb.to_object()
+    for p in me.data.polygons:
+        if p.normal.z < 0:
+            p.flip()
+    me.data.update()
+    # Brass binding round the carpet edge.
+    trim = Builder('Lobby_Trim')
+    for (ax, az), (bx, bz) in zip(poly, poly[1:] + poly[:1]):
+        trim.rod('Mat_Brass', B(ax, az, 0.008), B(bx, bz, 0.008), 0.012, 6)
+
+    # --- Walls.
     walls = Builder('W_Lobby')
     dr = Builder('Door_Lobby')
-    t = 0.2
-    ext = L['exteriorDoors']
-    for (ax, az), (bx, bz) in zip(pts, pts[1:]):      # the closing edge is the hall's east wall
-        if az == bz:
-            x0, x1 = min(ax, bx) - t / 2, max(ax, bx) + t / 2
-            if az == ext['z']:
-                # Vestibule south wall with the exterior doors (closed glass) cut into it.
-                xs = [x0] + [v for sp in ext['spans'] for v in sp] + [x1]
-                for i in range(0, len(xs), 2):
-                    wbox(walls, 'Mat_Acoustic_Wall', xs[i], xs[i + 1], az - t / 2, az + t / 2, 0.0, ceil)
-                for (d0, d1) in ext['spans']:
-                    wbox(walls, 'Mat_Acoustic_Wall', d0, d1, az - t / 2, az + t / 2, 2.4, ceil)
-                    mid = (d0 + d1) / 2
-                    wbox(dr, 'Mat_LED_Frame', d0, d1, az - 0.06, az + 0.06, 2.34, 2.4)
-                    for s0, s1 in ((d0 + 0.02, mid - 0.01), (mid + 0.01, d1 - 0.02)):
-                        wbox(dr, 'Mat_Door_Glass', s0, s1, az - 0.03, az + 0.03, 0.0, 2.34)
-                        wbox(dr, 'Mat_Truss', s0 + 0.08, s1 - 0.08, az - 0.08, az - 0.05, 0.98, 1.03)
-                continue
-            wbox(walls, 'Mat_Acoustic_Wall', x0, x1, az - t / 2, az + t / 2, 0.0, ceil)
-        else:
-            wbox(walls, 'Mat_Acoustic_Wall', ax - t / 2, ax + t / 2, min(az, bz) - t / 2, max(az, bz) + t / 2, 0.0, ceil)
+    inward = _outline_inward(pts)
+    doors_on = {}
+    for d in L['wallDoors']:
+        doors_on.setdefault((d['wall'], d['at']), []).append(d)
+    cars = L['elevators']['cars']
 
-    # Curved wall: full height between the foyer (convex face, radius r) and the lobby.
-    cw = L['curvedWall']
-    arc_wall(walls, 'Mat_Acoustic_Wall', cw['cx'], cw['cz'], cw['r'] - cw['thickness'], cw['r'],
+    def wainscot_run(s0, s1, along, fixed, n, holes, fx_side=0.0):
+        """Walnut wainscot, brass cap and brass frieze on one wall face, skipping door openings.
+        `along` is 'x' (wall runs in x at z = fixed) or 'z'; n is the inward normal component."""
+        face = fixed + n * (t / 2 + fx_side)
+        for a, c in _spans_minus(s0, s1, holes):
+            for mat, y0, y1, depth in (('Mat_Walnut', 0.0, WAIN, 0.03), ('Mat_Brass', WAIN, WAIN + CAP, 0.04),
+                                       ('Mat_Brass', FRIEZE, FRIEZE + 0.025, 0.015)):
+                f0, f1 = sorted((face, face + n * depth))
+                if along == 'x':
+                    wbox(trim, mat, a, c, f0, f1, y0, y1)
+                else:
+                    wbox(trim, mat, f0, f1, a, c, y0, y1)
+
+    def door_leaves(kind, along, fixed, n, d0, d1, leaves=True):
+        """A closed pair of doors in an opening, in a walnut surround on the face toward n."""
+        mid = (d0 + d1) / 2
+        leaf = 'Mat_Door_Glass' if kind == 'glass' else 'Mat_Door_Teal'
+        for s0, s1 in (((d0 + 0.02, mid - 0.01), (mid + 0.01, d1 - 0.02)) if leaves else ()):
+            if along == 'x':
+                wbox(dr, leaf, s0, s1, fixed - 0.03, fixed + 0.03, 0.0, 2.36)
+                wbox(dr, 'Mat_Brass', s0 + 0.1, s1 - 0.1, min(fixed + n * 0.05, fixed + n * 0.08),
+                     max(fixed + n * 0.05, fixed + n * 0.08), 0.98, 1.03)
+            else:
+                wbox(dr, leaf, fixed - 0.03, fixed + 0.03, s0, s1, 0.0, 2.36)
+                wbox(dr, 'Mat_Brass', min(fixed + n * 0.05, fixed + n * 0.08), max(fixed + n * 0.05, fixed + n * 0.08),
+                     s0 + 0.1, s1 - 0.1, 0.98, 1.03)
+        face = fixed + n * t / 2
+        for s in (d0 - 0.1, d1):           # walnut jambs and head
+            f0, f1 = sorted((face, face + n * 0.04))
+            if along == 'x':
+                wbox(dr, 'Mat_Walnut', s, s + 0.1, f0, f1, 0.0, 2.5)
+            else:
+                wbox(dr, 'Mat_Walnut', f0, f1, s, s + 0.1, 0.0, 2.5)
+        f0, f1 = sorted((face, face + n * 0.04))
+        if along == 'x':
+            wbox(dr, 'Mat_Walnut', d0 - 0.1, d1 + 0.1, f0, f1, 2.4, 2.5)
+        else:
+            wbox(dr, 'Mat_Walnut', f0, f1, d0 - 0.1, d1 + 0.1, 2.4, 2.5)
+
+    for i, ((ax, az), (bx, bz)) in enumerate(zip(pts, pts[1:])):     # last edge is the hall wall
+        nx, nz = inward[i]
+        if az == bz:
+            along, fixed, n, s0, s1 = 'x', az, nz, min(ax, bx), max(ax, bx)
+        else:
+            along, fixed, n, s0, s1 = 'z', ax, nx, min(az, bz), max(az, bz)
+        ds = [d for d in doors_on.get(('z' if along == 'x' else 'x', fixed), [])
+              if s0 - 0.01 <= d['span'][0] and d['span'][1] <= s1 + 0.01]
+        holes = [tuple(d['span']) for d in ds]
+        for a, c in _spans_minus(s0 - t / 2, s1 + t / 2, holes):
+            if along == 'x':
+                wbox(walls, 'Mat_Wall_Fabric', a, c, fixed - t / 2, fixed + t / 2, 0.0, ceil)
+            else:
+                wbox(walls, 'Mat_Wall_Fabric', fixed - t / 2, fixed + t / 2, a, c, 0.0, ceil)
+        for (h0, h1), d in zip(holes, ds):
+            if along == 'x':
+                wbox(walls, 'Mat_Wall_Fabric', h0, h1, fixed - t / 2, fixed + t / 2, 2.5, ceil)
+            else:
+                wbox(walls, 'Mat_Wall_Fabric', fixed - t / 2, fixed + t / 2, h0, h1, 2.5, ceil)
+            door_leaves(d['kind'], along, fixed, n, h0, h1)
+        # Elevator cars on this wall get their own surround instead of wainscot.
+        car_holes = [(c['z'] - L['elevators']['width'] / 2 - 0.2, c['z'] + L['elevators']['width'] / 2 + 0.2)
+                     for c in cars if along == 'z' and abs(c['x'] - fixed) < 0.01]
+        wainscot_run(s0 + t / 2, s1 - t / 2, along, fixed, n,
+                     [(h0 - 0.1, h1 + 0.1) for h0, h1 in holes] + car_holes)
+
+    # The hall's east wall, seen from the foyer: clad it to match, around the arch opening.
+    hx = 19.35 + 0.1
+    arch_gap = (-13.08, -7.18)
+    corridor_z = pts[-1][1]
+    for a, c in _spans_minus(corridor_z, 0.0, [arch_gap]):
+        wbox(walls, 'Mat_Wall_Fabric', hx, hx + 0.02, a, c, 0.0, ceil)
+    wainscot_run(corridor_z, 0.0, 'z', 19.35 + 0.02, 1, [(arch_gap[0] - 0.05, arch_gap[1] + 0.05), (0.9, 2.5)])
+
+    # Curved wall: full height, fabric both faces, wainscot and frieze both faces.
+    arc_wall(walls, 'Mat_Wall_Fabric', cw['cx'], cw['cz'], cw['r'] - cw['thickness'], cw['r'],
              cw['a0'], cw['a1'], 0.0, ceil, seg=48)
-    # Skirting along both faces so the wall meets the floor like the others.
-    arc_wall(walls, 'Mat_LED_Frame', cw['cx'], cw['cz'], cw['r'] - cw['thickness'] - 0.015, cw['r'] + 0.015,
-             cw['a0'], cw['a1'], 0.0, 0.1, seg=48)
+    ro, ri = cw['r'], cw['r'] - cw['thickness']
+    for mat, y0, y1, d in (('Mat_Walnut', 0.0, WAIN, 0.03), ('Mat_Brass', WAIN, WAIN + CAP, 0.04),
+                           ('Mat_Brass', FRIEZE, FRIEZE + 0.025, 0.015)):
+        arc_wall(trim, mat, cw['cx'], cw['cz'], ro, ro + d, cw['a0'] + 0.4, cw['a1'] - 0.4, y0, y1, seg=32)
+        arc_wall(trim, mat, cw['cx'], cw['cz'], ri - d, ri, cw['a0'] + 0.4, cw['a1'] - 0.4, y0, y1, seg=32)
 
     # Closed-door wall between the curved wall's top and the restroom block, door on both faces.
     cd = L['closedDoorWall']
-    hx = cd['thickness'] / 2
-    wbox(walls, 'Mat_Acoustic_Wall', cd['x'] - hx, cd['x'] + hx, cd['z0'], cd['z1'], 0.0, ceil)
     d = cd['door']
+    zlo, zhi = sorted((cd['z0'], cd['z1']))
+    for a, c in _spans_minus(zlo, zhi, [(d['z0'], d['z1'])]):
+        wbox(walls, 'Mat_Wall_Fabric', cd['x'] - t / 2, cd['x'] + t / 2, a, c, 0.0, ceil)
+    wbox(walls, 'Mat_Wall_Fabric', cd['x'] - t / 2, cd['x'] + t / 2, d['z0'], d['z1'], 2.5, ceil)
     for s in (-1, 1):
-        fx = cd['x'] + s * hx
-        wbox(dr, 'Mat_Door_Teal', min(fx, fx + s * 0.04), max(fx, fx + s * 0.04), d['z0'], d['z1'], 0.0, 2.3)
-        wbox(dr, 'Mat_LED_Frame', min(fx, fx + s * 0.05), max(fx, fx + s * 0.05), d['z0'] - 0.05, d['z1'] + 0.05, 2.3, 2.38)
-        wbox(dr, 'Mat_Truss', min(fx, fx + s * 0.08), max(fx, fx + s * 0.08), (d['z0'] + d['z1']) / 2 - 0.35,
-             (d['z0'] + d['z1']) / 2 + 0.35, 0.98, 1.03)
+        door_leaves('teal', 'z', cd['x'], s, d['z0'], d['z1'], leaves=(s > 0))
+        wainscot_run(zlo, zhi, 'z', cd['x'], s, [(d['z0'] - 0.15, d['z1'] + 0.15)])
 
-    # Entrance door line: wall stubs and posts, a transom above 2.4 m, glass doors held open
-    # against the posts (swung into the foyer).
+    # Entrance door line: stubs and posts, a transom above 2.4 m, glass doors held open into the
+    # foyer, each opening in a walnut surround.
     en = L['entrance']
     z = en['z']
     posts = en['posts']
-    wbox(walls, 'Mat_Acoustic_Wall', en['x0'], posts[0], z - t / 2, z + t / 2, 0.0, ceil)
-    wbox(walls, 'Mat_Acoustic_Wall', posts[-1], en['x1'], z - t / 2, z + t / 2, 0.0, ceil)
+    wbox(walls, 'Mat_Wall_Fabric', en['x0'], posts[0], z - t / 2, z + t / 2, 0.0, ceil)
+    wbox(walls, 'Mat_Wall_Fabric', posts[-1], en['x1'], z - t / 2, z + t / 2, 0.0, ceil)
     for p in posts[1:-1]:
-        wbox(walls, 'Mat_LED_Frame', p - 0.1, p + 0.1, z - t / 2, z + t / 2, 0.0, 2.4)
-    wbox(walls, 'Mat_Acoustic_Wall', posts[0], posts[-1], z - t / 2, z + t / 2, 2.4, ceil)
+        wbox(walls, 'Mat_Walnut', p - 0.1, p + 0.1, z - t / 2 - 0.02, z + t / 2 + 0.02, 0.0, 2.5)
+    wbox(walls, 'Mat_Wall_Fabric', posts[0], posts[-1], z - t / 2, z + t / 2, 2.5, ceil)
+    wbox(walls, 'Mat_Walnut', posts[0], posts[-1], z - t / 2 - 0.02, z + t / 2 + 0.02, 2.4, 2.5)
+    for side in (-1, 1):
+        for a, c in ((en['x0'], posts[0]), (posts[-1], en['x1'])):
+            f0, f1 = sorted((z + side * t / 2, z + side * (t / 2 + 0.03)))
+            wbox(trim, 'Mat_Walnut', a, c, f0, f1, 0.0, WAIN)
+            wbox(trim, 'Mat_Brass', a, c, min(f0, f1 + side * 0.01), max(f1, f0 + side * 0.01), WAIN, WAIN + CAP)
     for d0, d1 in zip(posts, posts[1:]):
         a0, a1 = d0 + (0.1 if d0 != posts[0] else 0.0), d1 - (0.1 if d1 != posts[-1] else 0.0)
         leaf = (a1 - a0) / 2 - 0.02
-        wbox(dr, 'Mat_LED_Frame', a0, a1, z - 0.06, z + 0.06, 2.34, 2.4)
         for hinge, s in ((a0, 1), (a1, -1)):
             xa, xb = sorted((hinge + s * 0.03, hinge + s * 0.09))
             wbox(dr, 'Mat_Door_Glass', xa, xb, z - 0.1 - leaf, z - 0.1, 0.0, 2.32)
-            wbox(dr, 'Mat_Truss', xa - 0.02, xb + 0.02, z - 0.1 - leaf * 0.75, z - 0.1 - leaf * 0.25, 0.98, 1.03)
+            wbox(dr, 'Mat_Brass', xa - 0.02, xb + 0.02, z - 0.1 - leaf * 0.75, z - 0.1 - leaf * 0.25, 0.98, 1.03)
 
-    # Closed double doors at the end of the corridor stubs.
-    for c in L['corridorDoors']:
-        w = c['x1'] - c['x0']
-        mid = (c['x0'] + c['x1']) / 2
-        for s0, s1 in ((mid - min(0.9, w / 2 - 0.2), mid - 0.01), (mid + 0.01, mid + min(0.9, w / 2 - 0.2))):
-            wbox(dr, 'Mat_Door_Teal', s0, s1, c['z'] + t / 2, c['z'] + t / 2 + 0.04, 0.0, 2.3)
-        wbox(dr, 'Mat_LED_Frame', mid - min(0.95, w / 2 - 0.15), mid + min(0.95, w / 2 - 0.15),
-             c['z'] + t / 2, c['z'] + t / 2 + 0.05, 2.3, 2.38)
-
-    # Elevator doors on the east wall: brushed steel pairs in a frame, with a call panel.
+    # Elevator cars: brushed-steel doors in a walnut surround with a brass hall lantern above.
     el = L['elevators']
-    ex = el['x'] - t / 2
-    for ez in el['z']:
-        w2 = el['width'] / 2
-        wbox(dr, 'Mat_LED_Frame', ex - 0.06, ex, ez - w2 - 0.12, ez + w2 + 0.12, 0.0, el['height'] + 0.12)
-        wbox(dr, 'Mat_Booth_Alu', ex - 0.09, ex - 0.06, ez - w2, ez - 0.005, 0.0, el['height'])
-        wbox(dr, 'Mat_Booth_Alu', ex - 0.09, ex - 0.06, ez + 0.005, ez + w2, 0.0, el['height'])
-        wbox(dr, 'Mat_Screen_Glow', ex - 0.03, ex, ez + w2 + 0.25, ez + w2 + 0.37, 1.05, 1.25)
+    w2 = el['width'] / 2
+    for c in cars:
+        fx = c['x'] + c['facing'] * t / 2
+        f = c['facing']
+        def xr(a, bb):
+            return (min(fx + f * a, fx + f * bb), max(fx + f * a, fx + f * bb))
+        x0_, x1_ = xr(0.0, 0.05)
+        wbox(dr, 'Mat_Walnut', x0_, x1_, c['z'] - w2 - 0.2, c['z'] + w2 + 0.2, 0.0, el['height'] + 0.25)
+        x0_, x1_ = xr(0.05, 0.07)
+        wbox(dr, 'Mat_Booth_Alu', x0_, x1_, c['z'] - w2, c['z'] - 0.006, 0.0, el['height'])
+        wbox(dr, 'Mat_Booth_Alu', x0_, x1_, c['z'] + 0.006, c['z'] + w2, 0.0, el['height'])
+        x0_, x1_ = xr(0.05, 0.09)
+        wbox(dr, 'Mat_Brass', x0_, x1_, c['z'] - 0.25, c['z'] + 0.25, el['height'] + 0.3, el['height'] + 0.42)
+        wbox(dr, 'Mat_Bulb', *xr(0.09, 0.095), c['z'] - 0.2, c['z'] + 0.2, el['height'] + 0.33, el['height'] + 0.39)
+        wbox(dr, 'Mat_Brass', *xr(0.05, 0.08), c['z'] + w2 + 0.3, c['z'] + w2 + 0.42, 1.0, 1.25)
 
-    for p in L['pillars']:
-        wbox(walls, 'Mat_Acoustic_Wall', p['x'] - p['size'] / 2, p['x'] + p['size'] / 2,
-             p['z'] - p['size'] / 2, p['z'] + p['size'] / 2, 0.0, ceil)
+    # --- Coffered ceiling: a grid of plaster beams over the foyer and the east lobby, each
+    # coffer with a recessed downlight, and the chandeliers in theirs.
+    co = Builder('Lobby_Coffers')
+    BD, BW = 0.45, 0.32
+    chand = [tuple(c) for c in L.get('chandeliers', [])]
+    for (x0, x1, z0, z1, step) in L.get('coffers', []):
+        nxs = max(1, round((x1 - x0) / step))
+        nzs = max(1, round((z1 - z0) / step))
+        xs = [x0 + (x1 - x0) * i / nxs for i in range(nxs + 1)]
+        zs = [z0 + (z1 - z0) * j / nzs for j in range(nzs + 1)]
+        for xv in xs:
+            wbox(co, 'Mat_Plaster', xv - BW / 2, xv + BW / 2, z0, z1, ceil - BD, ceil)
+            wbox(co, 'Mat_Brass', xv - BW / 2 - 0.004, xv + BW / 2 + 0.004, z0, z1, ceil - BD - 0.01, ceil - BD)
+        for zv in zs:
+            wbox(co, 'Mat_Plaster', x0, x1, zv - BW / 2, zv + BW / 2, ceil - BD, ceil)
+            wbox(co, 'Mat_Brass', x0, x1, zv - BW / 2 - 0.004, zv + BW / 2 + 0.004, ceil - BD - 0.01, ceil - BD)
+        for i in range(nxs):
+            for j in range(nzs):
+                cx_, cz_ = (xs[i] + xs[i + 1]) / 2, (zs[j] + zs[j + 1]) / 2
+                if any(abs(cx_ - a) < 0.5 and abs(cz_ - bb) < 0.5 for a, bb in chand):
+                    continue
+                m = Matrix.Translation(B(cx_, cz_, ceil - 0.03))
+                co.cyl('Mat_Brass', 0.11, 0.11, 0.03, m, 10)
+                co.cyl('Mat_Bulb', 0.08, 0.08, 0.005, m @ Matrix.Translation((0, 0, -0.004)), 10)
+    # Dropped plaster soffits over the vestibule and the elevator hall, with downlights: real
+    # circulation spaces are not 7 m tall slots.
+    for sf in L.get('soffits', []):
+        wbox(co, 'Mat_Plaster', sf['x0'], sf['x1'], sf['z0'], sf['z1'], sf['y'], ceil)
+        # Brass edge strips along the soffit's open sides (not a plate across its underside).
+        for ze in (sf['z0'], sf['z1']):
+            wbox(co, 'Mat_Brass', sf['x0'], sf['x1'], ze - 0.02, ze + 0.02, sf['y'] - 0.012, sf['y'] + 0.06)
+        for xe in (sf['x0'], sf['x1']):
+            wbox(co, 'Mat_Brass', xe - 0.02, xe + 0.02, sf['z0'], sf['z1'], sf['y'] - 0.012, sf['y'] + 0.06)
+        nx_ = max(1, round((sf['x1'] - sf['x0']) / 2.4))
+        nz_ = max(1, round((sf['z1'] - sf['z0']) / 2.4))
+        for i in range(nx_):
+            for j in range(nz_):
+                cx_ = sf['x0'] + (i + 0.5) * (sf['x1'] - sf['x0']) / nx_
+                cz_ = sf['z0'] + (j + 0.5) * (sf['z1'] - sf['z0']) / nz_
+                m = Matrix.Translation(B(cx_, cz_, sf['y'] - 0.02))
+                co.cyl('Mat_Brass', 0.09, 0.09, 0.02, m, 10)
+                co.cyl('Mat_Bulb', 0.065, 0.065, 0.004, m @ Matrix.Translation((0, 0, -0.003)), 10)
+    co.to_object()
+
+    ch = Builder('Lobby_Chandeliers')
+    for i, (x, zc) in enumerate(chand):
+        chandelier(ch, x, zc, ceil, drop=2.6, scale=1.0, seed=i)
+    ch.to_object()
+
     walls.to_object()
     dr.to_object()
+    trim.to_object()
     say(f'  lobby: {len(pts)}-sided outline, curved wall r {cw["r"]} m, {len(posts) - 1} entrance doors, '
-        f'closed door, {len(el["z"])} elevators, {len(L["pillars"])} pillars, {ceil} m ceiling')
+        f'{len(L["wallDoors"])} wall doors, {len(cars)} elevators, {len(chand)} chandeliers, '
+        f'fabric walls + walnut wainscot, foyer carpet, coffered {ceil} m ceiling')
 
 
 # =============================================================================================
