@@ -5,7 +5,13 @@
  * can be compared pose-for-pose. Software WebGL via SwiftShader, so absolute shading differs
  * slightly from a GPU, but texture detail / albedo / material response all read correctly.
  *
- * Usage: node shoot.mjs <outDir> [baseUrl]
+ * Usage: node scripts/capture-poses.mjs <outDir> [baseUrl]
+ *
+ * Environment:
+ *   CAPTURE_GPU=1          hardware WebGL (ANGLE/D3D11) instead of SwiftShader. Use it to check
+ *                          GPU behaviour: SwiftShader hid an MSAA black-screen bug once.
+ *   CAPTURE_QUERY=...      extra query string, e.g. `device=tablet` for the tablet/kiosk path
+ *   CAPTURE_SIZE=1280x800  window size;  CAPTURE_DPR=2  device scale factor
  */
 import { spawn } from 'node:child_process';
 import { mkdirSync, writeFileSync } from 'node:fs';
@@ -43,18 +49,22 @@ const POSES = [
 
 mkdirSync(OUT, { recursive: true });
 
+const GPU = process.env.CAPTURE_GPU === '1';
+const QUERY = process.env.CAPTURE_QUERY ? `&${process.env.CAPTURE_QUERY}` : '';
+const SIZE = (process.env.CAPTURE_SIZE || '1600x900').replace('x', ',');
+const DPR = process.env.CAPTURE_DPR || '1';
 const chrome = spawn(CHROME, [
   `--remote-debugging-port=${PORT}`,
   '--headless=new',
-  '--enable-unsafe-swiftshader',
-  '--use-angle=swiftshader',
+  ...(GPU ? ['--use-angle=d3d11', '--enable-gpu'] : ['--enable-unsafe-swiftshader', '--use-angle=swiftshader']),
+  `--force-device-scale-factor=${DPR}`,
   '--hide-scrollbars',
   '--mute-audio',
   '--no-first-run',
   '--no-default-browser-check',
   '--disable-gpu-sandbox',
   `--user-data-dir=${OUT}\\chrome-profile`,
-  '--window-size=1600,900',
+  `--window-size=${SIZE}`,
   'about:blank',
 ], { stdio: 'ignore' });
 
@@ -123,8 +133,8 @@ cdp.ws.on('message', (raw) => {
   if (m.method === 'Log.entryAdded' && m.params.entry.level === 'error') errors.push(m.params.entry.text);
 });
 
-console.log('navigating to', `${BASE}/game/?stats=1`);
-await cdp.send('Page.navigate', { url: `${BASE}/game/?stats=1` });
+console.log('navigating to', `${BASE}/game/?stats=1${QUERY}`);
+await cdp.send('Page.navigate', { url: `${BASE}/game/?stats=1${QUERY}` });
 await sleep(3000);
 
 // Wait for the GLB to finish loading (markVenueLoaded enables the start button).

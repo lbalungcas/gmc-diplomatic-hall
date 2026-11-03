@@ -7,6 +7,7 @@
  * nearby, and can be "talked to" (E / tap) to open an Ask Tutu FAQ. The lighthouse stays put.
  */
 import * as THREE from 'three';
+import { mergeStaticByMaterial } from './staticMerge.js';
 
 const PALETTE = {
   body: 0x9aadbe,
@@ -170,6 +171,10 @@ export function createElephant({ theme = {} } = {}) {
   root.add(scarfTail);
 
   root.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
+  // Animated parts stay separate; the rest (toenails, belly, tail, scarf...) is merged later.
+  body.userData.keepSeparate = true;
+  for (const leg of legs) leg.mesh.userData.keepSeparate = true;
+  head.traverse((o) => { o.userData.keepSeparate = true; });
 
   return {
     root,
@@ -323,6 +328,9 @@ export function createLighthouse({ withLight = true, theme = {} } = {}) {
   }
 
   root.traverse((o) => { if (o.isMesh && o !== glass && o.parent !== beamGroup) { o.castShadow = true; o.receiveShadow = true; } });
+  // The beams rotate and the lamp glass glows on its own; the tower itself is merged later.
+  beamGroup.traverse((o) => { o.userData.keepSeparate = true; });
+  glass.userData.keepSeparate = true;
 
   return {
     root,
@@ -420,6 +428,8 @@ export function createMascots(scene, defs, { lowPower = false, colorFor = () => 
     built.root.position.set(cfg.x, 0, cfg.z);
     built.root.rotation.y = cfg.yaw || 0;
     scene.add(built.root);
+    // One draw call per material for the static parts: these walk around tablets all day.
+    mergeStaticByMaterial(built.root);
 
     const color = colorFor(cfg);
     const plate = createNameplate(cfg.name, cfg.org, color);

@@ -28,6 +28,7 @@ import { createAdaptiveQuality } from './modules/adaptiveQuality.js';
 import { computeBoothPositions, createBoothGrid, gridObstacles } from './modules/boothGrid.js';
 import { createVenueSignage } from './modules/venueSignage.js';
 import { createLightPool } from './modules/lightPool.js';
+import { mergeStaticByMaterial } from './modules/staticMerge.js';
 
 // --- State Variables ---
 let scene, camera, renderer, clock;
@@ -569,6 +570,11 @@ function init() {
   const hasTouch = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
   isTouchDevice = (coarse && !fine) || (hasTouch && !fine);
   isLowPowerDevice = isTouchDevice || (navigator.hardwareConcurrency && navigator.hardwareConcurrency <= 4);
+  // `?device=tablet` previews the tablet / kiosk path on any machine (QA and screenshots).
+  if (new URLSearchParams(location.search).get('device') === 'tablet') {
+    isTouchDevice = true;
+    isLowPowerDevice = true;
+  }
   document.body.classList.toggle('touch-device', isTouchDevice);
 
   // 1. CSS3D Scene & Renderer (Layer 2 - for live YouTube stage screen)
@@ -811,6 +817,32 @@ function captureZoneEnvironments() {
   for (const t of Object.values(previous)) if (t) t.dispose();
 }
 
+/**
+ * Zone culling. The hall, the foyer and the east lobby are separated by walls that the GPU's
+ * frustum culling knows nothing about, so from the registration desk it still drew every booth
+ * print in the hall behind the curved wall. From the floor plan:
+ *  - east of x 31.6 (past the curved wall's west face) the hall and the foyer cannot be seen —
+ *    the curved wall, the closed door and the entrance door line's east stub block them;
+ *  - the east lobby can only be seen from east of the curved wall or from the vestibule.
+ * Runtime props are switched on that basis; the venue GLB is left to normal culling.
+ */
+let zoneCullTick = 0;
+function updateZoneCulling() {
+  if ((++zoneCullTick & 7) !== 0) return;
+  const { x, z } = player.pos;
+  const hallSeen = x <= 31.6;
+  const eastSeen = x > 30.5 || z > -0.3;
+  if (boothGrid) boothGrid.group.visible = hallSeen;
+  if (policyWallGroup) policyWallGroup.visible = hallSeen;
+  for (const o of scene.children) {
+    if (/^Standee_/.test(o.name)) o.visible = hallSeen;
+  }
+  for (const { group } of organizerBooths.values()) group.visible = eastSeen;
+  if (welcomeDesk) welcomeDesk.visible = eastSeen;
+  const lighthouse = scene.getObjectByName('Mascot_Lighthouse');
+  if (lighthouse) lighthouse.visible = eastSeen;
+}
+
 function updateZoneEnvironment() {
   if (!zoneEnv.hall) return;
   const zone = player.pos.x < 19.35 ? 'hall' : 'lobby';
@@ -1008,6 +1040,32 @@ function loadHallModel() {
       }
     });
 
+    // Tablets and kiosks: the two floor colour maps ship at 2048 for desktop close-ups. At a
+    // tablet's capped pixel ratio 1024 is indistinguishable and costs a quarter of the memory
+    // (about 33 MB of GPU memory saved), which matters on a kiosk that runs all day.
+    if (isLowPowerDevice) {
+      const done = new Set();
+      hallModel.traverse((o) => {
+        if (!o.isMesh) return;
+        for (const m of Array.isArray(o.material) ? o.material : [o.material]) {
+          for (const key of ['map', 'normalMap', 'roughnessMap', 'metalnessMap', 'aoMap', 'emissiveMap']) {
+            const tex = m && m[key];
+            const img = tex && tex.image;
+            if (!img || done.has(tex) || !(img.width > 1024)) continue;
+            done.add(tex);
+            const k = 1024 / Math.max(img.width, img.height);
+            const c = document.createElement('canvas');
+            c.width = Math.round(img.width * k);
+            c.height = Math.round(img.height * k);
+            c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+            if (img.close) img.close();
+            tex.image = c;
+            tex.needsUpdate = true;
+          }
+        }
+      });
+    }
+
     scene.add(hallModel);
 
     // The venue never moves, so its shadow map only has to be rendered once rather than at
@@ -1019,8 +1077,8 @@ function loadHallModel() {
     markVenueLoaded(true);
     // Capture the venue's own reflections once its textures have had a moment to upload, and
     // again later so the booth prints and posters are in them.
-    setTimeout(captureZoneEnvironments, 1500);
-    setTimeout(captureZoneEnvironments, 9000);
+    setTimeout(captureZoneEnvironments, isLowPowerDevice ? 4000 : 1500);
+    if (!isLowPowerDevice) setTimeout(captureZoneEnvironments, 9000);
   }, (xhr) => {
     if (xhr && xhr.total) {
       const ratio = xhr.loaded / xhr.total;
@@ -1374,6 +1432,7 @@ function createOrganizerBooths() {
     scene.add(group);
     organizerBooths.set(org.id, { org, group });
     staticBoxes.push(...organizerObstacles(group, solids));
+    mergeStaticByMaterial(group);
 
     HOTSPOTS[`org-${org.id}`] = {
       x: org.x + Math.sin(yaw) * 1.95, z: org.z + Math.cos(yaw) * 1.95, radius: 2.0,
@@ -1422,6 +1481,8 @@ function createWelcomeDesk() {
   // Tighten the collision box to the built counter (body + top + header sign).
   const [box] = organizerObstacles(group, [solids], 0.06);
   Object.assign(WELCOME_DESK_BOX, box);
+  // Then merge its ~40 parts into one draw call per material.
+  mergeStaticByMaterial(group);
 }
 
 // --- Helper to extract YouTube Video ID ---
@@ -4029,15 +4090,16 @@ function buildMinimapStatic() {
     ctx.fillRect(mapX(spot.x) - 3, mapZ(spot.z) - 3, 6, 6);
   }
 
-  // Organizer booths: brand-coloured stands along the lobby's north wall, labelled underneath.
-  for (const { org } of organizerBooths.values()) {
+  // Organizer booths: brand-coloured stands along the Executive 3 wall. They stand ~3 m apart,
+  // under 8 px on the radar, so the labels alternate above and below to stay readable.
+  [...organizerBooths.values()].sort((a, b) => a.org.x - b.org.x).forEach(({ org }, i) => {
     ctx.fillStyle = brandHighlight(org);
-    ctx.fillRect(mapX(org.x) - 5, mapZ(org.z) - 1.5, 10, 3);
+    ctx.fillRect(mapX(org.x) - 3, mapZ(org.z) - 1.5, 6, 3);
     ctx.fillStyle = '#fff';
-    ctx.font = 'bold 6px sans-serif';
+    ctx.font = 'bold 5px sans-serif';
     ctx.textAlign = 'center';
-    ctx.fillText(org.short.toUpperCase(), mapX(org.x), mapZ(org.z) + 8);
-  }
+    ctx.fillText(org.short.toUpperCase(), mapX(org.x), mapZ(org.z) + (i % 2 ? -4 : 8));
+  });
   ctx.textAlign = 'left';
 
   // Mascots sit at fixed stations, so they belong to the static layer too.
@@ -4205,6 +4267,7 @@ function animate() {
   if (mascots) mascots.update(t, delta, player.pos, openModals.size > 0 || isBlockerVisible());
   if (lightPool) lightPool.update(camera, delta);
   updateZoneEnvironment();
+  updateZoneCulling();
   // Sharp easel posters near the player (about four times a second is plenty).
   if (boothGrid && (++posterTick & 15) === 0) boothGrid.update(player.pos.x, player.pos.z);
   checkProximity();

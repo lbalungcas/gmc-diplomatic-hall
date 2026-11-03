@@ -517,10 +517,12 @@ function buildArtBooth(org, { castShadow = true } = {}) {
   const fill = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.8 });
   const skirt = new THREE.Mesh(new THREE.PlaneGeometry(ART_WALL_W, 1), fill);
   skirt.visible = false;
+  skirt.userData.keepSeparate = true;   // sized when the print loads
   group.add(skirt);
   const printMat = new THREE.MeshStandardMaterial({ roughness: 0.75, emissive: 0xffffff, emissiveIntensity: 0.12 });
   const print = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), printMat);
   print.position.z = 0.003;
+  print.userData.keepSeparate = true;   // sized when the print loads
   group.add(print);
   printMat.map = artTexture(art.backwall, (tex) => {
     const img = tex.image;
