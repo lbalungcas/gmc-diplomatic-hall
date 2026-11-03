@@ -940,7 +940,7 @@ function addVenueLighting() {
   }
   // Lobby: the foyer's ends, the vestibule, the elevator hall, the media hub, registration, the
   // organizer stands and the east end; the chandeliers are warmer and brighter.
-  [[21.5, -15.5], [21.5, -3.0], [33.0, -14.0], [34.6, -9.0], [37.6, -1.9], [39.8, -12.6],
+  [[21.5, -15.5], [21.5, -3.0], [33.0, -14.0], [34.6, -9.0], [34.0, -3.2], [39.8, -12.6],
    [41.5, -16.8], [46.5, -16.8], [44.0, -1.5], [55.0, -12.0]].forEach(([x, z]) => ceilingLight(x, z, 6));
   // Under the vestibule and elevator-hall soffits the lights hang lower and reach less far.
   [[24.0, 1.7], [30.5, 1.7], [37.0, 1.7], [33.85, 6.0], [33.85, 10.0]].forEach(([x, z]) => {
