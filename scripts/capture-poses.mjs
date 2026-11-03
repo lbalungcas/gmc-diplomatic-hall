@@ -28,7 +28,8 @@ const PORT = 9333;
 // Camera poses chosen to cover every material group and the marketplace set. `fly: true` parks
 // the camera like a seat (sitDownOnChair with a custom pose) so it can sit above eye level.
 const POSES = [
-  { name: '01-spawn',        x: 35.4,  y: 1.45, z: 1.6,    yaw: 0,       pitch: -0.04, note: 'arrival at registration beside the entrance, route arrows' },
+  { name: '01-spawn',        x: 35.0,  y: 1.45, z: 1.7,    yaw: -0.838,  pitch: -0.04, note: 'arrival at registration beside the entrance, route arrows' },
+  { name: '01c-walkway',     x: 38.0,  y: 1.45, z: -8.0,   yaw: 3.0,     pitch: -0.04, note: 'from the lobby toward the entrance: walkway clear, desk to the side' },
   { name: '01b-route',       x: 34.0,  y: 1.45, z: 2.4,    yaw: 1.35,    pitch: -0.3,  note: 'floor arrows along the vestibule to the entrance doors, entrance marker' },
   { name: '02-lobby-high',   x: 57.0,  y: 5.4,  z: -5.0,   yaw: 1.05,    pitch: -0.34, note: 'high view across the lobby: chandeliers, coffers, registration, curved wall', fly: true },
   { name: '03-organizers',   x: 43.45, y: 1.45, z: -14.0,  yaw: 0,       pitch: 0.02,  note: 'VEWU, KNH and TdH stands along Executive 3' },

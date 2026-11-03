@@ -291,9 +291,9 @@
       "backdropWidth": 6.0
     },
     "registration": {
-      "x": 35.4,
-      "z": -1.8,
-      "yaw": 0
+      "x": 39.0,
+      "z": -1.9,
+      "yaw": -1.5708
     }
   },
   "hallFeatures": {
@@ -317,8 +317,8 @@
       "id": "registration",
       "image": "/venue/signs/registration.webp",
       "x": 37.9,
-      "z": -2.3,
-      "yaw": -0.4,
+      "z": -4.4,
+      "yaw": -1.2,
       "w": 1.0,
       "h": 1.414,
       "bottom": 0.45
@@ -540,10 +540,10 @@
     },
     "ceilingHeight": 7.0,
     "spawn": {
-      "_comment": "Visitors start at the registration desk, beside the entrance.",
-      "x": 35.4,
-      "z": 1.6,
-      "yaw": 0
+      "_comment": "Visitors start in the vestibule beside the entrance, facing the registration desk.",
+      "x": 35.0,
+      "z": 1.7,
+      "yaw": -0.838
     },
     "wallDoors": [
       {
@@ -730,8 +730,8 @@
     "_comment": "Floor arrows from registration to the Diplomatic Hall foyer entrance and on through the event arch to the booths; floating markers over the entrance and the standees.",
     "route": [
       [
-        35.4,
-        1.0
+        35.6,
+        0.9
       ],
       [
         31.0,
