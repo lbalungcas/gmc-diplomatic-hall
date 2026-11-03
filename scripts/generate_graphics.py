@@ -67,11 +67,13 @@ ZONES = {
     'Creative':   dict(primary=(235, 152, 26), deep=(58, 34, 8), accent=(252, 208, 128), ink=(38, 22, 4)),
 }
 
-# 24 booths in eight theme clusters of three. Theme and colour come from the cluster in
-# src/data/hallLayout.json, the same table main.js builds BOOTH_POSITIONS from; booth numbers
-# are the official ones listed in each cluster's `booths`.
+# 24 open booths in four rows (src/data/hallLayout.json `grid`, the same table main.js builds
+# BOOTH_POSITIONS from). Colour comes from the booth's row zone; the theme printed on the poster
+# comes from booths.json; booth numbers are the official ones listed in each row's `booths`.
 with open(os.path.join(ROOT, 'src', 'data', 'hallLayout.json'), encoding='utf-8') as _fh:
-    _CLUSTERS = json.load(_fh)['clusters']['list']
+    _GRID = json.load(_fh)['grid']
+with open(os.path.join(ROOT, 'src', 'data', 'booths.json'), encoding='utf-8') as _fh:
+    _THEMES = {b['id']: (b.get('theme') or b.get('category') or '') for b in json.load(_fh)}
 
 
 def _hex(h):
@@ -89,12 +91,13 @@ def cluster_palette(hex_colour):
 
 BOOTH_CATEGORY = {}
 BOOTH_PALETTE = {}
-BOOTH_CLUSTER = {}
-for _c in _CLUSTERS:
-    for _i in _c['booths']:
-        BOOTH_CATEGORY[_i] = _c['theme']
-        BOOTH_PALETTE[_i] = cluster_palette(_c['color'])
-        BOOTH_CLUSTER[_i] = _c['id']
+BOOTH_CLUSTER = {}     # row label, e.g. "ROW A"
+_ROWS = [r for island in _GRID['islands'] for r in island['rows']]
+for _r in _ROWS:
+    for _i in _r['booths']:
+        BOOTH_CATEGORY[_i] = _THEMES.get(_i, '')
+        BOOTH_PALETTE[_i] = cluster_palette(_GRID['zones'][_r['row']]['color'])
+        BOOTH_CLUSTER[_i] = f"ROW {_r['row']}"
 TOTAL_BOOTHS = len(BOOTH_CATEGORY)
 
 # The runtime TV footprint on the backwall, in UV space (see module docstring).
@@ -360,7 +363,7 @@ if __name__ == '__main__':
     booths = load_booths()
     # Backwall artwork is drawn at runtime now (src/modules/boothClusters.js) so each team's
     # name and colours come straight from booths.json; only the pop-up video posters are images.
-    print(f'Booth pop-up posters ({TOTAL_BOOTHS} booths, {len(_CLUSTERS)} clusters):')
+    print(f'Booth pop-up posters ({TOTAL_BOOTHS} booths in {len(_ROWS)} rows):')
     for i in range(1, TOTAL_BOOTHS + 1):
         booth_screen(i, booths.get(i), BOOTH_PALETTE[i])
     print(f'  wrote {TOTAL_BOOTHS} posters')

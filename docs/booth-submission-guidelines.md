@@ -105,20 +105,22 @@ Up to **4** supporting photos or graphics for future gallery use.
 | Format | JPG or PNG |
 | Consent | Youth faces only with documented consent (see §6) |
 
-### D. Booth panel artwork (**optional**)
-Each booth is one bay of a three-booth cluster: two 1.0 × 2.4 m fabric panels meet in a V behind
-your counter. Until you send artwork, both panels show the hall's placeholder design (your booth
-number, cluster colour and name).
+### D. Booth back-wall artwork (**optional**)
+Booths are open-style squares (2.4 × 2.4 m) set back to back in two islands. Each booth has one
+printed back wall behind its counter, with the booth TV mounted in the middle of it. Until you send
+artwork, the wall shows the hall's placeholder design (your booth number, row colour and name).
 
 | Spec | Requirement |
 |------|-------------|
-| Panels | **Two** images — panel A (poster) and panel B (TV panel) |
-| Printable area | 0.915 m wide × 2.305 m tall per panel |
-| Size | **1000 × 2520 px** (portrait, ~0.4 : 1) |
-| Panel B TV zone | Leave the band **1.33–1.77 m above the floor** (the TV covers it) free of text |
-| Format | PNG or JPG, under 2 MB each |
+| Panels | **One** image — the back wall |
+| Printable area | 2.26 m wide × 2.40 m tall (0.10–2.50 m above the floor) |
+| Size | **1130 × 1200 px** (portrait, ~0.94 : 1) |
+| TV zone | The TV covers a centred box **1.08 m wide, 1.22–1.78 m above the floor** (roughly 30–53 % down the image, middle 48 % across) — keep it free of text |
+| Header | The top 0.44 m (top 18 % of the image) is what visitors see over the counter from the aisle: put your name there |
+| Counter | The counter (1.1 m wide, 1.0 m tall) hides the bottom ~38 % of the wall from the aisle |
+| Format | PNG or JPG, under 2 MB |
 
-In `src/data/booths.json` the files go in `"panelArt": ["/booths/<id>-a.png", "/booths/<id>-b.png"]`
+In `src/data/booths.json` the file goes in `"panelArt": ["/booths/<id>.png"]`
 (files under `public/booths/`).
 
 ---

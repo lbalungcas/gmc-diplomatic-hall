@@ -112,13 +112,14 @@ await check('no plan-label text meshes on the floor', `
   return { ok: bad.length === 0, detail: bad.length ? bad.join(',') : 'none' };`);
 
 // ---- layout ---------------------------------------------------------------------------------
-await check('24 booths in 8 clusters of 3', `
+await check('24 booths in 4 rows of 6', `
   const B = ${G}.BOOTH_POSITIONS;
-  const ids = Object.keys(B).map(Number);
+  const ids = Object.keys(B).map(Number).sort((a, b) => a - b);
   const per = {};
-  for (const b of Object.values(B)) per[b.cluster] = (per[b.cluster] || 0) + 1;
-  const ok = ids.length === 24 && Object.keys(per).length === 8 && Object.values(per).every(n => n === 3);
-  return { ok, detail: ids.length + ' booths, clusters ' + JSON.stringify(per) };`);
+  for (const b of Object.values(B)) per[b.row] = (per[b.row] || 0) + 1;
+  const ok = ids.length === 24 && ids[0] === 1 && ids[23] === 24
+    && Object.keys(per).join('') === 'ABCD' && Object.values(per).every(n => n === 6);
+  return { ok, detail: ids.length + ' booths, rows ' + JSON.stringify(per) };`);
 
 await check('LED wall: idle slide + window + 10 m CSS screen', `
   let idle = null, hole = null;
@@ -152,12 +153,32 @@ await check('TV raycast picks a booth screen', `
   const tv = ${G}.pickTV(0, 0);
   return { ok: !!tv && tv.boothId === 1, detail: tv ? tv.key : 'no hit' };`);
 
-await check('cluster blocks walking through the panels', `
+await check('spine wall blocks walking through an island', `
   const b = ${G}.BOOTH_POSITIONS[14];
-  const p = new window.THREE.Vector3(b.cx + 0.2, 1.45, b.cz);
+  const p = new window.THREE.Vector3(b.cx, 1.45, b.spineZ + 0.1);
   ${G}.checkCollision(p);
-  const d = Math.hypot(p.x - b.cx, p.z - b.cz);
-  return { ok: d > 1.3, detail: 'pushed to ' + d.toFixed(2) + ' m from the hub' };`);
+  const d = Math.abs(p.z - b.spineZ);
+  return { ok: d > 0.8, detail: 'pushed to ' + d.toFixed(2) + ' m from the spine' };`);
+
+// Open booths: a visitor can step in between two counters and stand inside a booth.
+await check('open booth can be entered between counters', `
+  const b = ${G}.BOOTH_POSITIONS[14];
+  const gap = new window.THREE.Vector3(b.cx + 1.2, 1.45, b.spineZ + b.facing * 1.8);
+  const inside = new window.THREE.Vector3(b.cx, 1.45, b.spineZ + b.facing * 1.0);
+  const g0 = gap.clone(), i0 = inside.clone();
+  ${G}.checkCollision(gap);
+  ${G}.checkCollision(inside);
+  const moved = gap.distanceTo(g0) + inside.distanceTo(i0);
+  return { ok: moved < 0.01, detail: 'moved ' + moved.toFixed(3) + ' m' };`);
+
+await check('widened foyer: curved east wall holds', `
+  // z = -6 is clear of furniture (inside the photo-wall curve, beside the media hub set).
+  const inside = new window.THREE.Vector3(31.6, 1.45, -6.0);
+  const outside = new window.THREE.Vector3(34.5, 1.45, -6.0);
+  const i0 = inside.clone();
+  ${G}.checkCollision(inside);
+  ${G}.checkCollision(outside);
+  return { ok: inside.distanceTo(i0) < 0.01 && outside.x < 33.0, detail: 'outside clamped to x=' + outside.x.toFixed(2) };`);
 
 await check('booth modal opens and closes', `
   ${G}.openBoothModal(3);
@@ -213,9 +234,11 @@ await check('minimap static layer + dynamic marks', `
   const c = document.getElementById('minimap-canvas');
   const ctx = c.getContext('2d');
   const before = ctx.getImageData(0, 0, c.width, c.height).data;
+  // Count every pixel: a sparse sample misses thin lines once the map is scaled for the wider foyer.
   let nonEmpty = 0;
-  for (let i = 3; i < before.length; i += 400) if (before[i] > 0) nonEmpty++;
-  return { ok: nonEmpty > 20, detail: nonEmpty + ' non-transparent samples' };`);
+  for (let i = 3; i < before.length; i += 4) if (before[i] > 0) nonEmpty++;
+  const share = nonEmpty / (c.width * c.height);
+  return { ok: share > 0.02, detail: (share * 100).toFixed(1) + '% of pixels drawn' };`);
 
 await check('organizer booths + mascots built', `
   return { ok: ${G}.organizerBooths.size === 3 && !!${G}.mascots,

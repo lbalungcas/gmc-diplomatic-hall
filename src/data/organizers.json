@@ -8,18 +8,37 @@
     "bg": "#1D1D1B",
     "accent": "#F38500",
     "ink": "#1D1D1B",
-    "x": 25.7,
-    "z": -6.4,
+    "x": 32.44,
+    "z": -13.52,
     "mascot": "tutu",
     "kicker": "ORGANIZER BOOTH",
     "overview": "Terre des hommes (Tdh) is the leading Swiss children's rights organisation. For more than 60 years it has worked hand in hand with children in over 30 countries to win protection and respect for their rights — in health, for children on the move, and in access to justice. Tdh co-organizes the Youth Innovations Marketplace; stop by to meet the team and find out how to stay involved after the summit.",
-    "bullets": ["Children's health", "Children on the move", "Access to justice"],
-    "stats": [
-      { "value": "60+", "label": "Years with children" },
-      { "value": "30+", "label": "Countries" },
-      { "value": "Organizer", "label": "GMC 2026" }
+    "bullets": [
+      "Children's health",
+      "Children on the move",
+      "Access to justice"
     ],
-    "links": [{ "label": "tdh.org", "url": "https://www.tdh.org/en" }]
+    "stats": [
+      {
+        "value": "60+",
+        "label": "Years with children"
+      },
+      {
+        "value": "30+",
+        "label": "Countries"
+      },
+      {
+        "value": "Organizer",
+        "label": "GMC 2026"
+      }
+    ],
+    "links": [
+      {
+        "label": "tdh.org",
+        "url": "https://www.tdh.org/en"
+      }
+    ],
+    "yaw": -1.4627
   },
   {
     "id": "knh",
@@ -30,18 +49,37 @@
     "bg": "#0050A0",
     "accent": "#F18B27",
     "ink": "#1A1A1A",
-    "x": 25.7,
-    "z": -9.9,
+    "x": 31.73,
+    "z": -17.41,
     "mascot": null,
     "kicker": "ORGANIZER BOOTH",
     "overview": "Kindernothilfe (KNH) is a Christian children's relief organisation founded in Duisburg, Germany, in 1959. It works exclusively through local project partners to secure a better future for children — strengthening child protection, education and self-help groups, and training more than 650 organisations worldwide. At the Marketplace, KNH co-hosts the organizer area and the partner network behind the youth innovations on show.",
-    "bullets": ["Child protection", "Self-help groups", "Local project partners"],
-    "stats": [
-      { "value": "1959", "label": "Founded" },
-      { "value": "650+", "label": "Organisations trained" },
-      { "value": "Organizer", "label": "GMC 2026" }
+    "bullets": [
+      "Child protection",
+      "Self-help groups",
+      "Local project partners"
     ],
-    "links": [{ "label": "kindernothilfe.org", "url": "https://www.kindernothilfe.org/en/" }]
+    "stats": [
+      {
+        "value": "1959",
+        "label": "Founded"
+      },
+      {
+        "value": "650+",
+        "label": "Organisations trained"
+      },
+      {
+        "value": "Organizer",
+        "label": "GMC 2026"
+      }
+    ],
+    "links": [
+      {
+        "label": "kindernothilfe.org",
+        "url": "https://www.kindernothilfe.org/en/"
+      }
+    ],
+    "yaw": -1.3163
   },
   {
     "id": "vewu",
@@ -52,17 +90,36 @@
     "bg": "#1C3462",
     "accent": "#F2C667",
     "ink": "#1C3462",
-    "x": 25.7,
-    "z": -13.4,
+    "x": 30.39,
+    "z": -21.3,
     "mascot": "vewu-lighthouse",
     "kicker": "ORGANIZER BOOTH",
     "overview": "Violence Ends With Us (VEWU) is a regional youth-led movement dedicated to children, young people and survivors across the Asia-Pacific. Uniting voices from over 20 countries, VEWU turns youth ideas into action, brings lived realities into decision-making spaces, and grows a community of Lightkeepers working toward a violence-free future. Follow the lighthouse — and join the movement.",
-    "bullets": ["Youth Action & Innovation", "Advocacy & Systems Change", "Storytelling & Solidarity"],
-    "stats": [
-      { "value": "20+", "label": "Countries" },
-      { "value": "500+", "label": "Youth leaders" },
-      { "value": "53", "label": "Partners" }
+    "bullets": [
+      "Youth Action & Innovation",
+      "Advocacy & Systems Change",
+      "Storytelling & Solidarity"
     ],
-    "links": [{ "label": "violenceendswithus.com", "url": "https://violenceendswithus.com/" }]
+    "stats": [
+      {
+        "value": "20+",
+        "label": "Countries"
+      },
+      {
+        "value": "500+",
+        "label": "Youth leaders"
+      },
+      {
+        "value": "53",
+        "label": "Partners"
+      }
+    ],
+    "links": [
+      {
+        "label": "violenceendswithus.com",
+        "url": "https://violenceendswithus.com/"
+      }
+    ],
+    "yaw": -1.164
   }
 ]

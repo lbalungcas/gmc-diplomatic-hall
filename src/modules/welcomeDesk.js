@@ -1,5 +1,5 @@
 /**
- * Welcome & Information desk for the Pre-Function Foyer.
+ * Registration & Information desk for the Pre-Function Foyer.
  *
  * The venue GLB ships the desk as a plain scaled cube whose single "welcome_desk" texture is
  * stretched over every face (giant wrapped letters, blank top). main.js hides that node and its
@@ -85,14 +85,15 @@ function createFasciaTexture({ isTouch = false } = {}) {
   ctx.fillStyle = 'rgba(0, 212, 255, 0.35)';
   ctx.fillRect(0, H - 54, W, 3);
 
-  // Left block: info glyph + WELCOME
+  // Left block: info glyph + REGISTRATION
   infoGlyph(ctx, 118, 200, 66);
   ctx.fillStyle = '#FFFFFF';
-  ctx.font = '800 150px "Outfit", "Plus Jakarta Sans", sans-serif';
-  ctx.fillText('WELCOME', 214, 256);
+  // Sized so the longer word still clears the event lock-up on the right (starts at W - 470).
+  ctx.font = '800 104px "Outfit", "Plus Jakarta Sans", sans-serif';
+  ctx.fillText('REGISTRATION', 214, 250);
   ctx.fillStyle = CYAN;
   ctx.font = '700 40px "Outfit", "Plus Jakarta Sans", sans-serif';
-  ctx.fillText('INFORMATION  •  REGISTRATION  •  DIRECTIONS', 216, 322);
+  ctx.fillText('BADGES  •  EXPO PASSPORT  •  INFORMATION', 216, 322);
 
   // Right block: event lock-up
   roundRect(ctx, W - 470, 60, 400, 62, 31, 'rgba(0,212,255,0.14)', CYAN, 3);
@@ -149,12 +150,12 @@ function createHeaderTexture() {
 
   infoGlyph(ctx, 150, H / 2, 84);
   ctx.fillStyle = '#FFFFFF';
-  ctx.font = '800 118px "Outfit", "Plus Jakarta Sans", sans-serif';
+  ctx.font = '800 108px "Outfit", "Plus Jakarta Sans", sans-serif';
   ctx.textBaseline = 'middle';
-  ctx.fillText('INFORMATION', 270, H / 2 - 22);
+  ctx.fillText('REGISTRATION', 270, H / 2 - 22);
   ctx.fillStyle = CYAN;
   ctx.font = '700 40px "Outfit", "Plus Jakarta Sans", sans-serif';
-  ctx.fillText('WELCOME DESK  •  ASK US ANYTHING', 274, H / 2 + 74);
+  ctx.fillText('INFORMATION DESK  •  ASK US ANYTHING', 274, H / 2 + 74);
   ctx.textBaseline = 'alphabetic';
 
   // Right-side event badge

@@ -56,7 +56,9 @@ OUT = os.path.join(ROOT, 'public', 'models', 'diplomatic_hall.glb')
 # The walkable envelope, mirroring WORLD_BOUNDS in src/main.js (three.js z = -blender y), after
 # venue_set.reshape_hall() has stretched the hall north. Anything comfortably outside it can
 # never be seen, so it is dropped.
-ENVELOPE = dict(min_x=0.0, max_x=28.0, min_y=0.0,
+# The foyer is widened east by the same pass, so the east limit moves with it — otherwise the
+# prune below would delete the very walls the reshape just moved.
+ENVELOPE = dict(min_x=0.0, max_x=28.0 + venue_set.LAYOUT['hall'].get('stretchEastBy', 0.0), min_y=0.0,
                 max_y=-venue_set.LAYOUT['hall']['northWallZ'] + 1.0)
 
 # Meshes the runtime hides and rebuilds procedurally — HIDE_NODE_RE in src/main.js, plus the
@@ -297,7 +299,7 @@ SOLIDS = {
     'Stair':            dict(color=(0.14, 0.13, 0.12), roughness=0.70, metallic=0.02),
     'Text':             dict(color=(0.92, 0.94, 0.97), roughness=0.45, metallic=0.0),
 }
-# The marketplace set (stage, seating, booth clusters) built by scripts/venue_set.py.
+# The marketplace set (stage, seating, open-booth grid, foyer) built by scripts/venue_set.py.
 SOLIDS.update(venue_set.MATERIALS)
 
 
@@ -605,6 +607,7 @@ def step_join_static():
         ('Venue_Booths', lambda o: o.name.startswith('Booth_')),
         ('Venue_Seating', lambda o: o.name.startswith('Seat_')),
         ('Venue_Doors',  lambda o: o.name.startswith('Door_')),
+        ('Venue_Foyer',  lambda o: o.name.startswith(('Foyer_', 'HallSet_'))),
     ]
     for new_name, pred in FAMILIES:
         members = [o for o in bpy.data.objects if o.type == 'MESH' and pred(o)]
@@ -674,7 +677,7 @@ def main():
     before_polys = sum(len(o.data.polygons) for o in bpy.data.objects if o.type == 'MESH')
     say(f'start  : {before_objs} meshes, {before_polys} polys, {len(bpy.data.materials)} materials')
 
-    say('\n[0/7] marketplace set (hall reshape, stage, seating, 27 booths)')
+    say('\n[0/7] marketplace set (hall reshape, stage, seating, 24 open booths, foyer)')
     venue_set.build_all(say)
 
     say('\n[1/7] prune')

@@ -22,17 +22,18 @@ const PORT = 9333;
 // Camera poses chosen to cover every material group and the marketplace set. `fly: true` parks
 // the camera like a seat (sitDownOnChair with a custom pose) so it can sit above eye level.
 const POSES = [
-  { name: '1-entrance',  x: 9.68,  y: 1.45, z: -1.6,   yaw: 0,           pitch: -0.02, note: 'arrival: clusters C7-C9 with the stage beyond' },
-  { name: '2-overview',  x: 9.68,  y: 5.6,  z: -0.9,   yaw: 0,           pitch: -0.42, note: 'high overview of all eight clusters, seating and LED wall', fly: true },
-  { name: '3-cluster',   x: 12.53, y: 1.45, z: -8.6,   yaw: 0,           pitch: -0.10, note: 'cluster C5 (OCSEA): panels, graphics, counter, TV, plant' },
-  { name: '4-stage',     x: 9.68,  y: 1.45, z: -19.6,  yaw: 0,           pitch: 0.12,  note: 'stage set, LED wall, truss, standees, seating' },
-  { name: '5-terrazzo',  x: 9.68,  y: 1.45, z: -8.3,   yaw: 0,           pitch: -0.62, note: 'HALL FLOOR close up - terrazzo' },
-  { name: '6-foyer',     x: 24.5,  y: 1.45, z: -9.0,   yaw: -0.9,        pitch: -0.08, note: 'organizer stands + foyer walls' },
-  { name: '8-organizer', x: 22.4,  y: 1.45, z: -9.9,   yaw: -Math.PI / 2, pitch: -0.04, note: 'KNH pop-up organizer stand, front on' },
-  { name: '9-west-wall', x: 6.83,  y: 1.45, z: -14.1,  yaw: 1.0,         pitch: 0.18,  note: 'exit doors + lintels under the 7 m ceiling' },
-  { name: '10-from-stage', x: 9.68, y: 1.45, z: -23.9,  yaw: Math.PI,     pitch: -0.05, note: 'from the stage front back over the seats to clusters C1-C3 (booths 1-6)' },
-  { name: '11-chairs',   x: 6.2,   y: 1.25, z: -23.9,  yaw: 2.55,        pitch: -0.38, note: 'audience chair close-up' },
-  { name: '7-lectern',   x: 5.35,  y: 2.1,  z: -25.35, yaw: Math.PI,     pitch: -0.10, note: 'view from the lectern back over the hall', fly: true },
+  { name: '1-entrance',  x: 9.68,  y: 1.45, z: -1.6,   yaw: 0,       pitch: -0.02, note: 'arrival: row D with the islands and the stage beyond' },
+  { name: '2-overview',  x: 9.68,  y: 5.6,  z: -0.9,   yaw: 0,       pitch: -0.42, note: 'high overview of both booth islands, benches and LED wall', fly: true },
+  { name: '3-alley',     x: 17.6,  y: 1.45, z: -12.33, yaw: 1.5708,  pitch: -0.05, note: 'the alleyway from the foyer door: rows B and C facing each other' },
+  { name: '4-booth',     x: 8.48,  y: 1.45, z: -4.9,   yaw: 0,       pitch: -0.04, note: 'booth 21 front on: back wall, TV, counter, stool, spots' },
+  { name: '5-row-a',     x: 9.68,  y: 1.45, z: -21.4,  yaw: 3.1416,  pitch: -0.05, note: 'from the benches back to row A (booths 1-6)' },
+  { name: '6-stage',     x: 9.68,  y: 1.45, z: -18.9,  yaw: 0,       pitch: 0.12,  note: 'stage set, LED wall, benches' },
+  { name: '7-deal',      x: 21.4,  y: 1.45, z: -3.6,   yaw: -0.6,    pitch: -0.02, note: 'foyer: event arch and deal-corner cocktail tables' },
+  { name: '8-media-hub', x: 25.0,  y: 1.45, z: -3.2,   yaw: -1.25,   pitch: -0.02, note: 'curved photo wall / Youth Media Hub' },
+  { name: '9-organizers', x: 27.0, y: 1.45, z: -16.0,  yaw: -1.5708, pitch: -0.02, note: 'organizer stands on the curved east wall, registration' },
+  { name: '10-north-walls', x: 25.5, y: 1.45, z: -18.6, yaw: 0,      pitch: 0.04,  note: 'policy (pledge) wall and partners photo wall' },
+  { name: '11-south-end', x: 10.2, y: 1.45, z: -5.6,   yaw: 3.1416,  pitch: -0.08, note: 'photo booth and safeguarding area' },
+  { name: '12-bench',    x: 6.2,   y: 1.25, z: -21.2,  yaw: 0,       pitch: -0.4,  note: 'audience bench close-up' },
 ];
 
 mkdirSync(OUT, { recursive: true });
