@@ -294,6 +294,14 @@ await check('adaptive quality governor responds', `
   q.forceLevel(0);
   return { ok: mid === 2 && q.level === 0, detail: 'stepped to ' + mid + ' and back to ' + q.level };`);
 
+// GTAO and bloom draw onto a target they have just written; with MSAA targets three.js
+// invalidates that storage and real GPUs show a black frame (headless SwiftShader does not).
+await check('post chain has no MSAA targets under GTAO/bloom', `
+  const c = ${G}.composer;
+  if (!c) return { ok: true, detail: 'no composer (low-power path)' };
+  const s1 = c.renderTarget1.samples, s2 = c.renderTarget2.samples;
+  return { ok: s1 === 0 && s2 === 0, detail: 'samples ' + s1 + '/' + s2 };`);
+
 await check('20 individual audience chairs, 10 each side', `
   const C = ${G}.CHAIR_LOCATIONS;
   const left = C.filter(c => c.x < 9.68).length, right = C.filter(c => c.x > 9.68).length;

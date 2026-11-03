@@ -627,12 +627,16 @@ function init() {
   // tone-mapped values instead of linear light. And there was no OutputPass, so the chain had
   // no single place where HDR became display-referred.
   //
-  // Now: MSAA on the target, every pass operates on linear HDR, and OutputPass applies ACES
+  // Now: every pass operates on linear HDR, SMAA anti-aliases, and OutputPass applies ACES
   // and the sRGB transfer once, at the end.
   if (!isLowPowerDevice) {
+    // No MSAA on the composer's targets. three.js resolves a multisampled target and then
+    // invalidates its multisample storage, and two passes here draw *onto* a target they have
+    // just written: GTAO copies the frame then multiplies the occlusion over it, and bloom adds
+    // its glow onto the frame. On drivers that honour the invalidation the frame underneath is
+    // gone, which left a black screen with only the bloom glows. SMAA (below) does the
+    // anti-aliasing instead.
     composer = new EffectComposer(renderer);
-    composer.renderTarget1.samples = 4;
-    composer.renderTarget2.samples = 4;
     composer.addPass(new RenderPass(scene, camera));
 
     // Ambient occlusion (GTAO): contact darkening where furniture meets the floor, in the
@@ -774,6 +778,12 @@ function captureZoneEnvironments() {
   // Interface-only objects stay out of the reflections.
   const hidden = [...boothMarkers, ...boothLabels.values()].filter((o) => o.visible);
   hidden.forEach((o) => { o.visible = false; });
+  // Capture under the studio environment, never under a previous capture: that one is about
+  // to be replaced (and disposed), and capturing with it would feed each capture into the next.
+  const previous = { hall: zoneEnv.hall, lobby: zoneEnv.lobby };
+  scene.environment = envMap;
+  const intensity = scene.environmentIntensity;
+  scene.environmentIntensity = isLowPowerDevice ? 0.58 : 0.66;
   const probes = { hall: [9.68, 2.2, -12.0], lobby: [39.0, 2.2, -8.5] };
   for (const [zone, [x, y, z]] of Object.entries(probes)) {
     cube.position.set(x, y, z);
@@ -782,9 +792,9 @@ function captureZoneEnvironments() {
       lightPool.update(camera, 0, { instant: true });
     }
     cube.update(renderer, scene);
-    if (zoneEnv[zone]) zoneEnv[zone].dispose();
     zoneEnv[zone] = pmrem.fromCubemap(rt.texture).texture;
   }
+  scene.environmentIntensity = intensity;
   hidden.forEach((o) => { o.visible = true; });
   scene.remove(cube);
   rt.dispose();
@@ -797,6 +807,8 @@ function captureZoneEnvironments() {
     lightPool.update(camera, 0, { instant: true });
   }
   updateZoneEnvironment();
+  // Only now that nothing references them can the previous captures go.
+  for (const t of Object.values(previous)) if (t) t.dispose();
 }
 
 function updateZoneEnvironment() {
@@ -4297,6 +4309,11 @@ window.__diplomaticGame = {
   get sharedVideos() { return sharedVideos; },
   get mascots() { return mascots; },
   get boothGrid() { return boothGrid; },
+  get gtaoPass() { return gtaoPass; },
+  get bloomPass() { return bloomPass; },
+  get envMap() { return envMap; },
+  zoneEnv,
+  get composer() { return composer; },
   LOBBY,
   get organizerBooths() { return organizerBooths; },
   get presence() { return presence; },
