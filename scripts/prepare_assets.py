@@ -178,7 +178,22 @@ def organizers():
             print(f'  {org} {part}: {size}')
 
 
+def photowall():
+    """The YIM photowall, printed across the curved wall's lobby face (3:1). A 3072 px print for
+    desktop (about 178 px per metre over the 17 m wall) and a 2048 px one for tablets."""
+    im = Image.open(os.path.join(DESIGNS, 'Photowall - YIM.png')).convert('RGB')
+    for name, w in (('photowall', 3072), ('photowall-sm', 2048)):
+        size = save_webp(im, os.path.join(PUB, 'venue', f'{name}.webp'), width=w, quality=88)
+        print(f'  {name}: {size}')
+
+
 if __name__ == '__main__':
+    import sys
+    only = sys.argv[1:]
+    if only:
+        for name in only:
+            globals()[name]()
+        raise SystemExit(0)
     print('Preparing client art:')
     posters()
     signs()
@@ -186,3 +201,4 @@ if __name__ == '__main__':
     arch()
     stage()
     organizers()
+    photowall()

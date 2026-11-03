@@ -286,14 +286,14 @@
       "tableRadius": 0.34
     },
     "mediaHub": {
-      "x": 33.6,
-      "z": -6.0,
-      "backdropWidth": 7.2
+      "x": 34.2,
+      "z": -9.2,
+      "backdropWidth": 6.0
     },
     "registration": {
-      "x": 40.2,
-      "z": -12.6,
-      "yaw": 1.5708
+      "x": 35.4,
+      "z": -1.8,
+      "yaw": 0
     }
   },
   "hallFeatures": {
@@ -316,9 +316,9 @@
     {
       "id": "registration",
       "image": "/venue/signs/registration.webp",
-      "x": 42.4,
-      "z": -14.8,
-      "yaw": 1.5708,
+      "x": 37.9,
+      "z": -2.3,
+      "yaw": -0.4,
       "w": 1.0,
       "h": 1.414,
       "bottom": 0.45
@@ -336,8 +336,8 @@
     {
       "id": "mediaHub",
       "image": "/venue/signs/mediaHub.webp",
-      "x": 36.6,
-      "z": -8.6,
+      "x": 37.0,
+      "z": -11.6,
       "yaw": 1.5708,
       "w": 1.0,
       "h": 1.414,
@@ -470,7 +470,14 @@
       "r": 11.67,
       "thickness": 0.35,
       "a0": 156.8,
-      "a1": 244.4
+      "a1": 244.4,
+      "print": {
+        "_comment": "The YIM photowall (venue designs/Photowall - YIM.png, 3:1) across the whole lobby face, mounted 4 cm proud so it clears the wainscot.",
+        "image": "/venue/photowall.webp",
+        "imageSm": "/venue/photowall-sm.webp",
+        "y0": 0.12,
+        "offset": 0.045
+      }
     },
     "closedDoorWall": {
       "x": 37.5,
@@ -533,10 +540,10 @@
     },
     "ceilingHeight": 7.0,
     "spawn": {
-      "_comment": "Visitors start at the registration desk, as at the venue.",
-      "x": 45.0,
-      "z": -11.0,
-      "yaw": 1.249
+      "_comment": "Visitors start at the registration desk, beside the entrance.",
+      "x": 35.4,
+      "z": 1.6,
+      "yaw": 0
     },
     "wallDoors": [
       {
@@ -717,6 +724,82 @@
       "x1": 13.0,
       "z0": -27.5,
       "z1": -25.8
+    }
+  },
+  "wayfinding": {
+    "_comment": "Floor arrows from registration to the Diplomatic Hall foyer entrance and on through the event arch to the booths; floating markers over the entrance and the standees.",
+    "route": [
+      [
+        35.4,
+        1.0
+      ],
+      [
+        31.0,
+        1.7
+      ],
+      [
+        27.3,
+        1.7
+      ],
+      [
+        27.3,
+        -0.8
+      ],
+      [
+        22.6,
+        -3.0
+      ],
+      [
+        22.6,
+        -9.0
+      ],
+      [
+        19.2,
+        -10.13
+      ]
+    ],
+    "spacing": 1.0,
+    "markers": [
+      {
+        "id": "entrance",
+        "title": "ENTRANCE",
+        "sub": "Diplomatic Hall Foyer",
+        "x": 26.2,
+        "y": 3.1,
+        "z": 0.7,
+        "range": 26
+      },
+      {
+        "id": "booths",
+        "title": "BOOTHS",
+        "sub": "24 youth innovations",
+        "x": 21.4,
+        "y": 3.8,
+        "z": -10.13,
+        "range": 22
+      }
+    ],
+    "signLabels": {
+      "registration": [
+        "REGISTRATION",
+        "Start here"
+      ],
+      "dealCorner": [
+        "DEAL CORNER",
+        "Meet the teams"
+      ],
+      "mediaHub": [
+        "YOUTH MEDIA HUB",
+        "Interviews & photos"
+      ],
+      "boothEntrance": [
+        "INNOVATION MARKETPLACE",
+        "Booths 1–24"
+      ],
+      "safeguarding": [
+        "SAFEGUARDING",
+        "Ask for help here"
+      ]
     }
   }
 }

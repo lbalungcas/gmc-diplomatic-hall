@@ -29,6 +29,7 @@ import { computeBoothPositions, createBoothGrid, gridObstacles } from './modules
 import { createVenueSignage } from './modules/venueSignage.js';
 import { createLightPool } from './modules/lightPool.js';
 import { mergeStaticByMaterial } from './modules/staticMerge.js';
+import { createWayfinding } from './modules/wayfinding.js';
 
 // --- State Variables ---
 let scene, camera, renderer, clock;
@@ -95,6 +96,7 @@ let mascots = null;
 let boothGrid = null;              // live booth dressing — src/modules/boothGrid.js
 let venueSignage = null;           // printed sign faces — src/modules/venueSignage.js
 let lightPool = null;              // shared point lights for the venue fixtures — src/modules/lightPool.js
+let wayfinding = null;             // floor route + markers to the entrance — src/modules/wayfinding.js
 let gtaoPass = null, bloomPass = null;
 const zoneEnv = { hall: null, lobby: null, current: null };   // venue reflection captures
 const staticBoxes = [];            // world AABBs the player can't walk through
@@ -654,6 +656,18 @@ function init() {
     gtaoPass.blendIntensity = 0.85;
     gtaoPass.updateGtaoMaterial({ radius: 0.55, distanceExponent: 1.4, thickness: 1.2, scale: 1.0, samples: 12 });
     gtaoPass.updatePdMaterial({ lumaPhi: 10, depthPhi: 2, normalPhi: 3, radius: 6, rings: 2, samples: 12 });
+    // GTAO renders depth and normals for everything visible, so a sprite's transparent quad (the
+    // floating labels and markers) or the floor arrows counted as solid and cast a dark box.
+    // Leave out sprites and any see-through overlay that doesn't write depth.
+    gtaoPass.overrideVisibility = function overrideVisibility() {
+      const cache = this._visibilityCache;
+      this.scene.traverse((o) => {
+        cache.set(o, o.visible);
+        const m = o.material;
+        const overlay = m && !Array.isArray(m) && m.transparent && m.depthWrite === false;
+        if (o.isPoints || o.isLine || o.isSprite || overlay) o.visible = false;
+      });
+    };
     composer.addPass(gtaoPass);
 
     // A restrained bloom: only the brightest emitters (chandelier candles, downlights, the LED
@@ -926,7 +940,7 @@ function addVenueLighting() {
   }
   // Lobby: the foyer's ends, the vestibule, the elevator hall, the media hub, registration, the
   // organizer stands and the east end; the chandeliers are warmer and brighter.
-  [[21.5, -15.5], [21.5, -3.0], [33.0, -14.0], [35.5, -6.0], [39.8, -12.6],
+  [[21.5, -15.5], [21.5, -3.0], [33.0, -14.0], [34.6, -9.0], [35.4, -2.4], [39.8, -12.6],
    [41.5, -16.8], [46.5, -16.8], [44.0, -1.5], [55.0, -12.0]].forEach(([x, z]) => ceilingLight(x, z, 6));
   // Under the vestibule and elevator-hall soffits the lights hang lower and reach less far.
   [[24.0, 1.7], [30.5, 1.7], [37.0, 1.7], [33.85, 6.0], [33.85, 10.0]].forEach(([x, z]) => {
@@ -1376,6 +1390,7 @@ function createBoothTVs() {
     lowPower: isLowPowerDevice,
     anisotropy: Math.min(8, renderer.capabilities.getMaxAnisotropy()),
   });
+  wayfinding = createWayfinding(scene, hallLayout);
   boothGrid = createBoothGrid(scene, hallLayout, BOOTH_POSITIONS, boothsData, postersData, {
     lowPower: isLowPowerDevice,
     anisotropy: Math.min(8, renderer.capabilities.getMaxAnisotropy()),
@@ -4044,6 +4059,16 @@ function buildMinimapStatic() {
   for (const p of LOBBY.pillars || []) ctx.fillRect(mapX(p.x) - 1.5, mapZ(p.z) - 1.5, 3, 3);
   const foyerN = LOBBY.outline[LOBBY.outline.length - 1][1];
 
+  // The guided route from registration to the entrance and the arch, as a dotted line.
+  ctx.save();
+  ctx.strokeStyle = 'rgba(56, 189, 248, 0.95)';
+  ctx.lineWidth = 1.6;
+  ctx.setLineDash([2.5, 2]);
+  ctx.beginPath();
+  hallLayout.wayfinding.route.forEach(([x, z], i) => ctx[i ? 'lineTo' : 'moveTo'](mapX(x), mapZ(z)));
+  ctx.stroke();
+  ctx.restore();
+
   // Lobby set: event arch, cocktail tables, partners wall.
   ctx.fillStyle = 'rgba(255, 255, 255, 0.35)';
   for (const [tx, tz] of FOYER.dealCorner.tables) {
@@ -4266,6 +4291,7 @@ function animate() {
   updateRemoteAvatars(delta);
   if (mascots) mascots.update(t, delta, player.pos, openModals.size > 0 || isBlockerVisible());
   if (lightPool) lightPool.update(camera, delta);
+  if (wayfinding) wayfinding.update(t, player.pos);
   updateZoneEnvironment();
   updateZoneCulling();
   // Sharp easel posters near the player (about four times a second is plenty).
@@ -4372,6 +4398,7 @@ window.__diplomaticGame = {
   get sharedVideos() { return sharedVideos; },
   get mascots() { return mascots; },
   get boothGrid() { return boothGrid; },
+  get wayfinding() { return wayfinding; },
   get gtaoPass() { return gtaoPass; },
   get bloomPass() { return bloomPass; },
   get envMap() { return envMap; },

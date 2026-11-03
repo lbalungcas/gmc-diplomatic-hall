@@ -10,18 +10,14 @@
  *  - the event arch: the arch design, alpha-cut so you walk through its opening, both faces
  *  - the stage banners either side of the LED wall
  *  - the partners wall (partner lockup)
- *  - the Youth Media Hub backdrop on the curved wall's lobby side, in the media hub standee's
- *    pink grid
+ *  - the YIM photowall across the curved wall's lobby face, behind the Youth Media Hub
  *  - the photo booth header in the hall
  */
 import * as THREE from 'three';
 
 const NAVY = '#1C3462';
-const PINK = '#D35BA5';
 const YELLOW = '#F0C66B';
 const FONT = 'system-ui, "Segoe UI", sans-serif';
-const YIM_LOGO = '/landing/assets/web/logo-navbar.png';
-const PARTNER_LOGOS = '/venue/logos.webp';
 
 function texture(canvas, anisotropy) {
   const tex = new THREE.CanvasTexture(canvas);
@@ -114,55 +110,6 @@ function arcGeometry(cx, cz, r, a0, a1, y0, y1, outward, seg = 64) {
   return g;
 }
 
-/**
- * The Youth Media Hub backdrop on the curved wall behind the interview chairs, after the media
- * hub standee: pink grid, the YIM logo on the left, a white title panel in the middle and the
- * organizer / supporter logos on the right, with a white foot strip.
- */
-function drawMediaHub(canvas, lengthM, yim, partners) {
-  const ctx = canvas.getContext('2d');
-  const W = canvas.width, H = canvas.height;
-  const ppm = W / lengthM;
-  ctx.fillStyle = PINK;
-  ctx.fillRect(0, 0, W, H);
-  ctx.strokeStyle = 'rgba(255,255,255,0.16)';
-  ctx.lineWidth = Math.max(2, ppm * 0.02);
-  const cell = ppm * 0.32;
-  for (let x = cell / 2; x < W; x += cell) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke(); }
-  for (let y = cell / 2; y < H; y += cell) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke(); }
-
-  const cx = W / 2;
-  const pw = Math.min(ppm * 3.0, W * 0.42), ph = H * 0.4, py = H * 0.1;
-  ctx.fillStyle = '#FFFFFF';
-  ctx.beginPath();
-  ctx.roundRect(cx - pw / 2, py, pw, ph, ppm * 0.06);
-  ctx.fill();
-  ctx.fillStyle = '#111111';
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  const s1 = fitFont(ctx, 'YOUTH MEDIA HUB', pw * 0.88, Math.round(ph * 0.42));
-  ctx.font = `900 ${s1}px ${FONT}`;
-  ctx.fillText('YOUTH MEDIA HUB', cx, py + ph * 0.42);
-  ctx.fillStyle = NAVY;
-  const sub = 'Interviews · Stories · Share your innovation';
-  const s2 = fitFont(ctx, sub, pw * 0.8, Math.round(ph * 0.13), 700);
-  ctx.font = `700 ${s2}px ${FONT}`;
-  ctx.fillText(sub, cx, py + ph * 0.8);
-
-  const side = (W - pw) / 2 - ppm * 0.5;
-  if (yim) drawContained(ctx, yim, ppm * 0.25, py, side, ph);
-  if (partners) {
-    const bx = cx + pw / 2 + ppm * 0.25, bw = side;
-    ctx.fillStyle = '#FFFFFF';
-    ctx.beginPath();
-    ctx.roundRect(bx, py + ph * 0.08, bw, ph * 0.84, ppm * 0.05);
-    ctx.fill();
-    drawContained(ctx, partners, bx + bw * 0.05, py + ph * 0.12, bw * 0.9, ph * 0.76);
-  }
-  ctx.fillStyle = '#FFFFFF';
-  ctx.fillRect(0, H * 0.93, W, H * 0.07);
-}
-
 /** Header for the photo booth kiosk. */
 function drawHeader(canvas, title, sub) {
   const ctx = canvas.getContext('2d');
@@ -188,8 +135,6 @@ export function createVenueSignage(scene, layout, { anisotropy = 4, lowPower = f
   const disposables = [];
   const keep = (t) => { disposables.push(t); return t; };
   const printMat = (map, extra = {}) => new THREE.MeshStandardMaterial({ map, roughness: 0.6, metalness: 0, ...extra });
-  const yimP = loadImage(YIM_LOGO);
-  const partnersP = loadImage(PARTNER_LOGOS);
 
   // Area standees: the venue signage designs, on both faces of the foam board.
   for (const s of layout.signs) {
@@ -258,22 +203,20 @@ export function createVenueSignage(scene, layout, { anisotropy = 4, lowPower = f
   group.add(partners);
   if (pw.image) loadImage(pw.image).then((img) => { if (img) { paintPartners(img); partnersMat.map.needsUpdate = true; } });
 
-  // Youth Media Hub backdrop on the curved wall's lobby face, centred behind the hub.
+  // The YIM photowall across the curved wall's whole lobby face (3:1), mounted a few cm proud
+  // of the wall so it clears the wainscot. The Youth Media Hub set stands in front of it.
   const cw = layout.lobby.curvedWall;
-  const mh = F.mediaHub;
-  const ri = cw.r - cw.thickness - 0.004;
-  const hubDeg = Math.atan2(mh.z - cw.cz, mh.x - cw.cx) * 180 / Math.PI;
-  const hubA = ((hubDeg % 360) + 360) % 360;
-  const bw = mh.backdropWidth || 7.2;
-  const halfDeg = (bw / 2 / ri) * 180 / Math.PI;
-  const y0 = 0.12, y1 = 2.75;
-  const hc = canvasFor(bw, y1 - y0, lowPower ? 140 : 280);
-  drawMediaHub(hc, bw, null, null);
-  const hubTex = keep(texture(hc, anisotropy));
-  Promise.all([yimP, partnersP]).then(([yim, prt]) => { drawMediaHub(hc, bw, yim, prt); hubTex.needsUpdate = true; });
-  const backdrop = new THREE.Mesh(arcGeometry(cw.cx, cw.cz, ri, hubA - halfDeg, hubA + halfDeg, y0, y1, false, 24), printMat(hubTex));
-  backdrop.name = 'MediaHub_Print';
-  group.add(backdrop);
+  const pr = cw.print;
+  if (pr) {
+    const r = cw.r - cw.thickness - (pr.offset || 0.045);
+    const a0 = cw.a0 + 0.6, a1 = cw.a1 - 0.6;
+    const len = r * (a1 - a0) * Math.PI / 180;
+    const y0 = pr.y0 ?? 0.12;
+    const wallMat = printMat(keep(imageTexture(lowPower && pr.imageSm ? pr.imageSm : pr.image, anisotropy)), { roughness: 0.7 });
+    const wall = new THREE.Mesh(arcGeometry(cw.cx, cw.cz, r, a0, a1, y0, y0 + len / 3, false, 48), wallMat);
+    wall.name = 'PhotoWall_Print';
+    group.add(wall);
+  }
 
   // Photo booth header, on the front of the kiosk (it faces north into the hall).
   const pb = layout.hallFeatures.photoBooth;

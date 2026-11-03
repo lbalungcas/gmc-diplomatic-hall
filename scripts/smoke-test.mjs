@@ -318,7 +318,7 @@ await check('light pool keeps a fixed light count', `
   return { ok: n === m && n <= 12 && lit > 3, detail: n + ' point lights before and after a jump, ' + lit + ' lit at registration' };`);
 
 await check('venue signage prints are in place', `
-  const want = ['EventArch_Front', 'EventArch_Back', 'StageBanner_W', 'StageBanner_E', 'MediaHub_Print'];
+  const want = ['EventArch_Front', 'EventArch_Back', 'StageBanner_W', 'StageBanner_E', 'PhotoWall_Print'];
   const found = {};
   ${G}.scene.traverse(o => { if (want.includes(o.name)) found[o.name] = o; });
   for (let i = 0; i < 40 && want.some(n => found[n] && found[n].material.map && !found[n].material.map.image); i++) await new Promise(r => setTimeout(r, 250));
