@@ -10,6 +10,8 @@
     "build": "vite build",
     "preview": "vite preview",
     "smoke": "node scripts/smoke-test.mjs",
+    "sail:test": "node scripts/sail-test.mjs",
+    "sail:bots": "node scripts/sail-bots.mjs",
     "capture": "node scripts/capture-poses.mjs",
     "textures": "python scripts/generate_textures.py && python scripts/generate_graphics.py",
     "venue": "python scripts/build_venue.py && python scripts/check_glb.py"
@@ -18,6 +20,7 @@
     "@supabase/supabase-js": "^2.116.0",
     "jspdf": "^4.2.1",
     "jspdf-autotable": "^5.0.8",
+    "qrcode-generator": "^2.0.4",
     "three": "^0.174.0",
     "ws": "^8.21.3"
   },

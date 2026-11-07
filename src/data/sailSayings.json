@@ -1,0 +1,9 @@
+[
+  { "p": 0.07, "lines": ["Shaping", "Safety."], "bg": "#1B3461", "ink": "#FFFFFF" },
+  { "p": 0.21, "lines": ["Powering", "Youth-Led Change."], "bg": "#FFFFFF" },
+  { "p": 0.35, "lines": ["I am", "the LIGHT"], "bg": "#F2C667" },
+  { "p": 0.49, "lines": ["Youth", "SHINE"], "bg": "#E9B4BB" },
+  { "p": 0.63, "lines": ["Pledges to", "PROTECTION"], "bg": "#9CCCE3" },
+  { "p": 0.77, "lines": ["Let's make", "WAVES"], "bg": "#DD9366" },
+  { "p": 0.90, "lines": ["24 youth-led", "innovations await"], "bg": "#FFFFFF" }
+]

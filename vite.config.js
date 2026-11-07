@@ -82,7 +82,7 @@ function devNoCacheVenuePlugin() {
     name: 'dev-no-cache-venue',
     configureServer(server) {
       server.middlewares.use((req, res, next) => {
-        if (/^\/(models|venue|booths)\//.test(req.url || '')) res.setHeader('Cache-Control', 'no-cache');
+        if (/^\/(models|venue|booths|sail)\//.test(req.url || '')) res.setHeader('Cache-Control', 'no-cache');
         next();
       });
     },
@@ -135,7 +135,7 @@ function multiPageRedirectPlugin() {
     const url = req.url || '';
     const [pathname, search] = url.split('?');
     const query = search ? `?${search}` : '';
-    const routes = ['/admin', '/game'];
+    const routes = ['/admin', '/game', '/sail'];
     if (routes.includes(pathname)) {
       res.writeHead(302, { Location: `${pathname}/${query}` });
       res.end();
@@ -168,6 +168,7 @@ export default defineConfig({
       input: {
         main: resolve(rootDir, 'index.html'),
         game: resolve(rootDir, 'game/index.html'),
+        sail: resolve(rootDir, 'sail/index.html'),
         analytics: resolve(rootDir, 'analytics.html'),
         admin: resolve(rootDir, 'admin/index.html'),
       },

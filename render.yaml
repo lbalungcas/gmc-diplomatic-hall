@@ -13,3 +13,6 @@ services:
     envVars:
       - key: NODE_VERSION
         value: "22"
+      # Host token for the sailing opening; see docs/sail-opening-runbook.md
+      - key: SAIL_TOKEN
+        sync: false

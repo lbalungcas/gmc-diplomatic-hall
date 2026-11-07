@@ -178,6 +178,70 @@ def organizers():
             print(f'  {org} {part}: {size}')
 
 
+def sail_logo():
+    """The logotype for the opening animation (/sail/), lifted off the photowall's navy: white
+    YOUTH INNOVATIONS, yellow MARKETPLACE, white date. The bulb itself is 3D at runtime. Each
+    pixel is solved as foreground-over-navy, so the anti-aliased edges keep clean alpha, and it
+    is upscaled first so it holds on the LED wall."""
+    import numpy as np
+    im = Image.open(os.path.join(DESIGNS, 'Photowall - YIM.png')).convert('RGB')
+    box = (2882, 766, 3444, 1078)
+    k = 3
+    crop = im.crop(box)
+    crop = crop.resize((crop.width * k, crop.height * k), Image.LANCZOS)
+    a = np.asarray(crop, np.float32)
+    navy = np.array(im.getpixel((2600, 760)), np.float32)
+    white = np.array((255, 255, 255), np.float32)
+    yellow = np.array((242, 198, 103), np.float32)
+    h = a.shape[0]
+    fg = np.empty_like(a)
+    fg[:] = white
+    # MARKETPLACE's band, between the two white blocks.
+    y0, y1 = int(h * 0.60), int(h * 0.835)
+    fg[y0:y1] = yellow
+    d = fg - navy
+    alpha = np.clip(((a - navy) * d).sum(-1) / (d * d).sum(-1), 0, 1)
+    alpha = np.clip((alpha - 0.08) / 0.84, 0, 1)
+    out = np.dstack((fg, alpha * 255)).astype(np.uint8)
+    img = Image.fromarray(out, 'RGBA')
+    path = os.path.join(PUB, 'sail', 'logotype.webp')
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    img.save(path, 'WEBP', quality=90, method=6, exact=False)
+    print('  sail logotype:', img.size, os.path.getsize(path))
+
+
+def sail_music():
+    """The opening's background music: the gong ensemble from the client's video, as a seamless loop.
+
+    The clip is 28 s, and a wait in the harbor can run for minutes. Its rhythm repeats exactly every
+    4.286 s, so the loop is 5 of those cycles, starting where the audio best matches itself one loop
+    later, with a short equal-power crossfade across the seam. The file carries half a second of the
+    loop's own audio either side: MP3 encoders pad the ends, and this keeps that padding outside
+    the loop points the player uses (LOOP_START and LOOP_SECONDS in src/sail/audio.js).
+    """
+    import subprocess
+    import numpy as np
+    source = r'D:\AI\1107.mp4'
+    if not os.path.exists(source):
+        print('  sail music: source video not found, keeping the existing file')
+        return
+    sr = 44100
+    raw = subprocess.run(['ffmpeg', '-v', 'error', '-i', source, '-vn', '-ac', '2', '-ar', str(sr), '-f', 'f32le', '-'],
+                         capture_output=True, check=True).stdout
+    x = np.frombuffer(raw, np.float32).reshape(-1, 2)
+    start, length = int(0.5 * sr), int(round(21.4291 * sr))
+    pad, fade = int(0.5 * sr), int(0.25 * sr)
+    loop = x[start:start + length].copy()
+    t = np.linspace(0, np.pi / 2, fade)[:, None]
+    loop[:fade] = x[start:start + fade] * np.sin(t) + x[start + length:start + length + fade] * np.cos(t)
+    out = np.vstack((loop[-pad:], loop, loop[:pad]))
+    path = os.path.join(PUB, 'sail', 'music.mp3')
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    subprocess.run(['ffmpeg', '-v', 'error', '-y', '-f', 'f32le', '-ar', str(sr), '-ac', '2', '-i', '-',
+                    '-c:a', 'libmp3lame', '-b:a', '128k', path], input=out.astype(np.float32).tobytes(), check=True)
+    print('  sail music:', round(len(out) / sr, 2), 's,', os.path.getsize(path), 'bytes')
+
+
 def photowall():
     """The YIM photowall, printed across the curved wall's lobby face (3:1). A 3072 px print for
     desktop (about 178 px per metre over the 17 m wall) and a 2048 px one for tablets."""
@@ -202,3 +266,4 @@ if __name__ == '__main__':
     stage()
     organizers()
     photowall()
+    sail_logo()

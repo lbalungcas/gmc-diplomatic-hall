@@ -6,41 +6,14 @@
  *  3. BroadcastChannel multi-tab instant sync (offline / local testing)
  */
 import { createClient } from '@supabase/supabase-js';
-
-const PALETTE = ['#F4B400', '#4FA69C', '#7BA3D4', '#E8A87C', '#C4A4D8', '#6EC4B8'];
+import { colorFromId, getVisitorInfo } from './visitor.js';
 
 const SUPABASE_URL = (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_SUPABASE_URL)
   || 'https://ecddxmoakjqfjlxpmkzn.supabase.co';
 const SUPABASE_KEY = (typeof import.meta !== 'undefined' && import.meta.env && (import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || import.meta.env.VITE_SUPABASE_ANON_KEY))
   || 'sb_publishable_r7U4Xc51-_FIXY5qpqTDZg_ixetP-GT';
 
-export function colorFromId(id) {
-  const s = String(id ?? '');
-  let h = 2166136261;
-  for (let i = 0; i < s.length; i++) {
-    h ^= s.charCodeAt(i);
-    h = Math.imul(h, 16777619);
-  }
-  return PALETTE[Math.abs(h) % PALETTE.length];
-}
-
-export function getVisitorInfo() {
-  let id = localStorage.getItem('gmc_visitor_id');
-  if (!id) {
-    id = 'v-' + Math.random().toString(36).substring(2, 9);
-    localStorage.setItem('gmc_visitor_id', id);
-  }
-
-  let name = localStorage.getItem('gmc_visitor_name');
-  if (!name) {
-    const num = Math.floor(100 + Math.random() * 900);
-    name = `Delegate #${num}`;
-    localStorage.setItem('gmc_visitor_name', name);
-  }
-
-  const color = colorFromId(id);
-  return { id, name, color };
-}
+export { colorFromId, getVisitorInfo };
 
 function isLocalHost(hostname) {
   return (

@@ -21,6 +21,7 @@ import {
   fetchTrend,
 } from './supabase.js';
 import { initAdmin, handleAdminRequest } from './admin.js';
+import { createSailRoom } from './sail.js';
 
 const PORT = Number(process.env.PORT || 8787);
 const HOST = process.env.HOST || '0.0.0.0';
@@ -42,6 +43,9 @@ const FLUSH_DEBOUNCE_MS = 1000;
 const STALE_MS = 60000;
 
 const visitors = new Map();
+
+// The sailing opening (/sail/). Host actions use SAIL_TOKEN, or the staff analytics token.
+const sailRoom = createSailRoom({ token: process.env.SAIL_TOKEN || ANALYTICS_TOKEN });
 
 // --- Commitment Wall pledges ---
 const MAX_PLEDGES = 200;
@@ -416,6 +420,7 @@ const server = createServer(async (req, res) => {
       players: visitors.size,
       pledges: pledges.length,
       screenState,
+      sail: sailRoom.stats(),
     });
     return;
   }
@@ -482,6 +487,7 @@ wss.on('connection', (ws) => {
   ws.on('message', (raw) => {
     try {
       const msg = JSON.parse(raw.toString());
+      if (sailRoom.handle(ws, msg)) return;
       const now = Date.now();
 
       if (msg.type === 'join') {
@@ -719,6 +725,7 @@ wss.on('connection', (ws) => {
   });
 
   ws.on('close', () => {
+    sailRoom.drop(ws);
     if (ws._replacedByRejoin) return;
     if (visitorId && visitors.has(visitorId) && visitors.get(visitorId).ws === ws) {
       visitors.delete(visitorId);
@@ -728,6 +735,7 @@ wss.on('connection', (ws) => {
   });
 
   ws.on('error', () => {
+    sailRoom.drop(ws);
     if (ws._replacedByRejoin) return;
     if (visitorId && visitors.has(visitorId) && visitors.get(visitorId).ws === ws) {
       visitors.delete(visitorId);

@@ -17,6 +17,17 @@
   to = "/game/index.html"
   status = 200
 
+# The sailing opening: phones at /sail/, the LED at /sail/?view=led
+[[redirects]]
+  from = "/sail"
+  to = "/sail/index.html"
+  status = 200
+
+[[redirects]]
+  from = "/sail/"
+  to = "/sail/index.html"
+  status = 200
+
 # Redirect old /innovator-guidelines/ route to home
 [[redirects]]
   from = "/innovator-guidelines"
