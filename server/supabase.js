@@ -229,3 +229,29 @@ export async function fetchTrend(days = 30) {
   trendCache = { at: now, data: result };
   return result;
 }
+
+// --------------------------------------------------------------- commitment wall
+const toRow = (i) => ({ id: i.id, visitor_id: i.visitor, body: i.text, status: i.status, note: i.note || '', ts: new Date(i.ts).toISOString() });
+const fromRow = (r) => ({ id: r.id, visitor: r.visitor_id, text: r.body, status: r.status, note: r.note || '', ts: new Date(r.ts).getTime() });
+
+/** Throws if the table isn't there, so the caller knows to warn the admin. */
+export async function loadCommitments() {
+  const { data, error } = await sb.from('commitments').select('*').order('ts');
+  if (error) throw new Error(error.message);
+  return data.map(fromRow);
+}
+
+export async function saveCommitment(item) {
+  const { error } = await sb.from('commitments').upsert(toRow(item), { onConflict: 'id' });
+  if (error) throw new Error(error.message);
+}
+
+export async function deleteCommitment(id) {
+  const { error } = await sb.from('commitments').delete().eq('id', id);
+  if (error) throw new Error(error.message);
+}
+
+export async function clearCommitments() {
+  const { error } = await sb.from('commitments').delete().neq('id', '');
+  if (error) throw new Error(error.message);
+}

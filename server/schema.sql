@@ -89,3 +89,15 @@ BEGIN
     EXECUTE format('ALTER TABLE %s ADD CONSTRAINT %I CHECK (booth_id BETWEEN 1 AND 24)', c.tbl, c.conname);
   END LOOP;
 END $$;
+
+-- Live commitment wall (/commit/). Only the server's service role can touch this: there are no
+-- policies, so the public key used by the site can neither read nor write it.
+CREATE TABLE IF NOT EXISTS commitments (
+  id          TEXT PRIMARY KEY,
+  visitor_id  TEXT NOT NULL,
+  body        TEXT NOT NULL,
+  status      TEXT NOT NULL CHECK (status IN ('pending', 'approved')),
+  note        TEXT NOT NULL DEFAULT '',
+  ts          TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+ALTER TABLE commitments ENABLE ROW LEVEL SECURITY;

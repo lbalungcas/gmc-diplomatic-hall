@@ -12,6 +12,8 @@
     "smoke": "node scripts/smoke-test.mjs",
     "sail:test": "node scripts/sail-test.mjs",
     "sail:bots": "node scripts/sail-bots.mjs",
+    "commit:test": "node scripts/commit-test.mjs",
+    "commit:bots": "node scripts/commit-bots.mjs",
     "capture": "node scripts/capture-poses.mjs",
     "textures": "python scripts/generate_textures.py && python scripts/generate_graphics.py",
     "venue": "python scripts/build_venue.py && python scripts/check_glb.py"

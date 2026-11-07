@@ -28,6 +28,17 @@
   to = "/sail/index.html"
   status = 200
 
+# The live commitment wall: phones at /commit/, the big screen at /commit/?view=wall
+[[redirects]]
+  from = "/commit"
+  to = "/commit/index.html"
+  status = 200
+
+[[redirects]]
+  from = "/commit/"
+  to = "/commit/index.html"
+  status = 200
+
 # Redirect old /innovator-guidelines/ route to home
 [[redirects]]
   from = "/innovator-guidelines"

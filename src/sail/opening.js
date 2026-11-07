@@ -44,13 +44,22 @@ function shapeFrom(points, r) {
   return s;
 }
 
-/** The logo's bulb in 3D, 1 unit tall, centred, traced from the client's mark. */
-function makeBulb() {
+/** The logo's bulb, 1 unit tall and centred, traced from the client's mark. */
+export function bulbOutlines() {
   // Pixel coordinates from the photowall's logo; y flipped, centred on (175, 187), 311 px tall.
   const P = (x, y) => [(x - 175) / 311, (187 - y) / 311];
-  const hex = [P(175, 32), P(291, 98), P(291, 222), P(175, 288), P(59, 222), P(59, 98)].reverse();
-  const inner = [P(175, 114), P(206, 150), P(222, 160), P(222, 206), P(175, 235), P(128, 206), P(128, 160), P(144, 150)].reverse();
-  const chev = [P(108, 272), P(175, 306), P(241, 272), P(241, 316), P(175, 343), P(108, 316)].reverse();
+  return {
+    hex: [P(175, 32), P(291, 98), P(291, 222), P(175, 288), P(59, 222), P(59, 98)],
+    core: [P(175, 114), P(206, 150), P(222, 160), P(222, 206), P(175, 235), P(128, 206), P(128, 160), P(144, 150)],
+    chevron: [P(108, 272), P(175, 306), P(241, 272), P(241, 316), P(175, 343), P(108, 316)],
+  };
+}
+
+function makeBulb() {
+  const outlines = bulbOutlines();
+  const hex = [...outlines.hex].reverse();
+  const inner = [...outlines.core].reverse();
+  const chev = [...outlines.chevron].reverse();
   const opts = (d) => ({ depth: d, bevelEnabled: true, bevelThickness: 0.012, bevelSize: 0.01, bevelSegments: 2, curveSegments: 6 });
   const body = new THREE.MeshLambertMaterial({ color: 0xf2c667, emissive: 0xf2b84a, emissiveIntensity: 0 });
   const core = new THREE.MeshLambertMaterial({ color: 0xf8dfa5, emissive: 0xffe9b0, emissiveIntensity: 0 });
@@ -67,7 +76,7 @@ function makeBulb() {
   return g;
 }
 
-function raysMaterial() {
+export function raysMaterial() {
   return new THREE.ShaderMaterial({
     transparent: true, depthWrite: false, blending: THREE.AdditiveBlending,
     uniforms: { uTime: { value: 0 }, uLevel: { value: 0 }, uFlash: { value: 0 } },
@@ -92,7 +101,7 @@ function raysMaterial() {
   });
 }
 
-function logotypeMaterial(map) {
+export function logotypeMaterial(map) {
   return new THREE.ShaderMaterial({
     transparent: true, depthWrite: false, depthTest: false,
     uniforms: { map: { value: map }, uReveal: { value: 0 } },

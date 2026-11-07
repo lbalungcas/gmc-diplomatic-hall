@@ -135,7 +135,7 @@ function multiPageRedirectPlugin() {
     const url = req.url || '';
     const [pathname, search] = url.split('?');
     const query = search ? `?${search}` : '';
-    const routes = ['/admin', '/game', '/sail'];
+    const routes = ['/admin', '/game', '/sail', '/commit'];
     if (routes.includes(pathname)) {
       res.writeHead(302, { Location: `${pathname}/${query}` });
       res.end();
@@ -169,6 +169,7 @@ export default defineConfig({
         main: resolve(rootDir, 'index.html'),
         game: resolve(rootDir, 'game/index.html'),
         sail: resolve(rootDir, 'sail/index.html'),
+        commit: resolve(rootDir, 'commit/index.html'),
         analytics: resolve(rootDir, 'analytics.html'),
         admin: resolve(rootDir, 'admin/index.html'),
       },

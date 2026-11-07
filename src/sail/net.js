@@ -5,25 +5,9 @@
  */
 import { createRaceHub, SAIL_SECONDS } from './raceHub.js';
 import { getVisitorInfo } from '../modules/visitor.js';
+import { presenceCandidates } from '../modules/presenceUrl.js';
 
 const ROSTER_ARRIVALS = 12;
-
-function wsCandidates() {
-  const loc = window.location;
-  const proto = loc.protocol === 'https:' ? 'wss:' : 'ws:';
-  const explicit = new URLSearchParams(loc.search).get('presence');
-  if (explicit) return [explicit];
-  const list = [];
-  const local = /^(localhost|127\.0\.0\.1|0\.0\.0\.0|192\.168\.|10\.)/.test(loc.hostname);
-  const port = typeof __PRESENCE_PORT__ !== 'undefined' ? __PRESENCE_PORT__ : '8787';
-  if (local) {
-    list.push(`${proto}//${loc.host}/presence`, `ws://${loc.hostname}:${port}/presence`);
-  }
-  const env = import.meta.env && (import.meta.env.VITE_WS_URL || import.meta.env.VITE_PRESENCE_WS_URL);
-  if (env) list.push(env);
-  if (!local) list.push(`${proto}//${loc.host}/presence`);
-  return list;
-}
 
 export function createNet({ view, token = '', demo = 0, on = {} }) {
   const visitor = getVisitorInfo();
@@ -110,7 +94,7 @@ export function createNet({ view, token = '', demo = 0, on = {} }) {
   }
 
   function connect() {
-    const candidates = wsCandidates();
+    const candidates = presenceCandidates();
     let attempt = 0;
     let delay = 1500;
     let ws = null;

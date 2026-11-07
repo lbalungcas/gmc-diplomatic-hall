@@ -22,6 +22,7 @@ import {
 } from './supabase.js';
 import { initAdmin, handleAdminRequest } from './admin.js';
 import { createSailRoom } from './sail.js';
+import { createCommitRoom } from './commit.js';
 
 const PORT = Number(process.env.PORT || 8787);
 const HOST = process.env.HOST || '0.0.0.0';
@@ -46,6 +47,12 @@ const visitors = new Map();
 
 // The sailing opening (/sail/). Host actions use SAIL_TOKEN, or the staff analytics token.
 const sailRoom = createSailRoom({ token: process.env.SAIL_TOKEN || ANALYTICS_TOKEN });
+
+// The live commitment wall (/commit/), under the same host token.
+const commitRoom = createCommitRoom({
+  token: process.env.SAIL_TOKEN || ANALYTICS_TOKEN,
+  filePath: process.env.COMMITMENTS_PATH || join(dirname(ENGAGEMENT_PATH), 'commitments.json'),
+});
 
 // --- Commitment Wall pledges ---
 const MAX_PLEDGES = 200;
@@ -397,7 +404,9 @@ async function bootPersistence() {
   }
 }
 
-bootPersistence().catch((err) => console.warn('[presence] boot:', err.message));
+bootPersistence()
+  .catch((err) => console.warn('[presence] boot:', err.message))
+  .finally(() => commitRoom.boot().catch((err) => console.warn('[commit] boot:', err.message)));
 initAdmin().catch((err) => console.warn('[admin] boot:', err.message));
 
 const server = createServer(async (req, res) => {
@@ -421,6 +430,7 @@ const server = createServer(async (req, res) => {
       pledges: pledges.length,
       screenState,
       sail: sailRoom.stats(),
+      commit: commitRoom.stats(),
     });
     return;
   }
@@ -487,7 +497,7 @@ wss.on('connection', (ws) => {
   ws.on('message', (raw) => {
     try {
       const msg = JSON.parse(raw.toString());
-      if (sailRoom.handle(ws, msg)) return;
+      if (sailRoom.handle(ws, msg) || commitRoom.handle(ws, msg)) return;
       const now = Date.now();
 
       if (msg.type === 'join') {
@@ -726,6 +736,7 @@ wss.on('connection', (ws) => {
 
   ws.on('close', () => {
     sailRoom.drop(ws);
+    commitRoom.drop(ws);
     if (ws._replacedByRejoin) return;
     if (visitorId && visitors.has(visitorId) && visitors.get(visitorId).ws === ws) {
       visitors.delete(visitorId);
@@ -736,6 +747,7 @@ wss.on('connection', (ws) => {
 
   ws.on('error', () => {
     sailRoom.drop(ws);
+    commitRoom.drop(ws);
     if (ws._replacedByRejoin) return;
     if (visitorId && visitors.has(visitorId) && visitors.get(visitorId).ws === ws) {
       visitors.delete(visitorId);
