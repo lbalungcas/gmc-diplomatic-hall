@@ -1,6 +1,6 @@
 /**
- * Rehearsal bots for the sailing opening: N phones that join the harbor, wait for the host's
- * Start and sail to the lighthouse.
+ * Rehearsal bots for the sailing opening: N phones that name their boats, wait for the host's
+ * Start, sail to the lighthouse, and tap to light it once the host presses Light the lighthouse.
  *
  *   node scripts/sail-bots.mjs [count=30] [url=ws://127.0.0.1:8787/presence] [--spread=8]
  *
@@ -9,6 +9,7 @@
  */
 import { createRequire } from 'node:module';
 import { pathToFileURL } from 'node:url';
+import { BOAT_NAMES } from '../src/sail/boatNames.js';
 
 const require = createRequire(pathToFileURL(`${process.cwd()}/package.json`));
 const WebSocket = require('ws');
@@ -22,7 +23,7 @@ const plain = args.filter((a) => !a.startsWith('--'));
 const COUNT = Number(plain[0] || 30);
 const URL_ = plain[1] || 'ws://127.0.0.1:8787/presence';
 const SPREAD = Number(flag('spread', 8));
-const SAIL_MS = 15000;
+const SAIL_MS = 30000;
 
 let arrived = 0;
 
@@ -30,6 +31,8 @@ function bot(i) {
   const ws = new WebSocket(URL_);
   let phase = 'harbor';
   let startAt = 0;
+  let energyAt = 0;
+  const rate = 3 + Math.random() * 4;      // taps a second while lighting
   let offset = 0;
   let p = 0;
   let rank = 0;
@@ -39,13 +42,18 @@ function bot(i) {
   let timer = null;
 
   ws.on('open', () => {
-    ws.send(JSON.stringify({ type: 'sail_join', view: 'player', id }));
+    const name = `${BOAT_NAMES[i % BOAT_NAMES.length]}${i >= BOAT_NAMES.length ? ` ${Math.floor(i / BOAT_NAMES.length) + 1}` : ''}`;
+    ws.send(JSON.stringify({ type: 'sail_join', view: 'player', id, name }));
     let last = Date.now();
     timer = setInterval(() => {
       const t = Date.now();
       const dt = t - last;
       last = t;
-      if (phase !== 'sailing' || rank) return;
+      if (phase === 'energy' && t + offset >= energyAt && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: 'sail_tap', n: Math.round((rate * dt) / 1000 + Math.random() * 0.5) }));
+      }
+      const moving = phase === 'sailing' || phase === 'challenge' || phase === 'energy';
+      if (!moving || rank) return;
       if (t + offset < startAt + delay) return;
       p = Math.min(1, p + dt / SAIL_MS);
       if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: 'sail_progress', p }));
@@ -58,6 +66,7 @@ function bot(i) {
       if (m.type === 'sail_welcome') { p = m.you ? m.you.p : 0; rank = m.you ? m.you.rank : 0; me = m.you ? m.you.n : -1; }
       phase = m.phase;
       startAt = m.startAt;
+      energyAt = m.energyAt || 0;
     }
     if (m.type === 'sail_arrived' && m.n === me) {
       rank = m.rank;
@@ -69,6 +78,6 @@ function bot(i) {
 }
 
 for (let i = 0; i < COUNT; i++) setTimeout(() => bot(i), i * 25);
-console.log(`${COUNT} bots joining ${URL_}; they sail when the host presses Start.`);
+console.log(`${COUNT} bots joining ${URL_}; they sail when the host presses Start, and tap when the host lights the lighthouse.`);
 setInterval(() => console.log(`arrived: ${arrived}/${COUNT}`), 5000).unref?.();
 process.stdin.resume();

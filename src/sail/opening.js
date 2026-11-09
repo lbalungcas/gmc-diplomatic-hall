@@ -286,6 +286,7 @@ export async function createOpening(world, { isLed = false, onCue = () => {} } =
   const lantern = new THREE.Vector3(0, LANTERN_Y, LH_Z);
   const fired = new Set();
   let lastT = -1;
+  let startLantern = 1;     // how bright the lantern already is when the opening begins
 
   function hide() {
     group.visible = false;
@@ -326,7 +327,7 @@ export async function createOpening(world, { isLed = false, onCue = () => {} } =
 
     // Lantern and beams.
     const on = span(t, 5.6, 6.0);
-    const flare = 1 + smooth(span(t, 0.8, 2.4)) * 2.2;
+    const flare = Math.max(1 + smooth(span(t, 0.8, 2.4)) * 2.2, startLantern);
     world.setLantern(flare - on * 1.5);
     world.beams.userData.spin = t < 0.8;
     world.beams.userData.fade = 1 - span(t, 0.4, 1.6);
@@ -432,5 +433,8 @@ export async function createOpening(world, { isLed = false, onCue = () => {} } =
     }
   }
 
-  return { update, hide, layout };
+  /** In the two-part opening the room has just lit the lantern: it shouldn't dim as the opening starts. */
+  const setStartLantern = (v) => { startLantern = v; };
+
+  return { update, hide, layout, setStartLantern };
 }

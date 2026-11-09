@@ -4,6 +4,7 @@
  * page against N bots instead, for previewing without a server.
  */
 import { createRaceHub, SAIL_SECONDS } from './raceHub.js';
+import { BOAT_NAMES } from './boatNames.js';
 import { getVisitorInfo } from '../modules/visitor.js';
 import { presenceCandidates } from '../modules/presenceUrl.js';
 
@@ -11,12 +12,19 @@ const ROSTER_ARRIVALS = 12;
 
 export function createNet({ view, token = '', demo = 0, on = {} }) {
   const visitor = getVisitorInfo();
-  const state = { phase: 'harbor', threshold: 30, arrived: 0, boats: 0, startAt: 0, openAt: 0, soundOn: true };
+  const state = {
+    phase: 'harbor', mode: 'together', threshold: 30, arrived: 0, boats: 0, startAt: 0, openAt: 0, soundOn: true,
+    challengeAt: 0, energyAt: 0, energyGoal: 0, taps: 0, winner: -1, winnerName: '',
+  };
+  const STATE_KEYS = Object.keys(state);
   const boats = new Map();     // n -> { n, name, p, rank }
   const net = {
     visitor, state, boats, you: null, arrivals: [], connected: false, demo: !!demo,
     serverNow: () => Date.now() + offset,
     sendProgress: () => {},
+    sendTaps: () => {},
+    /** Names your boat: the server screens it and answers with `nameResult`. */
+    setName: () => {},
     host: () => {},
   };
   let offset = 0;
@@ -24,7 +32,7 @@ export function createNet({ view, token = '', demo = 0, on = {} }) {
 
   function applyState(m) {
     const prevPhase = state.phase;
-    for (const k of ['phase', 'threshold', 'arrived', 'boats', 'startAt', 'openAt', 'soundOn']) {
+    for (const k of STATE_KEYS) {
       if (m[k] !== undefined) state[k] = m[k];
     }
     if (m.now && bestRtt === Infinity) offset = m.now - Date.now();
@@ -44,8 +52,17 @@ export function createNet({ view, token = '', demo = 0, on = {} }) {
       case 'sail_state':
         applyState(m);
         break;
-      case 'sail_boat':
-        boats.set(m.n, { n: m.n, name: m.name, p: 0, rank: 0 });
+      case 'sail_boat': {
+        const b = boats.get(m.n);
+        if (b) b.name = m.name;
+        else boats.set(m.n, { n: m.n, name: m.name, p: 0, rank: 0 });
+        if (net.you && net.you.n === m.n) net.you.name = m.name;
+        on.boat?.(m);
+        break;
+      }
+      case 'sail_name_result':
+        if (m.ok && net.you) net.you.name = m.name;
+        on.nameResult?.(m);
         break;
       case 'sail_snap':
         for (let i = 0; i < m.b.length; i += 2) {
@@ -78,7 +95,8 @@ export function createNet({ view, token = '', demo = 0, on = {} }) {
     }
   }
 
-  const joinMsg = () => ({ type: 'sail_join', view, id: visitor.id });
+  let myName = '';
+  const joinMsg = () => ({ type: 'sail_join', view, id: visitor.id, ...(myName ? { name: myName } : {}) });
 
   if (demo) {
     startDemo();
@@ -131,6 +149,8 @@ export function createNet({ view, token = '', demo = 0, on = {} }) {
       if (!document.hidden && (!ws || ws.readyState > 1)) open();
     });
     net.sendProgress = (p) => send({ type: 'sail_progress', p });
+    net.sendTaps = (n) => send({ type: 'sail_tap', n });
+    net.setName = (name) => { myName = name; send(joinMsg()); };
     net.host = (action, extra = {}) => send({ type: 'sail_host', token, action, ...extra });
   }
 
@@ -145,10 +165,12 @@ export function createNet({ view, token = '', demo = 0, on = {} }) {
     hub.handle(me, joinMsg());
     net.connected = true;
     for (let i = 0; i < demo + 6; i++) {
-      const b = { i, p: 0, delay: Math.random() * 3.5 * 1000 };
+      const b = { i, p: 0, delay: Math.random() * 3.5 * 1000, rate: 3 + Math.random() * 4 };
       bots.push(b);
-      hub.handle(b, { type: 'sail_join', view: 'player', id: `demo-${i}`, name: `Delegate #${100 + i * 7}` });
+      hub.handle(b, { type: 'sail_join', view: 'player', id: `demo-${i}`, name: BOAT_NAMES[i % BOAT_NAMES.length] });
     }
+    const q = new URLSearchParams(location.search);
+    const hold = q.has('hold');
     let started = 0;
     let last = Date.now();
     setInterval(() => {
@@ -163,12 +185,21 @@ export function createNet({ view, token = '', demo = 0, on = {} }) {
           hub.handle(b, { type: 'sail_progress', p: b.p });
         }
       }
+      if (state.phase === 'energy' && t >= state.energyAt) {
+        for (const b of bots) hub.handle(b, { type: 'sail_tap', n: Math.round((b.rate * dt) / 1000 + Math.random() * 0.5) });
+      }
       if (state.phase === 'harbor') { started = 0; for (const b of bots) b.p = 0; }
+      // Stands in for the host: a few seconds of "hype", then Light the lighthouse.
+      if (!hold && state.phase === 'challenge' && t > state.challengeAt + 5000) {
+        hub.handle(me, { type: 'sail_host', token: 'demo', action: 'light' });
+      }
       hub.tick();
     }, 200);
-    const hold = new URLSearchParams(location.search).has('hold');
+    if (q.get('mode') === 'classic') hub.handle(me, { type: 'sail_host', token: 'demo', action: 'mode', value: 'classic' });
     if (!hold) setTimeout(() => hub.handle(me, { type: 'sail_host', token: 'demo', action: 'start' }), 2500);
     net.sendProgress = (p) => hub.handle(me, { type: 'sail_progress', p });
+    net.sendTaps = (n) => hub.handle(me, { type: 'sail_tap', n });
+    net.setName = (name) => { myName = name; hub.handle(me, joinMsg()); };
     net.host = (action, extra = {}) => hub.handle(me, { type: 'sail_host', token: 'demo', action, ...extra });
   }
 

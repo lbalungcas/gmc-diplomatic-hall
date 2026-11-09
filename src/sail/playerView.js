@@ -1,20 +1,33 @@
 /**
- * The phone: your boat from behind. You tap left and right in turn, like
- * paddling: the route is dead straight, so there is nothing to steer. The left and right halves of
- * the screen are the paddles, and one thumb going side to side works as well as two. Keeping up
- * three taps a second is full speed, which takes 15 seconds; slower tapping is simply slower.
+ * The phone: name your boat, then tap anywhere to sail it to the lighthouse. Four taps a second is
+ * full speed, about 30 seconds; slower tapping is simply slower.
+ *
+ * In the two-part opening the first boat home wins, and the room is asked whether that boat can
+ * change the world alone. Then everyone taps again, this time to send energy to the lighthouse,
+ * until the room has lit it. The bulb rises out of it, the marketplace opens, and the phone says
+ * "You are part of the solution."
  */
 import * as THREE from 'three';
-import { boatPosition, ROUTE, LH_Z } from './world.js';
+import { ROUTE, LH_Z } from './world.js';
 import { createOpening, CUES } from './opening.js';
 import { createSayings } from './sayings.js';
 import { createAudio } from './audio.js';
 import { SAIL_SECONDS } from './raceHub.js';
+import { screenName, NAME_MAX } from '../commit/moderate.js';
+import { pickBoatName } from './boatNames.js';
+import { LINES, CHALLENGE_ASK } from './together.js';
+import { createNameTags } from './nameTags.js';
 
 const FULL_SPEED = 1 / (SAIL_SECONDS - 0.2);    // the ramp-up costs about 0.2 s
-const FULL_RATE = 3;                            // taps a second for full speed
+const FULL_RATE = 4;                            // taps a second for full speed
 const RATE_WINDOW = 1.5;                        // seconds of tapping that sets the speed
 const SEND_EVERY = 0.25;
+const LIT = 3.2;
+const NAME_SORRY = {
+  empty: 'Use at least two letters.',
+  contact: 'No numbers, emails or links, please.',
+  block: 'Please choose a different name.',
+};
 
 const el = (tag, cls, html) => {
   const e = document.createElement(tag);
@@ -22,6 +35,8 @@ const el = (tag, cls, html) => {
   if (html) e.innerHTML = html;
   return e;
 };
+const clamp01 = (v) => Math.max(0, Math.min(1, v));
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
 
 export async function startPlayer(root, world, connect) {
   const { camera } = world;
@@ -33,18 +48,35 @@ export async function startPlayer(root, world, connect) {
   bar.innerHTML = '<div class="route-track"><div class="route-fill"></div><div class="route-boat">⛵</div></div><div class="route-end" aria-hidden="true"></div>';
   const fill = bar.querySelector('.route-fill');
   const boatDot = bar.querySelector('.route-boat');
+  const energyBar = el('div', 'energy-bar hidden', '<div class="energy-track"><div></div></div><b>0%</b>');
+  const energyFill = energyBar.querySelector('.energy-track div');
+  const energyPct = energyBar.querySelector('b');
   const count = el('div', 'pill count');
   const reconnect = el('div', 'pill warn hidden', 'Reconnecting…');
   const card = el('div', 'card');
   const big = el('div', 'big hidden');
-  const padL = el('div', 'pad left hidden', '<span>◀</span><b>LEFT</b>');
-  const padR = el('div', 'pad right hidden', '<b>RIGHT</b><span>▶</span>');
+  const pad = el('div', 'tapzone hidden', '<b>TAP TAP TAP!</b><span></span>');
+  const padNote = pad.querySelector('span');
+  const welcome = el('div', 'welcome hidden', `<strong>${LINES.phoneDone}</strong><p>${LINES.phoneWelcome}</p><em>Look up at the big screen!</em>`);
   const cta = el('a', 'cta hidden', 'Learn More');
   cta.href = '/';      // the Youth Innovations Marketplace website
   const mute = el('button', 'mute', '🔊');
   mute.type = 'button';
   mute.setAttribute('aria-label', 'Sound on or off');
-  hud.append(bar, count, reconnect, card, big, padL, padR, cta, mute);
+
+  // Naming your boat comes first: it is what puts you in the race.
+  const naming = el('form', 'naming hidden');
+  naming.innerHTML = `
+    <h1>Name your boat</h1>
+    <p>Pick a fun name for your boat. Please don't use your full name.</p>
+    <input type="text" maxlength="${NAME_MAX}" autocomplete="off" autocapitalize="words" enterkeyhint="go" aria-label="Boat name">
+    <p class="naming-error" role="alert"></p>
+    <button type="submit" class="naming-go">Set sail</button>
+    <button type="button" class="naming-pick">Pick a name for me</button>`;
+  const nameInput = naming.querySelector('input');
+  const nameError = naming.querySelector('.naming-error');
+  const tags = createNameTags(hud, camera, { max: 4 });
+  hud.append(bar, energyBar, count, reconnect, card, big, pad, welcome, cta, mute, naming);
   root.append(hud);
 
   // A phone waiting in the harbor shouldn't go to sleep and drop out of the race.
@@ -58,20 +90,26 @@ export async function startPlayer(root, world, connect) {
   };
 
   let clock = 0;
-  let lastSide = null;
   let tapTimes = [];
   let rock = 0;           // the boat's lean, kicked each way by each tap
+  let side = 'L';
   let hasTapped = false;
   let sailingNow = false;
+  let energyNow = false;
+  let pendingTaps = 0;
+  let myTaps = 0;
+  let naming_ = false;
+  let notice = '';
+  let noticeUntil = 0;
 
-  /** One tap on one side. The same side twice in a row does nothing: it has to be left, right. */
-  function paddle(side) {
-    if (!sailingNow || side === lastSide) return;
-    lastSide = side;
+  /** One tap, anywhere: a stroke of the paddle while racing, a spark of energy afterwards. */
+  function tap() {
+    if (!sailingNow && !energyNow) return;
     hasTapped = true;
-    tapTimes.push(clock);
+    side = side === 'L' ? 'R' : 'L';
     rock = side === 'L' ? 0.13 : -0.13;
-    const pad = side === 'L' ? padL : padR;
+    if (sailingNow) tapTimes.push(clock);
+    if (energyNow) { pendingTaps++; myTaps++; }
     pad.classList.remove('hit');
     void pad.offsetWidth;      // restart the flash
     pad.classList.add('hit');
@@ -79,32 +117,51 @@ export async function startPlayer(root, world, connect) {
     navigator.vibrate?.(8);
   }
 
-  // Half the screen each: on a phone in a crowd you shouldn't have to aim.
   root.addEventListener('pointerdown', (ev) => {
-    if (ev.target === cta || ev.target === mute) return;
+    if (ev.target === cta || ev.target === mute || naming.contains(ev.target)) return;
     audio.unlock();
     keepAwake();
-    paddle(ev.clientX < window.innerWidth / 2 ? 'L' : 'R');
+    tap();
     ev.preventDefault();
   });
   document.addEventListener('contextmenu', (e) => e.preventDefault());
   window.addEventListener('keydown', (e) => {
-    if (e.repeat) return;
-    if (e.code === 'ArrowLeft' || e.code === 'KeyA') { audio.unlock(); paddle('L'); }
-    if (e.code === 'ArrowRight' || e.code === 'KeyD') { audio.unlock(); paddle('R'); }
+    if (e.repeat || naming_) return;
+    if (e.code === 'Space' || e.code === 'ArrowLeft' || e.code === 'ArrowRight' || e.code === 'Enter') { audio.unlock(); tap(); }
   });
   mute.addEventListener('click', () => {
     audio.setMuted(!audio.muted);
     mute.textContent = audio.muted ? '🔇' : '🔊';
   });
 
+  naming.addEventListener('submit', (ev) => {
+    ev.preventDefault();
+    audio.unlock();
+    keepAwake();
+    const r = screenName(nameInput.value);
+    if (!r.ok) {
+      nameError.textContent = NAME_SORRY[r.reason] || NAME_SORRY.block;
+      return;
+    }
+    nameError.textContent = '';
+    naming.querySelector('.naming-go').disabled = true;
+    net.setName(r.name);
+  });
+  naming.querySelector('.naming-pick').addEventListener('click', () => {
+    nameInput.value = pickBoatName();
+    nameError.textContent = '';
+  });
+  nameInput.addEventListener('input', () => { nameError.textContent = ''; });
+
   let p = 0;
   let speed = 0;
   let sentP = -1;
   let sinceSend = 0;
+  let sinceTaps = 0;
   let lastCountdown = null;
   let phaseSeen = '';
   let finalShown = false;
+  let shownEnergy = 0;
 
   const opening = await createOpening(world, { onCue: (name) => audio.cue(name) });
   const sayings = createSayings(world);
@@ -125,6 +182,14 @@ export async function startPlayer(root, world, connect) {
     },
     status(v) {
       reconnect.classList.toggle('hidden', v);
+    },
+    nameResult(m) {
+      naming.querySelector('.naming-go').disabled = false;
+      if (!m.ok) nameError.textContent = NAME_SORRY[m.reason] || NAME_SORRY.block;
+      else if (m.hidden) {
+        notice = `The host renamed your boat to ${m.name}.`;
+        noticeUntil = clock + 6;
+      }
     },
     arrived(m) {
       if (net.you && m.n === net.you.n) {
@@ -156,134 +221,217 @@ export async function startPlayer(root, world, connect) {
     clock += dt;
     const t = clock;
     const s = net.state;
+    const ph = s.phase;
     const now = net.serverNow();
     const portrait = camera.aspect < 1.05;
     const baseFov = portrait ? 66 : 50;
+    const together = s.mode !== 'classic';
+    const gathered = together && (ph === 'challenge' || ph === 'energy');
+    const you = net.you;
+    const winner = together && you && s.winner === you.n;
+
+    // --- Naming: until the server has given you a boat.
+    naming_ = !you && net.connected;
+    if (naming.classList.contains('hidden') === naming_) {
+      naming.classList.toggle('hidden', !naming_);
+      if (naming_ && !nameInput.value) nameInput.placeholder = pickBoatName();
+    }
 
     // --- Sailing.
-    const started = s.phase === 'sailing' && now >= s.startAt;
-    const sailing = started && p < 1 && !!net.you;
+    const started = ph === 'sailing' && now >= s.startAt;
+    const sailing = started && p < 1 && !!you;
     sailingNow = sailing;
+    energyNow = ph === 'energy' && now >= s.energyAt && !!you;
     tapTimes = tapTimes.filter((at) => t - at < RATE_WINDOW);
     const tapRate = tapTimes.length / RATE_WINDOW;
     const paddling = tapRate > 0;
     const target = sailing ? FULL_SPEED * Math.min(1, tapRate / FULL_RATE) : 0;
     speed += (target - speed) * (1 - Math.exp(-dt * (target > speed ? 8 : 1.6)));
     if (sailing) p = Math.min(1, p + speed * dt);
-    else if (s.phase === 'open' && p < 1) p = Math.min(1, p + dt / 9);     // everyone drifts in
+    else if ((ph === 'open' || gathered) && p < 1 && you) p = Math.min(1, p + dt / 9);     // everyone drifts in
 
     sinceSend += dt;
-    if (started && net.you && !net.you.rank && sinceSend >= SEND_EVERY && (p !== sentP || p >= 1)) {
+    if ((started || gathered) && you && !you.rank && sinceSend >= SEND_EVERY && (p !== sentP || p >= 1)) {
       sinceSend = 0;
       sentP = p;
       net.sendProgress(p);
     }
+    sinceTaps += dt;
+    if (pendingTaps && sinceTaps >= SEND_EVERY) {
+      sinceTaps = 0;
+      net.sendTaps(pendingTaps);
+      pendingTaps = 0;
+    }
 
     // --- Your boat and everyone else's.
-    const selfN = net.you ? net.you.n : -1;
+    const selfN = you ? you.n : -1;
     const selfPos = world.updateFleet(net.boats.values(), t, dt, {
-      self: selfN, selfP: p, glide: s.phase === 'open', selfRock: rock,
+      self: selfN, selfP: p, glide: ph === 'open' || gathered, selfRock: rock,
     });
     rock *= Math.exp(-dt * 5);
     const bx = selfPos ? selfPos.x : 0;
     const bz = selfPos ? selfPos.z : -ROUTE * p;
 
     sayings.updateChase(bx, bz, started && p > 0 && p < 1);
-    if (s.phase === 'open') sayings.hide();
+    if (ph === 'open' || gathered) sayings.hide();
 
     // --- Camera: behind your boat, drawing back to take in the lighthouse as you arrive.
     const arrive = THREE.MathUtils.smoothstep(p, 0.86, 1);
     basePos.set(
       bx * (1 - arrive * 0.35),
-      (portrait ? 7.2 : 8) + arrive * 2.6 + (s.phase === 'harbor' ? 2 : 0),
-      bz + (portrait ? 17 : 19) + arrive * 10 + (s.phase === 'harbor' ? 5 : 0),
+      (portrait ? 7.2 : 8) + arrive * 2.6 + (ph === 'harbor' ? 2 : 0),
+      bz + (portrait ? 17 : 19) + arrive * 10 + (ph === 'harbor' ? 5 : 0),
     );
     baseLook.set(bx * (1 - arrive), (portrait ? 4.2 : 2.6) + arrive * 8, Math.min(bz - 22, LH_Z * 0.5 + bz * 0.5));
     const k = 1 - Math.exp(-dt * 5);
     smoothPos.lerp(basePos, k);
     smoothLook.lerp(baseLook, k);
 
+    // --- The room's energy, and the lighthouse it lights.
+    const energy = ph === 'energy' ? clamp01(s.taps / Math.max(1, s.energyGoal)) : ph === 'open' ? 1 : 0;
+    shownEnergy += (energy - shownEnergy) * (1 - Math.exp(-dt * 4));
+
     // --- Opening: on the server's clock, or at a forced time while testing.
-    const openT = override != null ? override : s.phase === 'open' ? (now - s.openAt) / 1000 : -1;
-    if (openT >= 0 || s.phase === 'open') {
+    const openT = override != null ? override : ph === 'open' ? (now - s.openAt) / 1000 : -1;
+    if (openT >= 0 || ph === 'open') {
+      opening.setStartLantern(together ? LIT : 1);
       opening.update(Math.max(openT, 0), t, smoothPos, smoothLook, baseFov);
     } else {
       camera.position.copy(smoothPos);
       camera.fov = baseFov;
       camera.updateProjectionMatrix();
       camera.lookAt(smoothLook);
+      if (gathered) {
+        world.setLantern(0.25 + shownEnergy * (LIT - 0.25));
+        world.beams.userData.fade = shownEnergy;
+        world.beams.visible = shownEnergy > 0.02;
+        world.setDawn(0);
+      } else {
+        world.setLantern(1);
+        world.beams.userData.fade = 1;
+        world.beams.visible = true;
+        world.setDawn(0);
+      }
+    }
+
+    // --- The boats around yours carry their names, so you can see who you're racing.
+    if (ph === 'harbor' || ph === 'sailing') {
+      const near = [];
+      for (const [n, at] of world.drawnBoats()) {
+        if (n === selfN) continue;
+        const d = at.pos.distanceTo(camera.position);
+        if (d < 70) near.push({ d, pos: at.pos, name: net.boats.get(n)?.name ?? '' });
+      }
+      near.sort((a, b) => a.d - b.d);
+      tags.update(near.slice(0, 4));
+    } else {
+      tags.hide();
     }
 
     if (openT > 2) world.marker.visible = world.ring.visible = false;
 
-    audio.setScene(s.phase === 'harbor' ? 'harbor'
-      : s.phase === 'sailing' ? 'sail'
+    audio.setScene(ph === 'harbor' || ph === 'challenge' ? 'harbor'
+      : ph === 'sailing' || ph === 'energy' ? 'sail'
         : openT < CUES.open + 2.2 ? 'hush' : 'open');
-
     audio.setSoundOn(s.soundOn !== false);
 
     // --- HUD.
     const pct = `${(p * 100).toFixed(1)}%`;
     fill.style.width = pct;
     boatDot.style.left = pct;
-    const inOpening = s.phase === 'open';
-    bar.classList.toggle('hidden', inOpening || s.phase === 'harbor');
-    count.classList.toggle('hidden', inOpening);
-    count.textContent = s.phase === 'harbor' ? `⛵ ${s.boats} boats in the harbor` : `💡 ${s.arrived} / ${s.threshold} at the lighthouse`;
+    const inOpening = ph === 'open';
+    bar.classList.toggle('hidden', inOpening || ph === 'harbor' || gathered || !you);
+    energyBar.classList.toggle('hidden', ph !== 'energy');
+    energyFill.style.width = `${shownEnergy * 100}%`;
+    energyPct.textContent = `${Math.round(shownEnergy * 100)}%`;
+    count.classList.toggle('hidden', inOpening || gathered || naming_);
+    count.textContent = ph === 'harbor'
+      ? `⛵ ${s.boats} boat${s.boats === 1 ? '' : 's'} in the harbor`
+      : together ? '🏁 First to the lighthouse wins!' : `💡 ${s.arrived} / ${s.threshold} at the lighthouse`;
 
-    if (s.phase !== phaseSeen) {
-      phaseSeen = s.phase;
-      if (s.phase === 'harbor') {
+    if (ph !== phaseSeen) {
+      phaseSeen = ph;
+      if (ph === 'harbor') {
         lastCountdown = null;
         finalShown = false;
-        lastSide = null;
         hasTapped = false;
         tapTimes = [];
+        myTaps = 0;
+        pendingTaps = 0;
         cta.classList.add('hidden');
+        welcome.classList.add('hidden');
       }
     }
 
     let bigText = '';
-    if (s.phase === 'sailing' && now < s.startAt) {
+    if (ph === 'sailing' && now < s.startAt) {
       const rem = (s.startAt - now) / 1000;
       bigText = rem > 3 ? 'Get ready…' : String(Math.ceil(rem));
-      if (bigText !== lastCountdown && rem <= 3) audio.tick();
-    } else if (started && now - s.startAt < 1000 && !p) {
-      bigText = 'SAIL!';
     } else if (started && now - s.startAt < 1200 && p < 0.08) {
       bigText = 'SAIL!';
+    } else if (ph === 'energy') {
+      const rem = (s.energyAt - now) / 1000;
+      if (rem > 0 && rem <= 3) bigText = String(Math.ceil(rem));
+      else if (rem <= 0 && rem > -1.2) bigText = 'TAP!';
     }
-    if (bigText === 'SAIL!' && lastCountdown !== 'SAIL!') audio.go();
+    if (bigText !== lastCountdown && bigText) {
+      if (bigText === 'SAIL!' || bigText === 'TAP!') audio.go();
+      else if (bigText !== 'Get ready…') audio.tick();
+    }
     lastCountdown = bigText;
     big.textContent = bigText;
-    big.classList.toggle('hidden', !bigText);
+    big.classList.toggle('hidden', !bigText || naming_);
     big.classList.toggle('small', bigText === 'Get ready…');
 
-    const showPads = sailing || (s.phase === 'sailing' && now < s.startAt && !!net.you);
-    padL.classList.toggle('hidden', !showPads);
-    padR.classList.toggle('hidden', !showPads);
-    padL.classList.toggle('next', sailing && lastSide !== 'L');
-    padR.classList.toggle('next', sailing && lastSide === 'L');
+    const showPad = sailing || energyNow || (ph === 'sailing' && now < s.startAt && !!you);
+    pad.classList.toggle('hidden', !showPad);
+    pad.classList.toggle('energy', energyNow);
+    padNote.textContent = energyNow ? `Your energy: ${myTaps}` : '';
 
-    if (s.phase === 'harbor') {
-      setCard(`<strong>Welcome aboard!</strong><span>Your boat is in the harbor. When the host says go, tap left and right, like paddling, to sail to the lighthouse.${audio.unlocked ? '' : ' Tap now to turn the sound on.'}</span>`);
+    const name = you ? esc(you.name) : '';
+    const winnerName = esc(s.winnerName);
+    const ct = (now - s.challengeAt) / 1000;
+    if (naming_) {
+      setCard('');
+    } else if (notice && clock < noticeUntil) {
+      setCard(`<strong>Heads up</strong><span>${esc(notice)}</span>`);
+    } else if (ph === 'harbor') {
+      setCard(you
+        ? `<strong>Welcome aboard, ${name}!</strong><span>When the host says go, tap anywhere, as fast as you can.${together ? ' The first boat to the lighthouse wins!' : ''}${audio.unlocked ? '' : ' Tap now to turn the sound on.'}</span>`
+        : '<strong>Connecting…</strong><span>One moment.</span>');
     } else if (inOpening) {
       setCard('');
+    } else if (ph === 'challenge') {
+      if (ct < 0) setCard('');
+      else if (winner) setCard(`<strong>You reached the lighthouse first!</strong><span>${ct < CHALLENGE_ASK ? 'Look at the big screen.' : 'But can you change the world alone? Look at the big screen.'}</span>`);
+      else setCard(`<strong>${ct < CHALLENGE_ASK ? esc(LINES.first(s.winnerName)) : esc(LINES.challenge(s.winnerName))}</strong><span>Look at the big screen.</span>`);
+    } else if (ph === 'energy') {
+      const rem = (s.energyAt - now) / 1000;
+      if (rem > 3) setCard(`<strong>${LINES.together}</strong><span>Get ready to tap!</span>`);
+      else if (rem > 0) setCard('');
+      else setCard(`<strong>Light the lighthouse!</strong><span>Tap anywhere, as fast as you can. ${winner ? 'Everyone is helping you.' : `Help ${winnerName}!`}</span>`);
     } else if (p >= 1) {
-      const rank = net.you && net.you.rank;
-      const left = Math.max(0, s.threshold - s.arrived);
-      setCard(`<strong>${rank ? `You made it! Boat #${rank}` : 'You made it!'}</strong><span>${left ? `${left} more boat${left === 1 ? '' : 's'} to light up the marketplace…` : 'Here it comes…'}</span>`);
+      const rank = you && you.rank;
+      if (together) setCard(`<strong>${rank ? `You made it! Boat #${rank}` : 'You made it!'}</strong><span>Look at the big screen.</span>`);
+      else {
+        const left = Math.max(0, s.threshold - s.arrived);
+        setCard(`<strong>${rank ? `You made it! Boat #${rank}` : 'You made it!'}</strong><span>${left ? `${left} more boat${left === 1 ? '' : 's'} to light up the marketplace…` : 'Here it comes…'}</span>`);
+      }
     } else if (sailing && !hasTapped) {
-      setCard('<strong>Tap left, then right!</strong><span>Keep going, like paddling, to sail.</span>');
+      setCard('<strong>Tap, tap, tap!</strong><span>Tap anywhere to sail. The faster you tap, the faster you go.</span>');
     } else if (sailing && !paddling) {
-      setCard('<strong>Keep tapping!</strong><span>Left, right, left, right.</span>');
+      setCard('<strong>Keep tapping!</strong><span>Tap, tap, tap!</span>');
     } else {
       setCard('');
     }
 
-    if (inOpening && openT > CUES.cta && !finalShown) {
+    if (inOpening && !finalShown && openT > CUES.cta) {
       finalShown = true;
       cta.classList.remove('hidden');
+      if (together) {
+        welcome.classList.remove('hidden');
+        navigator.vibrate?.([120, 60, 200]);
+      }
     }
 
     world.frame(t, dt);

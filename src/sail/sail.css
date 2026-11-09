@@ -125,7 +125,7 @@ body[data-view='player'] .card:empty { display: none; }
 .led-meter { height: 0.75em; margin-top: 0.55em; border-radius: 0.4em; background: rgba(255, 255, 255, 0.18); overflow: hidden; }
 .led-meter div { width: 0; height: 100%; background: var(--yellow); transition: width 0.3s; }
 
-.led-arrivals { right: 2.2%; top: 24%; width: 19em; display: flex; flex-direction: column; gap: 0.35em; }
+.led-arrivals { right: 2.2%; top: 27%; width: 19em; display: flex; flex-direction: column; gap: 0.35em; }
 .led-row {
   display: flex; gap: 0.6em; align-items: center; padding: 0.35em 0.8em; border-radius: 0.7em; background: rgba(15, 31, 66, 0.72);
   font-size: 1.35em; animation: slide 0.3s ease-out;
@@ -177,3 +177,130 @@ body[data-view='host'] { overflow: auto; background: #101f40; }
   .pad { width: 170px; height: 64px; font-size: 18px; bottom: 12px; }
   .card { left: 50%; transform: translateX(-50%); width: 36vw; }
 }
+
+/* ---- The two-part opening ---- */
+
+/* Phone: one big pad, because any tap counts. */
+.tapzone {
+  left: 14px; right: 14px; bottom: max(20px, env(safe-area-inset-bottom)); height: 104px; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 2px; border-radius: 28px; background: var(--yellow); color: var(--navy);
+  border: 3px solid transparent; box-shadow: 0 7px 0 #c49a3e, 0 12px 26px rgba(8, 16, 40, 0.5);
+}
+.tapzone b { font-size: 28px; font-weight: 700; letter-spacing: 0.02em; }
+.tapzone span { font-size: 15px; font-weight: 500; }
+.tapzone span:empty { display: none; }
+.tapzone.energy { background: #ffe9a8; box-shadow: 0 7px 0 #d9b04f, 0 0 34px 6px rgba(255, 220, 140, 0.55); }
+.tapzone.hit { animation: padhit 0.18s ease-out; }
+
+.energy-bar {
+  top: max(14px, env(safe-area-inset-top)); left: 16px; right: 16px; display: flex; align-items: center; gap: 10px;
+}
+.energy-track { flex: 1; height: 16px; border-radius: 8px; background: rgba(15, 31, 66, 0.7); overflow: hidden; }
+.energy-track div { width: 0; height: 100%; background: linear-gradient(90deg, #f2c667, #fff1c4); box-shadow: 0 0 14px #ffe2a0; }
+.energy-bar b { min-width: 3.2em; text-align: right; font-size: 18px; font-weight: 700; color: var(--yellow); }
+
+.welcome {
+  left: 16px; right: 16px; max-width: 460px; margin: 0 auto; bottom: calc(max(26px, env(safe-area-inset-bottom)) + 92px); padding: 22px 20px; border-radius: 22px;
+  background: rgba(255, 246, 222, 0.95); color: var(--navy); text-align: center; animation: pop 0.5s ease-out;
+  box-shadow: 0 0 60px 10px rgba(255, 220, 140, 0.55);
+}
+.welcome strong { display: block; font-size: 26px; font-weight: 700; line-height: 1.15; }
+.welcome p { margin: 8px 0 6px; font-size: 18px; line-height: 1.35; }
+.welcome em { display: block; font-style: normal; font-size: 14px; opacity: 0.75; }
+
+.naming {
+  inset: 0; display: flex; flex-direction: column; justify-content: center; padding: 24px 22px; pointer-events: auto;
+  background: rgba(15, 31, 66, 0.9); text-align: center;
+}
+.naming h1 { margin: 0 0 8px; font-size: 30px; color: var(--yellow); }
+.naming p { margin: 0 0 16px; font-size: 16px; line-height: 1.35; }
+.naming input {
+  width: 100%; padding: 15px; border: 0; border-radius: 16px; background: #fff; color: var(--navy); font: 600 22px var(--font);
+  text-align: center; user-select: text; -webkit-user-select: text;
+}
+.naming input:focus-visible { outline: 3px solid var(--yellow); outline-offset: 2px; }
+.naming .naming-error { min-height: 22px; margin: 8px 0; color: #ffb4a0; font-size: 15px; }
+.naming-go {
+  padding: 16px; border: 0; border-radius: 18px; background: var(--yellow); color: var(--navy); font: 700 21px var(--font);
+  box-shadow: 0 6px 0 #c49a3e;
+}
+.naming-go:disabled { opacity: 0.6; }
+.naming-pick { margin-top: 14px; padding: 10px; border: 0; background: none; color: #fff; font: 500 16px var(--font); text-decoration: underline; }
+
+/* LED: the names as boats join. */
+.led-names {
+  right: 2.2%; bottom: 4%; width: 33em; max-height: 30vh; overflow: hidden; display: flex; flex-wrap: wrap; align-content: flex-end;
+  justify-content: flex-end; gap: 0.45em;
+}
+.led-names span {
+  padding: 0.3em 0.75em; border-radius: 1em; background: rgba(15, 31, 66, 0.78); font-size: 1.35em; font-weight: 500;
+  white-space: nowrap; animation: pop 0.35s ease-out;
+}
+.led-names span.fresh { background: var(--yellow); color: var(--navy); }
+.led-names span.more { background: rgba(255, 255, 255, 0.16); }
+
+/* LED: the challenge, and the call to light it together. */
+.led-banner {
+  left: 13%; right: 13%; top: 10%; text-align: center; text-shadow: 0 0.08em 0.5em rgba(8, 16, 40, 0.7); animation: pop 0.4s ease-out;
+}
+.led-banner b { display: block; font-size: 4.6em; font-weight: 700; line-height: 1.08; }
+.led-banner span { display: block; margin-top: 0.4em; font-size: 2.6em; font-weight: 600; color: var(--yellow); }
+.led-banner span:empty { display: none; }
+.led-banner.only-small span { margin-top: 0; }
+.led-hud .big { z-index: 1; }
+
+.led-energy {
+  right: 3%; top: 14%; bottom: 10%; width: 9em; display: flex; flex-direction: column; align-items: center; gap: 0.6em;
+}
+.led-energy-pct { font-size: 3.6em; font-weight: 700; color: var(--yellow); text-shadow: 0 0.08em 0.5em rgba(8, 16, 40, 0.7); }
+.led-energy-tube {
+  position: relative; flex: 1; width: 4.4em; border-radius: 2.2em; background: rgba(15, 31, 66, 0.82); overflow: hidden;
+  border: 0.3em solid rgba(255, 255, 255, 0.85);
+}
+.led-energy-tube div {
+  position: absolute; left: 0; right: 0; bottom: 0; height: 0; background: linear-gradient(0deg, #f2c667, #fff3c8);
+  box-shadow: 0 0 2em 0.6em rgba(255, 220, 140, 0.8);
+}
+.led-energy-label { font-size: 1.8em; font-weight: 700; }
+
+/* LED: the partners, after IS NOW OPEN! */
+.billboard {
+  left: 50%; bottom: 4%; width: 74em; padding: 1.6em 2.4em 1.8em; border-radius: 1.6em; background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 1em 3em rgba(8, 16, 40, 0.45); transform: translate(-50%, 0);
+}
+.billboard-row { display: flex; align-items: center; justify-content: center; gap: 3em; }
+.billboard-row img { display: block; height: 6em; width: auto; }
+.billboard-row.small { margin: 1em 0 0.7em; }
+.billboard-row.small img { height: 2.8em; }
+.billboard-row:last-child img { height: 5.6em; }
+
+/* Host: the opening style and the names. */
+.host-mode { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 14px; }
+.host-mode button {
+  padding: 12px; border: 2px solid rgba(255, 255, 255, 0.25); border-radius: 14px; background: none; color: #fff; font: 600 16px var(--font);
+}
+.host-mode button.on { border-color: var(--yellow); background: rgba(242, 198, 103, 0.18); color: var(--yellow); }
+.host-mode button:disabled { opacity: 0.55; }
+.host-winner { margin: 0 0 12px; padding: 12px 14px; border-radius: 14px; background: rgba(242, 198, 103, 0.16); color: var(--yellow); font-size: 16px; }
+.host-h2 { margin: 26px 0 4px; font-size: 19px; }
+.host-h2 span { opacity: 0.7; font-weight: 500; }
+.host-help { margin: 0 0 10px; font-size: 14px; opacity: 0.75; }
+.host-names { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; max-height: 50vh; overflow: auto; }
+.host-names li {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 12px; border-radius: 12px;
+  background: rgba(255, 255, 255, 0.07); font-size: 16px;
+}
+.host-hide { padding: 7px 14px; border: 0; border-radius: 10px; background: rgba(255, 255, 255, 0.16); color: #fff; font: 600 14px var(--font); }
+.host-hide.armed { background: #d64a33; }
+
+/* Names over the masts, like a real race. */
+.nametag {
+  position: absolute; left: 0; top: 0; padding: 3px 9px; border-radius: 999px; background: rgba(15, 31, 66, 0.8); color: #fff;
+  font-size: 12px; font-weight: 600; white-space: nowrap; pointer-events: none; will-change: transform;
+}
+.nametag.lead { background: var(--yellow); color: var(--navy); }
+.led-hud .nametag { padding: 0.25em 0.75em; font-size: 1.3em; }
+.led-hud .nametag.lead { font-size: 1.55em; }
+.led-board-head { font-size: 1.5em; font-weight: 700; color: var(--yellow); margin: 0 0 0.1em 0.3em; text-shadow: 0 0.08em 0.4em rgba(8, 16, 40, 0.6); }
+.led-row.lead { background: var(--yellow); color: var(--navy); }
+.led-row.lead b { color: var(--navy); }

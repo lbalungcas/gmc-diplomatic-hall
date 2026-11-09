@@ -331,6 +331,8 @@ export async function createWorld(canvas, { isLed = false } = {}) {
 
   // --- State shared with the views.
   const shown = new Map();     // n -> displayed progress and speed
+  const drawn = new Map();     // n -> where that boat was drawn, and on which frame (for name tags)
+  let fleetFrame = 0;
   const m4 = new THREE.Matrix4();
   const q = new THREE.Quaternion();
   const e = new THREE.Euler();
@@ -393,6 +395,7 @@ export async function createWorld(canvas, { isLed = false } = {}) {
    * a phone; the LED draws everyone.
    */
   function updateFleet(boats, t, dt, { self = -1, selfP = 0, glide = false, selfRock = 0 } = {}) {
+    fleetFrame++;
     let list = [];
     for (const b of boats) {
       let s = shown.get(b.n);
@@ -443,6 +446,11 @@ export async function createWorld(canvas, { isLed = false } = {}) {
       sails.setColorAt(i, n === self ? sailColors[0] : sailColors[n % sailColors.length]);
       wakes.setColorAt(i, colorTmp.setScalar(speed * 0.42));
       if (n === self) selfPos = { x, y, z };
+      let at = drawn.get(n);
+      if (!at) drawn.set(n, (at = { pos: new THREE.Vector3(), frame: 0, p: 0 }));
+      at.pos.set(x, y + 5.6 * boatScale, z);
+      at.frame = fleetFrame;
+      at.p = s.p;
     });
 
     hulls.count = sails.count = wakes.count = list.length;
@@ -476,6 +484,8 @@ export async function createWorld(canvas, { isLed = false } = {}) {
   return {
     renderer, scene, camera, frame, updateFleet, setDawn, setLantern, glowTex,
     beams, beamMat, shown, marker, ring,
+    /** Boats drawn on the latest frame: [n, { pos (the top of the mast), p }]. */
+    *drawnBoats() { for (const [n, at] of drawn) if (at.frame === fleetFrame) yield [n, at]; },
     get dawn() { return dawn; },
     get lanternLevel() { return lanternLevel; },
     setBoatScale: (s) => { boatScale = s; },

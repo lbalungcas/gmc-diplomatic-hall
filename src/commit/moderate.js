@@ -88,6 +88,28 @@ function isProfane(lower) {
   return words.some((w) => ANYWHERE_RE.some((re) => re.test(w)) || WHOLE_RE.some((re) => re.test(w)));
 }
 
+/**
+ * A boat name for the sailing opening. Stricter than a commitment, because a name goes straight to
+ * the big screen with nobody reading it first: anything this screen would flag is refused too.
+ * @returns {{ ok: boolean, name: string, reason?: 'empty'|'contact'|'block' }}
+ */
+export const NAME_MAX = 18;
+export function screenName(raw) {
+  const name = String(raw ?? '')
+    .normalize('NFC')
+    .replace(/[^\p{L}\p{M}\p{N} .,'!?&-]/gu, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, NAME_MAX)
+    .trim();
+  if ((name.match(/\p{L}/gu) || []).length < 2) return { ok: false, name, reason: 'empty' };
+  const lower = name.toLowerCase().normalize('NFKD').replace(/\p{M}/gu, '');
+  if (hasContactDetails(lower)) return { ok: false, name, reason: 'contact' };
+  if (isProfane(lower) || DISCLOSURE.some((re) => re.test(lower))) return { ok: false, name, reason: 'block' };
+  if (lower.split(/[^\p{L}]+/u).some((w) => SENSITIVE.includes(w))) return { ok: false, name, reason: 'block' };
+  return { ok: true, name };
+}
+
 /** @returns {{ verdict: 'ok'|'flag'|'block'|'contact'|'empty', text: string, note?: string }} */
 export function screenCommitment(raw) {
   const text = cleanCommitment(raw);
