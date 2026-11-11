@@ -1,9 +1,9 @@
 // Transactional email templates. Table layout + inline styles so they render in Gmail,
 // Outlook (Word engine) and iOS Mail. Every template also has a plain-text twin.
-import { APP_URL } from './constants.ts';
+import { APP_URL, SAFEGUARDING_FORM_URL } from './constants.ts';
 import type { EventRow, RegistrationRow } from './db.ts';
 
-export type TemplateName = 'pending' | 'approved' | 'declined' | 'waitlisted';
+export type TemplateName = 'pending' | 'approved' | 'declined' | 'waitlisted' | 'safeguarding';
 
 export interface RenderedEmail {
   subject: string;
@@ -82,6 +82,21 @@ ${inner}
 </table></td></tr></table></body></html>`;
 }
 
+const SAFEGUARDING_LINE =
+  'The organizers take the safeguarding of children seriously. All attendees are required to read the Child Safeguarding Policy and Code of Conduct and confirm that they will abide by it.';
+
+function safeguardingBlockHtml() {
+  return `<table role="presentation" cellpadding="0" cellspacing="0" style="margin:16px 0;border-collapse:collapse;width:100%;background:#fff8dc;border-left:4px solid ${YELLOW}">` +
+    `<tr><td style="padding:14px 16px;font-size:14px;color:${BODY}">` +
+    `<strong style="color:${NAVY}">Required before you attend: Child Safeguarding and Code of Conduct</strong><br>` +
+    `${esc(SAFEGUARDING_LINE)} Please complete the form before the event.` +
+    button(SAFEGUARDING_FORM_URL, 'Complete the safeguarding form') +
+    `</td></tr></table>`;
+}
+
+const safeguardingBlockText = () =>
+  `\nRequired before you attend: Child Safeguarding and Code of Conduct\n${SAFEGUARDING_LINE} Please complete the form before the event:\n${SAFEGUARDING_FORM_URL}\n`;
+
 const textFooter = (event: EventRow) =>
   `\n\n—\n${event.name} — ${event.subtitle ?? ''}\nQuestions? Write to ${event.contact_email}\n`;
 
@@ -126,14 +141,14 @@ export function renderEmail(
         html: layout(event, 'Your registration is approved. Your QR ticket is inside.',
           h1("You're confirmed!") + hi +
           `<p style="margin:0 0 12px">Great news — your registration for <strong>${esc(event.name)}</strong> has been <strong>approved</strong>. Here is your personal QR ticket.</p>` +
-          qr + detailsHtml(event) +
+          qr + detailsHtml(event) + safeguardingBlockHtml() +
           `<p style="margin:16px 0 8px;color:${NAVY};font-weight:bold">What to bring</p>` +
           `<ul style="margin:0 0 12px;padding-left:20px"><li>This QR code — on your phone or printed</li><li>A valid photo ID</li></ul>` +
           (event.arrival_note ? `<p style="margin:0 0 12px">${esc(event.arrival_note)}</p>` : '') +
           `<p style="margin:0 0 12px">A calendar invite (.ics) is attached. If the QR code doesn't display, open your ticket page:</p>` +
           button(ticketLink, 'Open my ticket') +
           `<p style="margin:0;color:${MUTED};font-size:13px">This ticket is personal — please don't share it.</p>`),
-        text: `Hi ${first},\n\nYour registration for ${event.name} has been approved.\n\nYour QR ticket: ${ticketLink}\n(Open the link and show the QR code at the registration desk.)\n\n${detailsText(event)}\n\nWhat to bring:\n- Your QR code (on your phone or printed)\n- A valid photo ID\n${event.arrival_note ? `\n${event.arrival_note}\n` : ''}\nA calendar invite is attached. This ticket is personal — please don't share it.` + textFooter(event),
+        text: `Hi ${first},\n\nYour registration for ${event.name} has been approved.\n\nYour QR ticket: ${ticketLink}\n(Open the link and show the QR code at the registration desk.)\n\n${detailsText(event)}\n${safeguardingBlockText()}\nWhat to bring:\n- Your QR code (on your phone or printed)\n- A valid photo ID\n${event.arrival_note ? `\n${event.arrival_note}\n` : ''}\nA calendar invite is attached. This ticket is personal — please don't share it.` + textFooter(event),
       };
     }
 
@@ -163,5 +178,20 @@ export function renderEmail(
           detailsHtml(event) + button(ticketLink, 'Check your registration status')),
         text: `Hi ${first},\n\nThank you for registering for ${event.name}. The event is currently at capacity, so you're on the waitlist.\n\nIf a place opens up and you're approved, you'll receive an email with your QR ticket. Please don't come to the venue without one.\n\n${detailsText(event)}\n\nCheck your status: ${ticketLink}` + textFooter(event),
       };
+
+    case 'safeguarding': {
+      const { date } = when(event);
+      return {
+        subject: `Action required: Child Safeguarding and Code of Conduct - ${event.name}`,
+        html: layout(event, 'Please complete the Child Safeguarding and Code of Conduct form before the event.',
+          h1('Action required: Child Safeguarding and Code of Conduct') + hi +
+          `<p style="margin:0 0 12px">You're confirmed for <strong>${esc(event.name)}</strong> on ${esc(date)}. ${esc(SAFEGUARDING_LINE)}</p>` +
+          `<p style="margin:0 0 12px"><strong>Please complete the form before the event.</strong></p>` +
+          button(SAFEGUARDING_FORM_URL, 'Complete the safeguarding form') +
+          `<p style="margin:0 0 12px;color:${MUTED};font-size:13px">If the button doesn't work, copy this link into your browser:<br><a href="${esc(SAFEGUARDING_FORM_URL)}" style="color:${NAVY};word-break:break-all">${esc(SAFEGUARDING_FORM_URL)}</a></p>` +
+          `<p style="margin:0">If you have already submitted this form, you don't need to do it again. Thank you!</p>`),
+        text: `Hi ${first},\n\nYou're confirmed for ${event.name} on ${date}. ${SAFEGUARDING_LINE}\n\nPlease complete the form before the event:\n${SAFEGUARDING_FORM_URL}\n\nIf you have already submitted this form, you don't need to do it again. Thank you!` + textFooter(event),
+      };
+    }
   }
 }

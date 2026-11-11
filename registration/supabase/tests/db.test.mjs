@@ -44,6 +44,7 @@ for (const f of [
   'migrations/20261020000001_registration_schema.sql',
   'migrations/20261020000002_registration_rls.sql',
   'migrations/20261020000003_registration_functions.sql',
+  'migrations/20261111000001_safeguarding_email.sql',
   'seed.sql',
 ]) {
   await db.exec(mig(f));
@@ -53,6 +54,7 @@ for (const f of [
 await db.exec(mig('migrations/20261020000001_registration_schema.sql'));
 await db.exec(mig('migrations/20261020000002_registration_rls.sql'));
 await db.exec(mig('migrations/20261020000003_registration_functions.sql'));
+await db.exec(mig('migrations/20261111000001_safeguarding_email.sql'));
 console.log('re-applied migrations OK');
 
 const [{ id: eventId }] = await q(`select id from events where slug = 'yim-2026'`);
@@ -228,6 +230,12 @@ await as('authenticated', adminId, async () => {
 out = await decide([minor.id], 'approved');
 ok(out[0].outcome === 'updated', 'approved once guardian consent is recorded');
 ok((await q(`select 1 from audit_log where action = 'guardian_consent' and registration_id = $1`, [minor.id])).length === 1, 'guardian consent is audited');
+
+// ── safeguarding email log ──
+await q(`insert into email_log (registration_id, type, template, to_email, status) values ($1, 'safeguarding', 'safeguarding', 'p@x.org', 'sent')`, [r1.registration_id]);
+ok((await q(`select 1 from email_log where registration_id = $1 and template = 'safeguarding'`, [r1.registration_id])).length === 1, 'email_log accepts the safeguarding email');
+await expectError(() => q(`insert into email_log (registration_id, type, template, status) values ($1, 'bogus', 'bogus', 'sent')`, [r1.registration_id]),
+  /email_log_type_check|email_log_template_check/, 'email_log still rejects unknown email types');
 
 // ── rate limit ──
 let allowed = 0;

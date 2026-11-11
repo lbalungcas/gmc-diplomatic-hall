@@ -35,6 +35,7 @@ const ACTION_LABELS: Record<string, string> = {
   check_in: 'Checked in',
   undo_check_in: 'Check-in undone',
   resend_email: 'Email resent',
+  safeguarding_email: 'Safeguarding form emailed',
   guardian_consent: 'Guardian consent recorded',
 };
 
@@ -94,6 +95,15 @@ export function RegistrantDrawer({ id, version, form, onClose, onChanged, onDeci
     return res.status === 'skipped' ? 'Email logged but not sent (email provider not configured).' : `Re-sent the ${res.template} email.`;
   });
 
+  const sendSafeguardingForm = () => act(async () => {
+    const res = await callFunction<{ outcomes: { outcome: string }[] }>('send-safeguarding', { ids: [id], force: true });
+    const outcome = res.outcomes[0]?.outcome;
+    if (outcome === 'failed') throw new Error('The safeguarding email failed — see the email log below.');
+    if (outcome === 'skipped') return 'Email logged but not sent (email provider not configured).';
+    if (outcome === 'not_confirmed') return 'Only confirmed (approved) registrants can be sent the safeguarding form.';
+    return 'Safeguarding form sent.';
+  });
+
   const checkIn = () => act(async () => {
     const { data, error } = await supabase.rpc('check_in_manual', { p_id: id });
     if (error) throw error;
@@ -134,6 +144,7 @@ export function RegistrantDrawer({ id, version, form, onClose, onChanged, onDeci
             </div>
             <div className="flex flex-wrap gap-2">
               <button className="btn-ghost" disabled={busy || reg.status === 'cancelled'} onClick={resend}>Resend {reg.status} email</button>
+              {reg.status === 'approved' && <button className="btn-ghost" disabled={busy} onClick={sendSafeguardingForm}>Send safeguarding form</button>}
               {reg.status === 'approved' && !reg.checked_in_at && <button className="btn-primary" disabled={busy} onClick={checkIn}>Check in now</button>}
               {reg.checked_in_at && <button className="btn-ghost" disabled={busy} onClick={undoCheckIn}>Undo check-in</button>}
               <button className="btn-ghost" onClick={copyLink}>Copy ticket link</button>
@@ -217,7 +228,7 @@ export function RegistrantDrawer({ id, version, form, onClose, onChanged, onDeci
                   <li key={e.id} className="flex gap-3">
                     <span className="w-28 shrink-0 text-slate-500">{formatDateTime(e.sent_at)}</span>
                     <span>
-                      <strong className="capitalize">{e.template}</strong>
+                      <strong className="capitalize">{e.template === 'safeguarding' ? 'Safeguarding form' : e.template}</strong>
                       {e.type === 'resend' && <span className="text-slate-500"> (resent)</span>}{' '}
                       <span className={e.status === 'sent' ? 'text-emerald-700' : e.status === 'failed' ? 'font-semibold text-red-700' : 'text-amber-700'}>
                         {e.status}

@@ -5,6 +5,7 @@ import { downloadFile, registrationsToCsv } from '../../lib/csv';
 import { decide, describeSummary, type Decision } from '../../lib/decide';
 import { formatDateTime } from '../../lib/format';
 import { plainText, questionFor, questions, resolveForm, type FormSchema } from '../../lib/form';
+import { describeSafeguarding, sendSafeguarding } from '../../lib/safeguarding';
 import { supabase } from '../../lib/supabase';
 import type { EventRow, EventStats, Registration, Status } from '../../lib/types';
 import { useEvent } from '../../lib/useEvent';
@@ -184,6 +185,63 @@ export default function Dashboard() {
     }
   }
 
+  async function runSafeguarding(ids: string[], force: boolean) {
+    setNotice(null);
+    setBusy(`Sending safeguarding form 0 / ${ids.length}…`);
+    try {
+      const summary = await sendSafeguarding(ids, { force, onProgress: (d, t) => setBusy(`Sending safeguarding form ${d} / ${t}…`) });
+      setNotice({ tone: summary.failed ? 'error' : 'ok', text: describeSafeguarding(summary) });
+    } catch (err) {
+      setNotice({ tone: 'error', text: `Safeguarding emails stopped: ${(err as Error).message}` });
+    } finally {
+      setBusy(null);
+      refresh();
+    }
+  }
+
+  /** Every confirmed registrant; anyone already sent the form is skipped by the server. */
+  async function sendSafeguardingToAll() {
+    if (!event) return;
+    setNotice(null);
+    setBusy('Counting confirmed participants…');
+    const ids: string[] = [];
+    try {
+      for (let from = 0; ; from += 1000) {
+        const { data, error } = await supabase.from('registrations').select('id')
+          .eq('event_id', event.id).eq('status', 'approved').is('anonymized_at', null)
+          .order('id').range(from, from + 999);
+        if (error) throw error;
+        ids.push(...(data as { id: string }[]).map((r) => r.id));
+        if (!data || data.length < 1000) break;
+      }
+    } catch (err) {
+      setBusy(null);
+      setNotice({ tone: 'error', text: (err as Error).message });
+      return;
+    }
+    setBusy(null);
+    if (ids.length === 0) {
+      setNotice({ tone: 'error', text: 'There are no confirmed participants yet.' });
+      return;
+    }
+    if (!window.confirm(`Email the Child Safeguarding and Code of Conduct form to ${ids.length} confirmed participant${ids.length === 1 ? '' : 's'}?\n\nAnyone who already received it is skipped.`)) return;
+    await runSafeguarding(ids, false);
+  }
+
+  async function sendSafeguardingToSelected(ids: string[]) {
+    const { data, error } = await supabase.from('email_log').select('registration_id')
+      .in('registration_id', ids).eq('template', 'safeguarding').eq('status', 'sent');
+    if (error) {
+      setNotice({ tone: 'error', text: error.message });
+      return;
+    }
+    const already = new Set((data as { registration_id: string }[]).map((r) => r.registration_id)).size;
+    if (!window.confirm(`Email the Child Safeguarding and Code of Conduct form to the ${ids.length} selected registrant${ids.length === 1 ? '' : 's'}?\n\nOnly confirmed (approved) registrants are emailed.`)) return;
+    const force = already > 0 && window.confirm(`${already} of them already received it.\n\nOK: send it to them again as a reminder.\nCancel: skip them.`);
+    await runSafeguarding(ids, force);
+    setSelected(new Set());
+  }
+
   async function exportCsv() {
     if (!event) return;
     setBusy('Preparing export…');
@@ -253,6 +311,10 @@ export default function Dashboard() {
             <button className="btn-ghost" onClick={() => { setFilters(EMPTY_FILTERS); setSearchInput(''); setPage(0); }}>Clear</button>
           )}
           <div className="ml-auto flex gap-2">
+            <button className="btn-primary" onClick={sendSafeguardingToAll} disabled={!!busy}
+              title="Email the Child Safeguarding and Code of Conduct form to every confirmed participant who hasn't received it">
+              Send safeguarding form
+            </button>
             <button className="btn-ghost" onClick={() => setShowImport(true)}>Import CSV</button>
             <button className="btn-ghost" onClick={exportCsv} disabled={!!busy}>Export CSV</button>
           </div>
@@ -271,6 +333,7 @@ export default function Dashboard() {
           <button className="btn bg-emerald-500 text-white hover:bg-emerald-600" disabled={!!busy} onClick={() => runDecision(selectedIds, 'approved')}>Approve</button>
           <button className="btn bg-red-500 text-white hover:bg-red-600" disabled={!!busy} onClick={() => setDeclineFor(selectedIds)}>Decline…</button>
           <button className="btn bg-sky-500 text-white hover:bg-sky-600" disabled={!!busy} onClick={() => runDecision(selectedIds, 'waitlisted')}>Waitlist</button>
+          <button className="btn-sun" disabled={!!busy} onClick={() => sendSafeguardingToSelected(selectedIds)}>Send safeguarding form</button>
           <button className="btn text-white/80 hover:text-white" onClick={() => setSelected(new Set())}>Clear selection</button>
         </div>
       )}

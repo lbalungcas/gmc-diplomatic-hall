@@ -28,3 +28,6 @@ verify_jwt = false
 
 [functions.import-registrations]
 verify_jwt = false
+
+[functions.send-safeguarding]
+verify_jwt = false

@@ -21,13 +21,14 @@ export function templateForStatus(status: RegistrationRow['status']): TemplateNa
 /**
  * Renders, sends and logs one status email. Never throws — a failed send is recorded in
  * email_log (visible in the admin drawer) so the decision itself is never rolled back.
+ * `logged` is false when the email_log row couldn't be written.
  */
 export async function sendStatusEmail(
   reg: RegistrationRow,
   event: EventRow,
   template: TemplateName,
   isResend = false,
-): Promise<SendResult> {
+): Promise<SendResult & { logged: boolean }> {
   const link = ticketUrl(reg.ticket_token);
   let result: SendResult;
   try {
@@ -64,5 +65,5 @@ export async function sendStatusEmail(
     error: result.error ?? null,
   });
   if (error) console.error('email_log insert failed', error);
-  return result;
+  return { ...result, logged: !error };
 }

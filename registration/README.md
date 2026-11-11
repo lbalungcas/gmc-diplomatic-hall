@@ -81,7 +81,7 @@ public/form/                               the six "Marketplace spaces" option i
 supabase/
   migrations/                              schema → RLS → database functions (all re-runnable)
   seed.sql                                 the 17 Nov event
-  functions/register | decide | resend-email | import-registrations
+  functions/register | decide | resend-email | import-registrations | send-safeguarding
   functions/_shared/form.ts                the form engine + DEFAULT_FORM (shared with the browser)
   functions/_shared/                       email.ts (provider wrapper), templates.ts, qr.ts, ics.ts, validate.ts
   tests/db.test.mjs                        69 RLS/RPC checks against an in-memory Postgres (PGlite)
@@ -150,7 +150,7 @@ TURNSTILE_SECRET_KEY=0x...
 
 ```bash
 npx supabase secrets set --env-file supabase/.env
-npx supabase functions deploy register decide resend-email import-registrations --no-verify-jwt
+npx supabase functions deploy register decide resend-email import-registrations send-safeguarding --no-verify-jwt
 ```
 
 `--no-verify-jwt` is intentional. The new publishable keys aren't JWTs, so each admin function checks the caller's role itself with `requireAdmin()`.
@@ -229,6 +229,15 @@ npm run seed:fake -- 300    # load test
 - the audit trail, import errors, rate limiting and anonymization
 
 All fake registrants use `@example.org` addresses. Remove them with `delete from registrations where email like '%@example.org';`.
+
+### Safeguarding form email
+
+Every attendee must complete the conference's **Child Safeguarding and Code of Conduct** Google Form. The link is `SAFEGUARDING_FORM_URL` in `supabase/functions/_shared/constants.ts` (or the `SAFEGUARDING_FORM_URL` secret).
+- The "You're confirmed" email includes the link, so people approved from now on get it with their QR ticket.
+- **Admin → Send safeguarding form** emails it to every confirmed registrant, at about 2 emails a second. Anyone already sent it is skipped, so pressing the button again only retries failures and reaches people approved since.
+- To send a reminder to specific people, tick them and use **Send safeguarding form** in the selection bar. It asks whether to send again to anyone who already received it. A registrant's details panel also has a **Send safeguarding form** button, which always sends.
+- Every send shows in the registrant's email log and history. The system only knows who was **sent** the form, not who completed it, because the Google Form isn't connected.
+- It needs the migration `20261111000001_safeguarding_email.sql`. If the email log can't record a send, the function stops instead of sending emails it can't track.
 
 ### Importing the Google Form responses
 
