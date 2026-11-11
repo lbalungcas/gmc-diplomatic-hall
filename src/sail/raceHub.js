@@ -30,9 +30,10 @@ export const COUNTDOWN_MS = 4000;        // 3, 2, 1, SAIL!
 export const OPEN_LEAD_MS = 1200;        // beat between the deciding moment and the animation
 export const ENERGY_LEAD_MS = 5000;      // "No one can. Let's light it together." then 3, 2, 1
 export const DEFAULT_THRESHOLD = 30;
-export const TAPS_EACH = 60;             // energy needed per boat online: about 8 to 15 s of the room tapping
+// Energy needed per boat online. A room averages about 4 to 6 taps a second each, so 100 is about
+// 15 to 25 seconds of everyone tapping, however many boats there are.
+export const TAPS_EACH = 100;
 export const MIN_ENERGY = 60;
-const MAX_ENERGY = 8000;
 const TAP_RATE = 12;                     // the most taps a second one phone is credited with
 const MAX_BOATS = 600;                   // about 230 attendees are expected; this is a safety cap
 const PROGRESS_MIN_INTERVAL_MS = 120;
@@ -46,8 +47,12 @@ const clean = (v, max) => String(v ?? '').replace(/[<>]/g, '').replace(/\s+/g, '
  * @param {function} opts.deliver   (client, message) => void
  * @param {function} [opts.now]     clock, injectable for tests
  * @param {string}   [opts.mode]    'together' or 'classic'
+ * @param {number}   [opts.tapsEach]  energy needed per boat online, if not TAPS_EACH
  */
-export function createRaceHub({ token = '', deliver, now = Date.now, threshold = DEFAULT_THRESHOLD, mode: initialMode = 'together' }) {
+export function createRaceHub({
+  token = '', deliver, now = Date.now, threshold = DEFAULT_THRESHOLD, mode: initialMode = 'together', tapsEach = TAPS_EACH,
+}) {
+  const perBoat = Number.isFinite(tapsEach) && tapsEach >= 1 ? Math.min(1000, Math.round(tapsEach)) : TAPS_EACH;
   const clients = new Map();     // client -> { view, boat, lastProgressAt, tapAt, tapBudget }
   const boats = new Map();       // visitor id -> boat
   let mode = initialMode === 'classic' ? 'classic' : 'together';
@@ -223,7 +228,9 @@ export function createRaceHub({ token = '', deliver, now = Date.now, threshold =
     if (phase !== 'challenge') return;
     phase = 'energy';
     energyAt = now() + ENERGY_LEAD_MS;
-    energyGoal = Math.min(MAX_ENERGY, Math.max(MIN_ENERGY, onlineBoats() * TAPS_EACH));
+    // Every boat online adds its share, with no ceiling short of a full harbor: a bigger room must
+    // not find the lighthouse easier to light than a small one.
+    energyGoal = Math.max(MIN_ENERGY, Math.min(MAX_BOATS, onlineBoats()) * perBoat);
     taps = 0;
     for (const c of clients.values()) { c.tapAt = 0; c.tapBudget = 0; }
     sendState();

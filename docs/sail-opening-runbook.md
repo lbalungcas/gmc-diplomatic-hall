@@ -18,7 +18,7 @@ every screen, and the partners' logos follow.
 
 ## Before the event
 
-1. **Deploy the server.** The race runs on the presence server (`server/sail.js`), so Render needs this code as well as Netlify.
+1. **Deploy the server.** The race runs on the presence server (`server/sail.js`), so Render needs this code as well as Netlify. The `gmc-presence` service on Render must be connected to **this** repository (`gmc-diplomatic-hall`, branch `main`) with start command `node server/presence.js`: it was first set up from the older `youth-innovations-marketplace` repository, which has no race. Check `https://gmc-presence.onrender.com/health`: it must show a `"sail"` section. If the host panel says "No server" with a note about old code, this is why.
 2. **Set `SAIL_TOKEN` on Render** to something private. Without it, the host token falls back to the analytics token, whose default (`gmc-dev`) is in this repository.
 3. **Rehearse with bots.** Anyone can do this on the real site:
    ```
@@ -33,7 +33,7 @@ every screen, and the partners' logos follow.
 2. Show the LED. People scan the QR and name their boats; the names appear on the LED. **Watch the names on the operator panel** and press **Hide** (twice) on any you don't want on the big screen. It becomes "Boat 12" everywhere.
 3. Press **Start the sail**: a 3-2-1 countdown, then everyone taps to sail. The race takes about 30 seconds at full tapping speed. On the LED the leading boats carry their place and name, and a **Leaders** board shows the top five; on each phone, the boats sailing near yours show their names.
 4. **The first boat to the lighthouse wins.** The lighthouse goes dark, and the screens say "*Boat* reached the lighthouse first!", then "Can *Boat* change the world alone?" **This is the host's moment: work the room.**
-5. Press **Light the lighthouse**. The screens say "No one can. Let's light it together.", count down 3-2-1, then everyone taps. The energy meter fills and the lantern grows brighter. It needs about 60 taps per boat online, so about 8 to 15 seconds of the room tapping. If it drags, press **Finish lighting now** (twice).
+5. Press **Light the lighthouse**. The screens say "No one can. Let's light it together.", count down 3-2-1, then everyone taps. The energy meter fills and the lantern grows brighter, and the taps show as sparks of light flying from the boats into the lantern (on a phone, each of your own taps is one spark from your own boat). It needs 100 taps per boat online, however many boats there are, so about 15 to 25 seconds of the room tapping. If it drags, press **Finish lighting now** (twice).
 6. When it is lit, the opening plays by itself on every screen, about 11 seconds: the bulb rises out of the lighthouse, catches, the rays burst and the logo writes on, "IS NOW OPEN!". Phones then say "You are part of the solution. Welcome to the Youth Innovations Marketplace." with a **Learn More** button to the website. The partners' logos rise on the LED after it.
 7. **Before the cultural performance starts, press "Fade out the sound"**. It fades the music and waves on the LED and every phone over 3 seconds.
 
@@ -49,7 +49,7 @@ If the two-part opening isn't working out, choose **Classic** on the operator pa
 | The room is slow to light it | **Finish lighting now**, press twice. |
 | You need to skip ahead | **Skip to the opening now**, press twice. It works at any stage. |
 | The server is unreachable | Click the LED page and press **O**. The opening plays on the LED alone, so the moment still happens in the room. Phones won't play it. **R** clears it. |
-| A phone refreshes or loses signal | Nothing to do. It reconnects and keeps its boat, name and place. |
+| A phone refreshes or loses signal | Nothing to do. It reconnects and keeps its boat, name and place. A phone that goes silent (locked, or out of the Wi-Fi) stops counting as a boat online within about 30 seconds, so it doesn't add to the tapping the room has to do. |
 | Someone joins late | They name a boat and join in, and can still tap to light the lighthouse. |
 | The server restarts mid-race | The race state is in memory, so it returns to the harbor. Press Start again. |
 
@@ -58,7 +58,7 @@ LED keyboard, with the token in the URL: **S** start, **L** light the lighthouse
 ## Changing things
 
 - **The words on screen:** `LINES` in `src/sail/together.js`. The ready-made boat names are in `src/sail/boatNames.js`.
-- **How much tapping it takes:** `TAPS_EACH` (per boat online) and `MIN_ENERGY` in `src/sail/raceHub.js`.
+- **How much tapping it takes:** `TAPS_EACH` (per boat online) and `MIN_ENERGY` in `src/sail/raceHub.js`. To change it without a new build, set `SAIL_TAPS_EACH` on Render (for example `140` for a longer build-up, `70` for a shorter one); the server restarts to pick it up, so do it before the day, not during.
 - **Which boat names are refused:** `screenName` in `src/commit/moderate.js`, which shares its word lists with the Commitment Wall.
 - **The partners' logos:** `public/sail/partners/`, cut from `Organizer and Support Logo.png`; the order is in `src/sail/together.js`.
 - **The sayings** on the signs: `src/data/sailSayings.json`. `p` is how far along the route (0 to 1) each one appears.
@@ -72,5 +72,6 @@ Phones only make sound after a tap, and an iPhone with its silent switch on stay
 ## Testing
 
 - `npm run sail:test`: the race rules, boat names, the challenge and the lighting, the classic fallback, then the whole two-part opening with 40 phones over WebSockets.
+- `npm run sail:load`: the load test. 250 phones run the whole opening on a server it starts itself, while 15 people walk the 3D hall and 10 phones go dark, and it reports the server's CPU, ping times and what was sent to the phones. `npm run sail:load -- 400 30 20` for other numbers.
 - `/sail/?demo=30` (add `&view=led` for the LED): the whole thing against 30 bots in the browser, with no server. The demo presses Light the lighthouse for you after a few seconds; add `&hold` to press the buttons yourself, or `&mode=classic` for the fallback.
 - `node scripts/capture-sail.mjs <folder> <url>`: screenshots of every stage on the real GPU, with the Vite dev server running.

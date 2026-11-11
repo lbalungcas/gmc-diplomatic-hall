@@ -14,6 +14,8 @@ export function createSailRoom({ token }) {
   let lastData = '';
   const hub = createRaceHub({
     token,
+    // SAIL_TAPS_EACH on the server changes how long the lighting takes without a new build.
+    tapsEach: process.env.SAIL_TAPS_EACH ? Number(process.env.SAIL_TAPS_EACH) : undefined,
     deliver(ws, msg) {
       if (ws.readyState !== WebSocket.OPEN) return;
       if (msg !== lastMsg) {

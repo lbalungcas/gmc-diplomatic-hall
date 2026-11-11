@@ -9,6 +9,9 @@ import { getVisitorInfo } from '../modules/visitor.js';
 import { presenceCandidates } from '../modules/presenceUrl.js';
 
 const ROSTER_ARRIVALS = 12;
+// A server that accepts the connection but never welcomes us is running code from before the race
+// existed (or is still starting). That is not "connected": nothing we send would do anything.
+const WELCOME_TIMEOUT_MS = 6000;
 
 export function createNet({ view, token = '', demo = 0, on = {} }) {
   const visitor = getVisitorInfo();
@@ -20,6 +23,10 @@ export function createNet({ view, token = '', demo = 0, on = {} }) {
   const boats = new Map();     // n -> { n, name, p, rank }
   const net = {
     visitor, state, boats, you: null, arrivals: [], connected: false, demo: !!demo,
+    /** True while a server takes the connection but doesn't answer the race's hello. */
+    noAnswer: false,
+    /** True once this page has been connected at least once. */
+    wasConnected: false,
     serverNow: () => Date.now() + offset,
     sendProgress: () => {},
     sendTaps: () => {},
@@ -29,6 +36,7 @@ export function createNet({ view, token = '', demo = 0, on = {} }) {
   };
   let offset = 0;
   let bestRtt = Infinity;
+  let welcomed = () => {};
 
   function applyState(m) {
     const prevPhase = state.phase;
@@ -42,6 +50,7 @@ export function createNet({ view, token = '', demo = 0, on = {} }) {
   function receive(m) {
     switch (m.type) {
       case 'sail_welcome':
+        welcomed();
         boats.clear();
         for (const [n, name, p, rank] of m.roster) boats.set(n, { n, name, p: p / 1000, rank });
         net.you = m.you;
@@ -120,29 +129,43 @@ export function createNet({ view, token = '', demo = 0, on = {} }) {
     const send = (m) => { if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(m)); };
 
     function open() {
-      ws = new WebSocket(candidates[attempt++ % candidates.length]);
-      ws.onopen = () => {
-        delay = 1500;
-        attempt = 0;
+      const sock = new WebSocket(candidates[attempt++ % candidates.length]);
+      ws = sock;
+      let welcomeTimer = 0;
+      sock.onopen = () => {
         bestRtt = Infinity;
-        setConnected(true);
         send(joinMsg());
         const ping = () => send({ type: 'sail_ping', t: Date.now() });
         ping();
         setTimeout(ping, 400);
         setTimeout(ping, 1200);
         pinger = setInterval(ping, 5000);
+        // Connected means the race server said hello back, not just that a socket opened.
+        welcomed = () => {
+          clearTimeout(welcomeTimer);
+          delay = 1500;
+          attempt = 0;
+          net.noAnswer = false;
+          net.wasConnected = true;
+          setConnected(true);
+        };
+        welcomeTimer = setTimeout(() => {
+          net.noAnswer = true;
+          console.warn('[sail] the server accepted the connection but did not answer: it is not running the race code');
+          sock.close();
+        }, WELCOME_TIMEOUT_MS);
       };
-      ws.onmessage = (ev) => {
+      sock.onmessage = (ev) => {
         try { receive(JSON.parse(ev.data)); } catch (err) { console.warn('[sail]', err); }
       };
-      ws.onclose = () => {
+      sock.onclose = () => {
         clearInterval(pinger);
+        clearTimeout(welcomeTimer);
         setConnected(false);
         setTimeout(open, delay);
         delay = Math.min(10000, delay * 1.5);
       };
-      ws.onerror = () => {};
+      sock.onerror = () => {};
     }
     open();
     document.addEventListener('visibilitychange', () => {

@@ -3,6 +3,7 @@
  * When SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY are unset, every export is a no-op.
  */
 import { createClient } from '@supabase/supabase-js';
+import { WebSocket as NodeWebSocket } from 'ws';
 
 const URL = String(process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || '').trim();
 const KEY = String(
@@ -28,6 +29,9 @@ export async function initSupabase() {
   try {
     sb = createClient(URL, KEY, {
       auth: { persistSession: false, autoRefreshToken: false },
+      // The library needs a WebSocket just to start, and Node only has one built in from version 22.
+      // Handing it ours keeps the database working on Node 20 too (Render's NODE_VERSION).
+      realtime: { transport: globalThis.WebSocket || NodeWebSocket },
     });
     const { error } = await sb.from('hall_analytics_totals').select('id').limit(1);
     if (error) {

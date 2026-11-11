@@ -112,13 +112,16 @@ export function startAdmin(root, connect) {
     }
     $('a-waiting').textContent = waiting;
     $('a-live').textContent = live;
-    $('a-conn').textContent = net.connected ? 'Connected' : 'Offline';
+    $('a-conn').textContent = net.connected ? 'Connected' : net.noAnswer ? 'Old server' : 'Offline';
     $('a-mod').checked = s.moderated;
     $('a-finale').disabled = !net.connected || !!s.finaleAt;
     $('a-all').disabled = !net.connected || !waiting;
     const store = $('a-store');
-    store.hidden = !(net.connected && s.storage === 'file');
-    store.textContent = 'Not saving to the database. If the server restarts, commitments could be lost. Run server/schema.sql in Supabase and restart it.';
+    const oldServer = !net.connected && net.noAnswer;
+    store.hidden = !(oldServer || (net.connected && s.storage === 'file'));
+    store.textContent = oldServer
+      ? 'The server is online but does not answer the wall: it is running old code. On Render, the gmc-presence service must be connected to this project (gmc-diplomatic-hall, branch main) and redeployed.'
+      : 'Not saving to the database. If the server restarts, commitments could be lost. Run server/schema.sql in Supabase and restart it.';
     $('a-denied').hidden = !net.denied;
   }
 

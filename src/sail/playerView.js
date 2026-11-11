@@ -55,8 +55,19 @@ export async function startPlayer(root, world, connect) {
   const reconnect = el('div', 'pill warn hidden', 'Reconnecting…');
   const card = el('div', 'card');
   const big = el('div', 'big hidden');
-  const pad = el('div', 'tapzone hidden', '<b>TAP TAP TAP!</b><span></span>');
+  const pad = el('div', 'tapzone hidden', '<b>TAP TAP TAP!</b><i class="tap-meter"><i></i></i><span></span>');
+  const padLabel = pad.querySelector('b');
+  const padMeter = pad.querySelector('.tap-meter i');
   const padNote = pad.querySelector('span');
+  // Every tap answers under the finger: a ring on the glass, and a +1 once taps are energy.
+  const tapFx = el('div', 'tapfx');
+  const ripples = Array.from({ length: 8 }, () => {
+    const r = el('i', 'ripple', '<b>+1</b>');
+    tapFx.append(r);
+    return r;
+  });
+  let rippleNext = 0;
+  const flash = el('div', 'flash');
   const welcome = el('div', 'welcome hidden', `<strong>${LINES.phoneDone}</strong><p>${LINES.phoneWelcome}</p><em>Look up at the big screen!</em>`);
   const cta = el('a', 'cta hidden', 'Learn More');
   cta.href = '/';      // the Youth Innovations Marketplace website
@@ -76,7 +87,7 @@ export async function startPlayer(root, world, connect) {
   const nameInput = naming.querySelector('input');
   const nameError = naming.querySelector('.naming-error');
   const tags = createNameTags(hud, camera, { max: 4 });
-  hud.append(bar, energyBar, count, reconnect, card, big, pad, welcome, cta, mute, naming);
+  hud.append(flash, tapFx, bar, energyBar, count, reconnect, card, big, pad, welcome, cta, mute, naming);
   root.append(hud);
 
   // A phone waiting in the harbor shouldn't go to sleep and drop out of the race.
@@ -102,14 +113,24 @@ export async function startPlayer(root, world, connect) {
   let notice = '';
   let noticeUntil = 0;
 
+  let sparksOwed = 0;     // your own taps, waiting to leave your boat as sparks
+  let pulseAt = -100;     // when a ring of light last left the lighthouse
+
   /** One tap, anywhere: a stroke of the paddle while racing, a spark of energy afterwards. */
-  function tap() {
+  function tap(x = window.innerWidth / 2, y = window.innerHeight - 80) {
     if (!sailingNow && !energyNow) return;
     hasTapped = true;
     side = side === 'L' ? 'R' : 'L';
     rock = side === 'L' ? 0.13 : -0.13;
     if (sailingNow) tapTimes.push(clock);
-    if (energyNow) { pendingTaps++; myTaps++; }
+    if (energyNow) { pendingTaps++; myTaps++; sparksOwed = Math.min(6, sparksOwed + 1); }
+    const r = ripples[rippleNext];
+    rippleNext = (rippleNext + 1) % ripples.length;
+    r.style.left = `${x}px`;
+    r.style.top = `${y}px`;
+    r.className = 'ripple';
+    void r.offsetWidth;      // restart it
+    r.className = energyNow ? 'ripple go energy' : 'ripple go';
     pad.classList.remove('hit');
     void pad.offsetWidth;      // restart the flash
     pad.classList.add('hit');
@@ -121,7 +142,7 @@ export async function startPlayer(root, world, connect) {
     if (ev.target === cta || ev.target === mute || naming.contains(ev.target)) return;
     audio.unlock();
     keepAwake();
-    tap();
+    tap(ev.clientX, ev.clientY);
     ev.preventDefault();
   });
   document.addEventListener('contextmenu', (e) => e.preventDefault());
@@ -162,6 +183,11 @@ export async function startPlayer(root, world, connect) {
   let phaseSeen = '';
   let finalShown = false;
   let shownEnergy = 0;
+  let rush = 0;           // 0..1, how close to full speed, eased: it widens the view
+  let gauge = 0;          // 0..1, how close your tapping is to full speed: the meter on the pad
+  let tapsSeen = 0;       // the room's taps as last seen, to turn new ones into sparks
+  let roomOwed = 0;
+  let roomCarry = 0;
 
   const opening = await createOpening(world, { onCue: (name) => audio.cue(name) });
   const sayings = createSayings(world);
@@ -180,9 +206,6 @@ export async function startPlayer(root, world, connect) {
         p = Math.max(p, net.you.p);
       }
     },
-    status(v) {
-      reconnect.classList.toggle('hidden', v);
-    },
     nameResult(m) {
       naming.querySelector('.naming-go').disabled = false;
       if (!m.ok) nameError.textContent = NAME_SORRY[m.reason] || NAME_SORRY.block;
@@ -192,9 +215,14 @@ export async function startPlayer(root, world, connect) {
       }
     },
     arrived(m) {
+      // Every arrival sends a ring of light out from the lighthouse; yours lights your screen too.
+      if (clock - pulseAt > 1.2) pulseAt = clock;
       if (net.you && m.n === net.you.n) {
         audio.bell();
         navigator.vibrate?.(120);
+        flash.classList.remove('go');
+        void flash.offsetWidth;
+        flash.classList.add('go');
       }
     },
   });
@@ -224,11 +252,15 @@ export async function startPlayer(root, world, connect) {
     const ph = s.phase;
     const now = net.serverNow();
     const portrait = camera.aspect < 1.05;
-    const baseFov = portrait ? 66 : 50;
+    const baseFov = (portrait ? 66 : 50) + rush * 5;     // the view opens up as you pick up speed
     const together = s.mode !== 'classic';
     const gathered = together && (ph === 'challenge' || ph === 'energy');
     const you = net.you;
     const winner = together && you && s.winner === you.n;
+
+    reconnect.classList.toggle('hidden', net.connected);
+    const pillText = net.wasConnected ? 'Reconnecting…' : net.noAnswer ? 'The race isn’t ready yet. Please wait…' : 'Connecting…';
+    if (reconnect.textContent !== pillText) reconnect.textContent = pillText;
 
     // --- Naming: until the server has given you a boat.
     naming_ = !you && net.connected;
@@ -249,6 +281,8 @@ export async function startPlayer(root, world, connect) {
     speed += (target - speed) * (1 - Math.exp(-dt * (target > speed ? 8 : 1.6)));
     if (sailing) p = Math.min(1, p + speed * dt);
     else if ((ph === 'open' || gathered) && p < 1 && you) p = Math.min(1, p + dt / 9);     // everyone drifts in
+    rush += ((sailing ? clamp01(speed / FULL_SPEED) : 0) - rush) * (1 - Math.exp(-dt * 3));
+    gauge += ((sailing ? clamp01(tapRate / FULL_RATE) : 0) - gauge) * (1 - Math.exp(-dt * 10));
 
     sinceSend += dt;
     if ((started || gathered) && you && !you.rank && sinceSend >= SEND_EVERY && (p !== sentP || p >= 1)) {
@@ -277,6 +311,7 @@ export async function startPlayer(root, world, connect) {
 
     // --- Camera: behind your boat, drawing back to take in the lighthouse as you arrive.
     const arrive = THREE.MathUtils.smoothstep(p, 0.86, 1);
+    world.setMoonLevel(1 - arrive);     // close in, the lantern is the only light in the sky
     basePos.set(
       bx * (1 - arrive * 0.35),
       (portrait ? 7.2 : 8) + arrive * 2.6 + (ph === 'harbor' ? 2 : 0),
@@ -291,6 +326,26 @@ export async function startPlayer(root, world, connect) {
     const energy = ph === 'energy' ? clamp01(s.taps / Math.max(1, s.energyGoal)) : ph === 'open' ? 1 : 0;
     shownEnergy += (energy - shownEnergy) * (1 - Math.exp(-dt * 4));
 
+    // Taps turn into sparks that fly to the lantern: yours from your own boat, one each, and a
+    // share of everyone else's from the boats around you.
+    if (energyNow) {
+      if (s.taps > tapsSeen) roomOwed = Math.min(30, roomOwed + (s.taps - tapsSeen) * 0.4);
+      const out = Math.min(roomOwed, 22 * dt);
+      roomOwed -= out;
+      roomCarry += out;
+      const n = roomCarry | 0;
+      roomCarry -= n;
+      if (n) world.emitFromFleet(n);
+      if (sparksOwed && selfPos) {
+        sparksOwed--;
+        world.emitSpark(selfPos.x, selfPos.y + 2.4, selfPos.z);
+      }
+    } else {
+      roomOwed = 0;
+      sparksOwed = 0;
+    }
+    tapsSeen = s.taps || 0;
+
     // --- Opening: on the server's clock, or at a forced time while testing.
     const openT = override != null ? override : ph === 'open' ? (now - s.openAt) / 1000 : -1;
     if (openT >= 0 || ph === 'open') {
@@ -301,6 +356,8 @@ export async function startPlayer(root, world, connect) {
       camera.fov = baseFov;
       camera.updateProjectionMatrix();
       camera.lookAt(smoothLook);
+      const ringAge = clock - pulseAt;
+      world.setPulse(14 + ringAge * 46, ringAge < 2.4 ? 1 - ringAge / 2.4 : 0);
       if (gathered) {
         world.setLantern(0.25 + shownEnergy * (LIT - 0.25));
         world.beams.userData.fade = shownEnergy;
@@ -386,7 +443,13 @@ export async function startPlayer(root, world, connect) {
     const showPad = sailing || energyNow || (ph === 'sailing' && now < s.startAt && !!you);
     pad.classList.toggle('hidden', !showPad);
     pad.classList.toggle('energy', energyNow);
-    padNote.textContent = energyNow ? `Your energy: ${myTaps}` : '';
+    const flatOut = sailing && gauge > 0.9;
+    pad.classList.toggle('max', flatOut);
+    const padText = flatOut ? 'FULL SPEED!' : 'TAP TAP TAP!';
+    if (padLabel.textContent !== padText) padLabel.textContent = padText;
+    padMeter.style.transform = `scaleX(${gauge.toFixed(3)})`;
+    const noteText = energyNow ? `Your energy: ${myTaps}` : '';
+    if (padNote.textContent !== noteText) padNote.textContent = noteText;
 
     const name = you ? esc(you.name) : '';
     const winnerName = esc(s.winnerName);

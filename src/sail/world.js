@@ -70,6 +70,9 @@ function makeSea() {
     uniforms: {
       uTime: { value: 0 }, uDawn: { value: 0 }, uCam: { value: new THREE.Vector3() },
       uIsland: { value: new THREE.Vector2(0, LH_Z) }, uWaveScale: { value: 1 }, uWaveAxis: { value: 0 },
+      // How strongly the lantern lights the water (1 = as first built), and a ring of light
+      // spreading from the island: x is its radius, y its strength.
+      uLamp: { value: 1 }, uPulse: { value: new THREE.Vector2(0, 0) },
     },
     vertexShader: /* glsl */`
       uniform float uTime;
@@ -82,10 +85,11 @@ function makeSea() {
         gl_Position = projectionMatrix * viewMatrix * w;
       }`,
     fragmentShader: /* glsl */`
-      uniform float uTime, uDawn, uWaveScale, uWaveAxis;
+      uniform float uTime, uDawn, uWaveScale, uWaveAxis, uLamp;
       uniform vec3 uCam;
-      uniform vec2 uIsland;
+      uniform vec2 uIsland, uPulse;
       varying vec3 vW;
+      float shash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
       void main() {
         float d = length(vW.xz - uCam.xz);
         // Rows of scalloped crests, after the waves in the client's art, rolling toward the viewer.
@@ -110,7 +114,22 @@ function makeSea() {
         col = mix(col, vec3(0.86, 0.94, 0.97), clamp(foam, 0.0, 1.0) * 0.8);
         // A path of light on the water, off the lantern, then off the sunrise behind it.
         float path = exp(-pow(vW.x * 0.055, 2.0)) * smoothstep(40.0, -170.0, vW.z) * (0.5 + 0.5 * swell);
-        col += path * mix(vec3(0.10, 0.08, 0.03), vec3(0.42, 0.28, 0.10), uDawn);
+        // The brighter the lantern, the brighter its path; by dawn the sun has taken over.
+        float lamp = mix(uLamp, 1.0, uDawn);
+        col += path * lamp * mix(vec3(0.10, 0.08, 0.03), vec3(0.42, 0.28, 0.10), uDawn);
+        // Glints along that path: a scatter of sparkles, each twinkling in its own time, and only
+        // close enough to be drawn cleanly.
+        vec2 gc = wp * 0.75;
+        vec2 gi = floor(gc);
+        float gh = shash(gi);
+        vec2 gp = fract(gc) - 0.5 - (vec2(shash(gi + 7.3), shash(gi + 2.1)) - 0.5) * 0.55;
+        float twinkle = pow(max(0.0, sin(uTime * (1.4 + gh * 2.2) + gh * 40.0)), 5.0);
+        float glint = step(0.74, gh) * twinkle * (1.0 - smoothstep(0.03, 0.20, length(gp)));
+        float close = 1.0 - smoothstep(45.0 / uWaveScale, 120.0 / uWaveScale, d);
+        col += glint * path * close * (0.10 + 0.20 * lamp) * vec3(1.0, 0.90, 0.62);
+        // A ring of light rolling out across the water from the lighthouse.
+        float ringD = (isl - uPulse.x) / (5.0 + uPulse.x * 0.06);
+        col += exp(-ringD * ringD) * uPulse.y * 0.5 * vec3(1.0, 0.84, 0.48);
         vec3 horizon = mix(vec3(0.040, 0.100, 0.260), vec3(0.930, 0.620, 0.350), uDawn);
         col = mix(col, horizon, smoothstep(170.0, 430.0, d));
         gl_FragColor = vec4(col, 1.0);
@@ -126,7 +145,10 @@ function makeSea() {
 function makeSky() {
   const mat = new THREE.ShaderMaterial({
     side: THREE.BackSide, depthWrite: false, depthTest: false,
-    uniforms: { uDawn: { value: 0 }, uTime: { value: 0 } },
+    uniforms: {
+      uDawn: { value: 0 }, uTime: { value: 0 },
+      uMoon: { value: new THREE.Vector3(-0.2, 0.4, -1).normalize() }, uMoonLevel: { value: 1 },
+    },
     vertexShader: /* glsl */`
       varying vec3 vDir;
       void main() {
@@ -135,7 +157,8 @@ function makeSky() {
         gl_Position = p.xyww;
       }`,
     fragmentShader: /* glsl */`
-      uniform float uDawn, uTime;
+      uniform float uDawn, uTime, uMoonLevel;
+      uniform vec3 uMoon;
       varying vec3 vDir;
       float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
       void main() {
@@ -153,6 +176,28 @@ function makeSky() {
         float tw = 0.6 + 0.4 * sin(uTime * 1.5 + hash(id + 3.1) * 40.0);
         float dotm = 1.0 - smoothstep(0.02, 0.17, length(fract(g) - 0.5));
         col += s * dotm * tw * smoothstep(0.03, 0.25, h) * (1.0 - uDawn) * 0.9;
+        float dark = 1.0 - smoothstep(0.0, 0.35, uDawn);     // the moon is gone well before the stars
+        // A crescent moon with a soft halo, in the art's flat style.
+        vec3 dir = normalize(vDir);
+        float ma = acos(clamp(dot(dir, uMoon), -1.0, 1.0));
+        vec3 biteDir = normalize(uMoon + vec3(0.021, 0.012, 0.0));
+        float disc = 1.0 - smoothstep(0.034, 0.037, ma);
+        float bite = 1.0 - smoothstep(0.029, 0.032, acos(clamp(dot(dir, biteDir), -1.0, 1.0)));
+        col += (disc * (1.0 - bite) * vec3(1.0, 0.95, 0.80) + exp(-ma * 11.0) * 0.20 * vec3(0.55, 0.66, 0.92)) * dark * uMoonLevel;
+        // Now and then, a shooting star.
+        vec2 ae = g / 70.0;
+        float sp = uTime / 11.0;
+        float sk = floor(sp);
+        float sf = fract(sp) / 0.085;
+        if (sf < 1.0) {
+          vec2 from = vec2(mix(-2.25, -0.90, hash(vec2(sk, 1.7))), mix(0.34, 0.70, hash(vec2(sk, 9.2))));
+          vec2 way = normalize(vec2(hash(vec2(sk, 4.4)) < 0.5 ? -1.0 : 1.0, -0.42));
+          vec2 q = ae - (from + way * sf * 0.30);
+          float along = -dot(q, way);
+          float across = length(q + way * along);
+          float streak = (1.0 - smoothstep(0.0, 0.0035, across)) * step(0.0, along) * (1.0 - smoothstep(0.0, 0.11, along));
+          col += streak * sin(sf * 3.1416) * dark * 0.9;
+        }
         gl_FragColor = vec4(col, 1.0);
         #include <colorspace_fragment>
       }`,
@@ -197,6 +242,79 @@ export function radialTexture(stops = [[0, 'rgba(255,255,255,1)'], [0.35, 'rgba(
   const t = new THREE.CanvasTexture(c);
   t.colorSpace = THREE.SRGBColorSpace;
   return t;
+}
+
+/**
+ * Sparks of light that fly from wherever they are emitted up into the lantern: the room's energy
+ * made visible. One draw call; each spark's whole flight is worked out in the vertex shader from
+ * the moment it was born, so emitting one costs a few array writes and nothing per frame.
+ */
+function makeSparks(cap) {
+  const start = new Float32Array(cap * 3);
+  const info = new Float32Array(cap * 2).fill(-1000);     // born at, seed
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(start, 3));
+  geo.setAttribute('aInfo', new THREE.BufferAttribute(info, 2));
+  const mat = new THREE.ShaderMaterial({
+    transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, depthTest: false,
+    uniforms: {
+      uTime: { value: 0 }, uTarget: { value: new THREE.Vector3(0, LANTERN_Y, LH_Z) },
+      uLife: { value: 1.5 }, uSize: { value: 1 }, uPx: { value: 600 },
+    },
+    vertexShader: /* glsl */`
+      attribute vec2 aInfo;
+      uniform float uTime, uLife, uSize, uPx;
+      uniform vec3 uTarget;
+      varying float vA;
+      void main() {
+        float age = (uTime - aInfo.x) / (uLife * (0.8 + aInfo.y * 0.5));
+        if (age < 0.0 || age > 1.0) {
+          gl_Position = vec4(2.0, 2.0, 2.0, 1.0);
+          gl_PointSize = 0.0;
+          vA = 0.0;
+          return;
+        }
+        float k = age * age * (3.0 - 2.0 * age);
+        // Up off the water in a loose arc, then drawn into the lantern.
+        float ang = aInfo.y * 6.2832;
+        vec3 mid = mix(position, uTarget, 0.45) + vec3(cos(ang), 0.0, sin(ang)) * (3.0 + aInfo.y * 5.0) * uSize;
+        mid.y += (6.0 + aInfo.y * 8.0) * uSize;
+        vec3 p = mix(mix(position, mid, k), mix(mid, uTarget, k), k);
+        vec4 mv = viewMatrix * vec4(p, 1.0);
+        gl_Position = projectionMatrix * mv;
+        gl_PointSize = min(72.0, uSize * (1.25 - 0.6 * k) * uPx / max(1.0, -mv.z));
+        vA = smoothstep(0.0, 0.12, age) * (1.0 - smoothstep(0.88, 1.0, age));
+      }`,
+    fragmentShader: /* glsl */`
+      varying float vA;
+      void main() {
+        float d = clamp(1.0 - length(gl_PointCoord - 0.5) * 2.0, 0.0, 1.0);
+        float a = d * d * vA;
+        gl_FragColor = vec4(vec3(1.0, 0.78, 0.36) * a + vec3(a * a * 0.3), 1.0);
+      }`,
+  });
+  const points = new THREE.Points(geo, mat);
+  points.frustumCulled = false;
+  points.renderOrder = 6;
+  points.name = 'Sparks';
+  let next = 0;
+  let dirty = false;
+  return {
+    points, mat,
+    emit(x, y, z, at) {
+      start.set([x, y, z], next * 3);
+      info[next * 2] = at;
+      info[next * 2 + 1] = Math.random();
+      next = (next + 1) % cap;
+      dirty = true;
+    },
+    flush() {
+      if (!dirty) return;
+      dirty = false;
+      geo.attributes.position.needsUpdate = true;
+      geo.attributes.aInfo.needsUpdate = true;
+    },
+  };
 }
 
 function youMarker() {
@@ -329,6 +447,9 @@ export async function createWorld(canvas, { isLed = false } = {}) {
   ring.visible = false;
   scene.add(marker, ring);
 
+  const sparks = makeSparks(isLed ? 420 : 96);
+  scene.add(sparks.points);
+
   // --- State shared with the views.
   const shown = new Map();     // n -> displayed progress and speed
   const drawn = new Map();     // n -> where that boat was drawn, and on which frame (for name tags)
@@ -363,8 +484,30 @@ export async function createWorld(canvas, { isLed = false } = {}) {
     lanternMat.color.setRGB(1.0 * level, 0.85 * level, 0.45 * level);
     lanternGlow.scale.setScalar(18 + level * 8);
     lanternGlow.material.opacity = Math.min(1, 0.55 + level * 0.2);
+    // The water answers the lantern: dim when it is dark, glittering when the room has lit it.
+    sea.material.uniforms.uLamp.value = 0.35 + 0.65 * Math.min(1, level) + 1.5 * THREE.MathUtils.clamp((level - 1) / 2.2, 0, 1);
   }
   setLantern(1);
+
+  /** A ring of light on the water, `radius` out from the lighthouse; strength 0 turns it off. */
+  function setPulse(radius, strength) {
+    sea.material.uniforms.uPulse.value.set(radius, Math.max(0, strength));
+  }
+
+  /** One spark, from a point, into the lantern. */
+  let worldT = 0;
+  function emitSpark(x, y, z) {
+    sparks.emit(x, y, z, worldT);
+  }
+  /** `count` sparks, each from a boat picked at random out of those on screen. */
+  const afloat = [];
+  function emitFromFleet(count) {
+    if (!afloat.length) return;
+    for (let i = 0; i < count; i++) {
+      const at = afloat[(Math.random() * afloat.length) | 0];
+      sparks.emit(at.x, at.y - 3.4 * boatScale, at.z, worldT + Math.random() * 0.12);
+    }
+  }
 
   function resize() {
     const w = window.innerWidth;
@@ -424,6 +567,7 @@ export async function createWorld(canvas, { isLed = false } = {}) {
         .map((r) => r.row);
     }
     let selfPos = null;
+    afloat.length = 0;
     list.forEach(({ n, s }, i) => {
       const { x, z } = boatPosition(n, s.p, spread);
       const speed = Math.min(1, Math.abs(s.v) * 15);
@@ -451,6 +595,7 @@ export async function createWorld(canvas, { isLed = false } = {}) {
       at.pos.set(x, y + 5.6 * boatScale, z);
       at.frame = fleetFrame;
       at.p = s.p;
+      afloat.push(at.pos);
     });
 
     hulls.count = sails.count = wakes.count = list.length;
@@ -477,12 +622,22 @@ export async function createWorld(canvas, { isLed = false } = {}) {
     sea.position.set(camera.position.x, 0, camera.position.z);
     sky.position.copy(camera.position);
     if (beams.userData.spin !== false) beams.rotation.y = t * 0.45;
+    worldT = t;
+    sparks.flush();
+    sparks.mat.uniforms.uTime.value = t;
+    sparks.mat.uniforms.uSize.value = Math.max(1, boatScale);
+    // Sized in world units: this is how many pixels one unit covers at a distance of one.
+    sparks.mat.uniforms.uPx.value = renderer.domElement.height / (2 * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)));
     governor(dt);
     renderer.render(scene, camera);
   }
 
   return {
-    renderer, scene, camera, frame, updateFleet, setDawn, setLantern, glowTex,
+    renderer, scene, camera, frame, updateFleet, setDawn, setLantern, setPulse, emitSpark, emitFromFleet, glowTex,
+    /** Where the moon hangs, as a direction from the viewer. */
+    setMoon: (x, y, z) => { sky.material.uniforms.uMoon.value.set(x, y, z).normalize(); },
+    /** 1 shows the moon, 0 hides it: at the lighthouse, the lantern should be the only light. */
+    setMoonLevel: (v) => { sky.material.uniforms.uMoonLevel.value = v; },
     beams, beamMat, shown, marker, ring,
     /** Boats drawn on the latest frame: [n, { pos (the top of the mast), p }]. */
     *drawnBoats() { for (const [n, at] of drawn) if (at.frame === fleetFrame) yield [n, at]; },

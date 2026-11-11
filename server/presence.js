@@ -24,6 +24,11 @@ import { initAdmin, handleAdminRequest } from './admin.js';
 import { createSailRoom } from './sail.js';
 import { createCommitRoom } from './commit.js';
 
+// The race and the wall live in this process's memory. One stray error must not restart it in the
+// middle of the opening: log it and carry on.
+process.on('unhandledRejection', (err) => console.error('[presence] unhandled rejection:', err));
+process.on('uncaughtException', (err) => console.error('[presence] uncaught exception:', err));
+
 const PORT = Number(process.env.PORT || 8787);
 const HOST = process.env.HOST || '0.0.0.0';
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -458,16 +463,38 @@ const server = createServer(async (req, res) => {
   corsJson(res, 404, { ok: false, error: 'not_found' });
 });
 
-const wss = new WebSocketServer({ server });
+// Nothing a page sends is anywhere near this size; the default would let one client hand us 100 MB.
+const wss = new WebSocketServer({ server, maxPayload: 256 * 1024 });
 
+/**
+ * To everyone in the hall. Phones on the sailing opening and the commitment wall share this server
+ * but not this room (`_roomOnly`): a full room of them must not be sent every step taken in the hall.
+ */
 function broadcast(msg, excludeWs = null) {
   const data = typeof msg === 'string' ? msg : JSON.stringify(msg);
   for (const client of wss.clients) {
-    if (client !== excludeWs && client.readyState === WebSocket.OPEN) {
+    if (client !== excludeWs && !client._roomOnly && client.readyState === WebSocket.OPEN) {
       client.send(data);
     }
   }
 }
+
+// A phone that locks, or walks out of the Wi-Fi, often never closes its connection. Left alone it
+// would count as a boat online for the rest of the day. Every connection is pinged; one that has
+// been silent for a whole interval (no pong, no message) is closed, and comes back by reconnecting.
+const HEARTBEAT_MS = Number(process.env.HEARTBEAT_MS) || 15000;
+setInterval(() => {
+  for (const client of wss.clients) {
+    if (client._alive === false) {
+      client.terminate();
+      continue;
+    }
+    client._alive = false;
+    if (client.readyState === WebSocket.OPEN) {
+      try { client.ping(); } catch (e) {}
+    }
+  }
+}, HEARTBEAT_MS);
 
 function broadcastHeadcount() {
   notePeak();
@@ -494,13 +521,22 @@ wss.on('connection', (ws) => {
     pageView: 0,
   };
 
+  ws._alive = true;
+  ws.on('pong', () => { ws._alive = true; });
+
   ws.on('message', (raw) => {
+    ws._alive = true;
     try {
       const msg = JSON.parse(raw.toString());
-      if (sailRoom.handle(ws, msg) || commitRoom.handle(ws, msg)) return;
+      if (sailRoom.handle(ws, msg) || commitRoom.handle(ws, msg)) {
+        // The race and the wall have their own rooms; until it joins the hall, it hears none of it.
+        if (!visitorId) ws._roomOnly = true;
+        return;
+      }
       const now = Date.now();
 
       if (msg.type === 'join') {
+        ws._roomOnly = false;
         visitorId = msg.id || msg.clientId || `v-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
         noteVisitor(visitorId);
         const visitorData = {
@@ -767,6 +803,12 @@ setInterval(() => {
     }
   }
 }, 5000);
+
+// Failing to start is the one error that should stop the process: there is nothing to keep alive.
+server.on('error', (err) => {
+  console.error('[presence] could not start:', err.message);
+  process.exit(1);
+});
 
 server.listen(PORT, HOST, () => {
   console.log(`Presence server running on http://${HOST}:${PORT} (ws://${HOST}:${PORT})`);

@@ -294,6 +294,7 @@ export async function createOpening(world, { isLed = false, onCue = () => {} } =
     lastT = -1;
     world.setDawn(0);
     world.setLantern(1);
+    world.setPulse(0, 0);
     world.beams.userData.spin = true;
     world.beams.userData.fade = 1;
     world.beams.visible = true;
@@ -335,6 +336,14 @@ export async function createOpening(world, { isLed = false, onCue = () => {} } =
 
     // Dawn.
     world.setDawn(smooth(span(t, 5.6, 9)));
+
+    // As the bulb catches, light rolls out across the water and through the fleet; a second,
+    // softer ring follows when the marketplace is declared open.
+    const ringA = t - CUES.on;
+    const ringB = t - CUES.open;
+    if (ringB >= 0 && ringB < 3.2) world.setPulse(14 + ringB * 62, (1 - ringB / 3.2) * 0.7);
+    else if (ringA >= 0 && ringA < 3.4) world.setPulse(14 + ringA * 58, 1 - ringA / 3.4);
+    else world.setPulse(0, 0);
 
     // The bulb: out of the lantern to above the dome, then to its place in the logo.
     const rise = easeOut(span(t, 2.6, 5.0));

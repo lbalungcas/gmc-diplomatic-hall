@@ -51,6 +51,7 @@ async function drawQr(canvas, text) {
 
 export async function startLed(root, world, connect, { token }) {
   const { camera } = world;
+  world.setMoonLevel(0);     // from above there is no sky to hang it in, and the opening looks past it
   const audio = createAudio();
 
   const hud = el('div', 'led-hud');
@@ -96,13 +97,16 @@ export async function startLed(root, world, connect, { token }) {
   let localOpenAt = 0;     // set when the opening has to run without the server
   let namesDirty = true;
 
+  let pulseAt = -100;      // when a ring of light last left the lighthouse
+  let tapsSeen = 0;        // the room's taps as last seen, to turn new ones into sparks
+  let sparksOwed = 0;
+  let sparksCarry = 0;
+
   const net = connect({
-    status(v) {
-      status.classList.toggle('hidden', v);
-    },
     arrived() {
       audio.bell();
       renderArrivals();
+      if (clock - pulseAt > 1.2) pulseAt = clock;
     },
     boat() {
       namesDirty = true;
@@ -232,7 +236,24 @@ export async function startLed(root, world, connect, { token }) {
       camera.fov = FOV;
       camera.updateProjectionMatrix();
       camera.lookAt(look);
+      const ringAge = clock - pulseAt;
+      world.setPulse(14 + ringAge * 46, ringAge < 2.6 ? 1 - ringAge / 2.6 : 0);
     }
+
+    // --- The room's taps, seen: each becomes a spark that leaves a boat and flies to the lantern.
+    // A big room taps faster than sparks can be drawn, so the stream is capped rather than exact.
+    if (ph === 'energy' && !inOpening && now >= s.energyAt) {
+      if (s.taps > tapsSeen) sparksOwed = Math.min(200, sparksOwed + (s.taps - tapsSeen));
+      const out = Math.min(sparksOwed, 150 * dt);
+      sparksOwed -= out;
+      sparksCarry += out;
+      const n = sparksCarry | 0;
+      sparksCarry -= n;
+      if (n) world.emitFromFleet(n);
+    } else {
+      sparksOwed = 0;
+    }
+    tapsSeen = s.taps || 0;
 
     // --- The race: the leading boats carry their place and name over the mast, and in the
     // two-part race (which ends at the first arrival) a live board shows the top five.
@@ -267,6 +288,9 @@ export async function startLed(root, world, connect, { token }) {
     audio.setSoundOn(s.soundOn !== false);
 
     // --- Panels.
+    status.classList.toggle('hidden', net.connected);
+    const statusText = net.noAnswer ? 'The race server is not answering. It may be running old code.' : 'Connecting to the race server…';
+    if (status.textContent !== statusText) status.textContent = statusText;
     hud.classList.toggle('opening', inOpening);
     join.classList.toggle('hidden', inOpening || ph !== 'harbor');
     title.classList.toggle('hidden', inOpening || gathered);
@@ -332,6 +356,7 @@ export async function startLed(root, world, connect, { token }) {
     big.classList.toggle('small', bigText === 'Get ready…');
 
     energyBox.classList.toggle('hidden', !(ph === 'energy' && !inOpening));
+    energyBox.classList.toggle('hot', shownEnergy > 0.8);
     const pct = Math.round(shownEnergy * 100);
     energyPct.textContent = `${pct}%`;
     energyFill.style.height = `${shownEnergy * 100}%`;

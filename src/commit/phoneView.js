@@ -53,7 +53,7 @@ export function startPhone(root, connect) {
       </section>
       <ul class="mine"></ul>
       <p class="help">Need to talk to someone? Visit the <strong>Safeguarding Booth</strong> or find any Safeguarding focal person. They are here all day.</p>
-      <p class="pill warn offline" hidden>Reconnecting…</p>
+      <p class="pill warn offline" hidden>Connecting…</p>
     </main>
     <div class="glow" hidden>
       <div class="glow-text"></div>
@@ -70,6 +70,7 @@ export function startPhone(root, connect) {
   const glow = $('.glow');
   const glowText = $('.glow-text');
   const glowLink = $('.glow-link');
+  const offlinePill = $('.offline');
 
   input.placeholder = IDEAS[Math.floor(Math.random() * IDEAS.length)];
   let wake = null;
@@ -104,18 +105,56 @@ export function startPhone(root, connect) {
       mineList.append(li);
     }
     $('.sent-more').hidden = net.items.size >= MAX_PER_VISITOR;
+    noteApprovals();
+  }
+
+  /** Your light leaving the phone: one bright spark, and a few small ones after it. */
+  function sendLight() {
+    const spark = $('.spark');
+    spark.classList.remove('go');
+    void spark.offsetWidth;
+    spark.classList.add('go');
+    if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return;
+    for (let i = 0; i < 7; i++) {
+      const mote = document.createElement('i');
+      mote.className = 'mote';
+      sent.append(mote);
+      const dx = (Math.random() - 0.5) * 46;
+      const fly = mote.animate([
+        { transform: `translate(${dx * 0.2}vw, 0) scale(0.4)`, opacity: 0 },
+        { transform: `translate(${dx * 0.6}vw, -12vh) scale(1)`, opacity: 0.95, offset: 0.25 },
+        { transform: `translate(${dx}vw, ${-48 - Math.random() * 22}vh) scale(0.3)`, opacity: 0 },
+      ], { duration: 1100 + Math.random() * 700, delay: 120 + i * 70, easing: 'cubic-bezier(0.3, 0, 0.3, 1)', fill: 'backwards' });
+      fly.onfinish = fly.oncancel = () => mote.remove();
+    }
   }
 
   function showSent(item) {
     compose.hidden = true;
     sent.hidden = false;
-    const spark = $('.spark');
-    spark.classList.remove('go');
-    void spark.offsetWidth;
-    spark.classList.add('go');
+    sendLight();
+    status.classList.remove('pop');
     status.textContent = item.status === 'approved'
       ? 'Your light is on the wall. Look up!'
       : 'Our team is reading it. It will join the wall soon.';
+  }
+
+  // When the team approves a commitment you are still looking at, say so: that is the moment to look up.
+  const seenStatus = new Map();
+  function noteApprovals() {
+    let justApproved = false;
+    for (const item of net.items.values()) {
+      const before = seenStatus.get(item.id);
+      if (before && before !== 'approved' && item.status === 'approved') justApproved = true;
+      seenStatus.set(item.id, item.status);
+    }
+    if (!justApproved || sent.hidden) return;
+    status.textContent = 'Your light is on the wall. Look up!';
+    status.classList.remove('pop');
+    void status.offsetWidth;
+    status.classList.add('pop');
+    sendLight();
+    navigator.vibrate?.(60);
   }
 
   compose.addEventListener('submit', (ev) => {
@@ -152,9 +191,6 @@ export function startPhone(root, connect) {
   const net = connect({
     welcome: renderMine,
     mine: renderMine,
-    status(v) {
-      $('.offline').hidden = v;
-    },
     result(m) {
       const go = $('.compose-go');
       go.disabled = false;
@@ -175,6 +211,7 @@ export function startPhone(root, connect) {
   function frame() {
     requestAnimationFrame(frame);
     const s = net.state;
+    if (offlinePill.hidden !== net.connected) offlinePill.hidden = net.connected;
     const count = $('.phone-count');
     const label = s.open ? `${s.count} commitment${s.count === 1 ? '' : 's'} on the wall so far` : 'The wall has closed';
     if (count.textContent !== label) count.textContent = label;

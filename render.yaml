@@ -1,5 +1,6 @@
-# Optional Render Blueprint — point the existing gmc-presence service at this repo
-# and use Start Command: npm install && node server/presence.js
+# Render Blueprint. The existing gmc-presence service must be connected to THIS repo (branch main):
+# it was first created from the older youth-innovations-marketplace repo, whose server knows nothing
+# about the sailing opening or the commitment wall. Build: npm install. Start: node server/presence.js
 # (Free web services sleep; first WebSocket after idle can take ~30–60s.)
 
 services:

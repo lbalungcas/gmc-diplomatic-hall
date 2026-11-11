@@ -177,6 +177,36 @@ console.log('\nTwo-part opening (fake clock)');
   ok(h.hub.stats().mode === 'classic', 'but not once the race has started');
 }
 
+{
+  // The expected room, and then some: the lighting must take a big room as long as a small one.
+  const h = harness();
+  const led = h.client('led', 'led');
+  const crowd = Array.from({ length: 200 }, (_, i) => h.client(`c${i}`));
+  h.host(led, 'start');
+  h.advance(COUNTDOWN_MS);
+  h.sail(crowd[0], SAIL_SECONDS);
+  h.host(led, 'light');
+  ok(h.hub.stats().energyGoal === 200 * TAPS_EACH, '200 boats: every boat adds its share, with no ceiling', `${h.hub.stats().energyGoal}`);
+  h.advance(ENERGY_LEAD_MS);
+  h.tap(crowd, 4, 12);
+  ok(h.hub.stats().phase === 'energy', 'the room tapping steadily is still lighting it after 12 seconds', `${Math.round((h.hub.stats().taps / h.hub.stats().energyGoal) * 100)}%`);
+  h.tap(crowd, 4, 14);
+  ok(h.hub.stats().phase === 'open', 'and has lit it within half a minute');
+}
+{
+  let clock = 5_000_000;
+  const hub = createRaceHub({ token: 'secret', tapsEach: 20, now: () => clock, deliver: () => {} });
+  const led = {}, a = {};
+  hub.handle(led, { type: 'sail_join', view: 'led', id: 'led' });
+  for (let i = 0; i < 9; i++) hub.handle({ i }, { type: 'sail_join', view: 'player', id: `x${i}`, name: `Boat x${i}` });
+  hub.handle(a, { type: 'sail_join', view: 'player', id: 'a', name: 'Boat a' });
+  hub.handle(led, { type: 'sail_host', token: 'secret', action: 'start' });
+  clock += COUNTDOWN_MS;
+  for (let t = 0; t < SAIL_SECONDS * 4; t++) { clock += 250; hub.handle(a, { type: 'sail_progress', p: (t + 1) / (SAIL_SECONDS * 4) }); }
+  hub.handle(led, { type: 'sail_host', token: 'secret', action: 'light' });
+  ok(hub.stats().energyGoal === 10 * 20, 'the server can set how much tapping it takes', `${hub.stats().energyGoal}`);
+}
+
 console.log('\nClassic opening (fake clock)');
 {
   const h = harness({ threshold: 3, mode: 'classic' });
@@ -224,6 +254,7 @@ const server = spawn(process.execPath, ['server/presence.js'], {
     SUPABASE_SERVICE_ROLE_KEY: '', ENGAGEMENT_PATH: join(tmpdir(), `sail-test-${process.pid}.json`),
     PLEDGES_FILE: join(tmpdir(), `sail-test-pledges-${process.pid}.json`),
     COMMITMENTS_PATH: join(tmpdir(), `sail-test-commit-${process.pid}.json`),
+    HEARTBEAT_MS: '500', SAIL_TAPS_EACH: '',
   },
   stdio: 'ignore',
 });
@@ -315,7 +346,37 @@ const visitorWs = await new Promise((res) => {
 await sleep(200);
 const hall2 = await (await fetch(`http://127.0.0.1:${PORT}/health`)).json();
 ok(hall2.visitors === 1, 'the hall still works alongside the race');
+
+// The hall and the race share a server, not a room: someone walking the hall is seen by the hall only.
+const hallInbox = [];
+visitorWs.on('message', (raw) => hallInbox.push(JSON.parse(raw.toString())));
+const walker = await new Promise((res) => {
+  const ws = new WebSocket(`ws://127.0.0.1:${PORT}/presence`);
+  ws.on('open', () => {
+    ws.send(JSON.stringify({ type: 'join', id: 'hall-2', name: 'Walker' }));
+    res(ws);
+  });
+});
+for (let i = 0; i < 10; i++) {
+  walker.send(JSON.stringify({ type: 'move', x: 9 + i * 0.1, y: 1.45, z: -2.5, yaw: 0 }));
+  await sleep(30);
+}
+await sleep(200);
+ok(hallInbox.filter((m) => m.type === 'moved' && m.id === 'hall-2').length === 10, 'hall visitors see each other move');
+const strays = [led, ...phones].flatMap((c) => c.inbox.filter((m) => !String(m.type).startsWith('sail_')));
+ok(strays.length === 0, 'and none of it is sent to the phones in the race', strays.length ? `${strays.length} stray: ${strays[0].type}` : '');
+walker.close();
 visitorWs.close();
+
+// A phone that goes dark without closing (locked, or out of the Wi-Fi) stops counting as a boat online.
+phones[3].ws._socket.pause();
+await sleep(1800);
+const hall3 = await (await fetch(`http://127.0.0.1:${PORT}/health`)).json();
+ok(hall3.sail.boats === N - 1, 'a phone that went dark is dropped from the boats online', `${hall3.sail.boats} of ${N}`);
+ok(led.ws.readyState === WebSocket.OPEN && phones[4].ws.readyState === WebSocket.OPEN, 'while quiet but healthy connections are kept');
+const back = await connect('player', 'phone-3');
+await sleep(300);
+ok(back.last('sail_welcome')?.you?.name === 'Ship 3', 'and it gets its boat back when it reconnects');
 
 server.kill();
 console.log(failed ? `\n${failed} FAILED\n` : '\nAll passed\n');

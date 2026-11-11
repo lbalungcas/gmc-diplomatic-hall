@@ -139,7 +139,9 @@ export function startHost(root, connect) {
     w.textContent = s.phase === 'challenge'
       ? `${s.winnerName} won the race. Hype the room, then press Light the lighthouse.`
       : `Winner: ${s.winnerName}`;
-    const note = !net.connected
+    const note = !net.connected && net.noAnswer
+      ? 'The server is online but does not answer the race: it is running old code. On Render, the gmc-presence service must be connected to this project (gmc-diplomatic-hall, branch main) and redeployed.'
+      : !net.connected
       ? 'Waiting for the race server. A free Render service can take a minute to wake up.'
       : !together && s.phase === 'sailing' && s.boats > 0 && s.boats < s.threshold
         ? `Only ${s.boats} boats online and ${s.threshold} needed. Lower the number or use "Open now".`

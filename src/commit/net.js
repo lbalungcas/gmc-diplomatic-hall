@@ -34,9 +34,14 @@ export function createNet({ view, token = '', demo = 0, on = {} }) {
     on.state?.(net.state);
   }
 
+  // A server that accepts the connection but never welcomes us is running code from before the wall
+  // existed (or is still starting). That is not "connected": nothing we send would do anything.
+  let welcomed = () => {};
+
   function receive(m) {
     switch (m.type) {
       case 'commit_welcome':
+        welcomed();
         net.items = new Map(m.items.map((i) => [i.id, i]));
         applyState(m);
         on.welcome?.(m);
@@ -110,29 +115,41 @@ export function createNet({ view, token = '', demo = 0, on = {} }) {
     net.send = (m) => { if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify(m)); };
 
     function open() {
-      ws = new WebSocket(candidates[attempt++ % candidates.length]);
-      ws.onopen = () => {
-        delay = 1500;
-        attempt = 0;
+      const sock = new WebSocket(candidates[attempt++ % candidates.length]);
+      ws = sock;
+      let welcomeTimer = 0;
+      sock.onopen = () => {
         bestRtt = Infinity;
-        setConnected(true);
         net.send(joinMsg());
         const ping = () => net.send({ type: 'commit_ping', t: Date.now() });
         ping();
         setTimeout(ping, 400);
         setTimeout(ping, 1200);
         pinger = setInterval(ping, 5000);
+        welcomed = () => {
+          clearTimeout(welcomeTimer);
+          delay = 1500;
+          attempt = 0;
+          net.noAnswer = false;
+          setConnected(true);
+        };
+        welcomeTimer = setTimeout(() => {
+          net.noAnswer = true;
+          console.warn('[commit] the server accepted the connection but did not answer: it is not running the wall code');
+          sock.close();
+        }, 6000);
       };
-      ws.onmessage = (ev) => {
+      sock.onmessage = (ev) => {
         try { receive(JSON.parse(ev.data)); } catch (err) { console.warn('[commit]', err); }
       };
-      ws.onclose = () => {
+      sock.onclose = () => {
         clearInterval(pinger);
+        clearTimeout(welcomeTimer);
         setConnected(false);
         setTimeout(open, delay);
         delay = Math.min(10000, delay * 1.5);
       };
-      ws.onerror = () => {};
+      sock.onerror = () => {};
     }
     open();
     document.addEventListener('visibilitychange', () => {

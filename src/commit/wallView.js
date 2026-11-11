@@ -10,7 +10,7 @@
  * E plays it here anyway from the commitments this screen last saw, so the moment can always happen.
  */
 import * as THREE from 'three';
-import { createWorld, LH_Z } from '../sail/world.js';
+import { createWorld, LH_Z, LANTERN_Y } from '../sail/world.js';
 import { createAudio } from '../sail/audio.js';
 import { createFinale } from './finale.js';
 import { T, captions, closingLines } from './timeline.js';
@@ -19,6 +19,7 @@ const CACHE_KEY = 'gmc_commit_wall_cache';
 const COLORS = ['yellow', 'pink', 'blue', 'orange', 'white'];
 const SLOTS = 18;
 const ROTATE_MS = 3000;
+const LIGHT_MS = 760;       // how long a new commitment's light takes to fly from the lighthouse to its card
 const FLEET = Array.from({ length: 30 }, (_, n) => ({ n, p: 1, rank: 1 }));
 
 const el = (tag, cls, text) => {
@@ -64,6 +65,9 @@ export async function startWall(root, connect, { token }) {
   // The view looks straight at the lighthouse here, so the waves run across it the other way.
   world.scene.getObjectByName('Sea').material.uniforms.uWaveAxis.value = 0;
   world.setBoatScale(1.5);
+  // The moon sits low at the right here, clear of the cards and of where the bulb will form.
+  world.setMoon(0.498, 0.078, -0.863);
+  let clock = 0;
 
   // --- Chrome.
   const cardsBox = el('div', 'cards');
@@ -117,10 +121,51 @@ export async function startWall(root, connect, { token }) {
     return { node, item: null };
   });
 
+  // A commitment that has just come in is carried up from the lighthouse as a light, and its card
+  // opens where the light lands. `quiet` is for filling the wall on load: cards only, in a ripple.
+  let quiet = 0;
+  let finaleOn = false;
+  let kick = 0;            // the lantern flares for each new commitment
+  let pulseAt = -100;      // and a ring of light leaves the island
+  const lanternAt = new THREE.Vector3();
+  function sendLight(node) {
+    lanternAt.set(0, LANTERN_Y, LH_Z).project(camera);
+    const x0 = (lanternAt.x * 0.5 + 0.5) * window.innerWidth;
+    const y0 = (-lanternAt.y * 0.5 + 0.5) * window.innerHeight;
+    const r = node.getBoundingClientRect();
+    const x1 = r.left + r.width / 2;
+    const y1 = r.top + r.height / 2;
+    const xm = x0 + (x1 - x0) * 0.3 + (x1 < x0 ? 1 : -1) * window.innerWidth * 0.04;
+    const ym = y0 + (y1 - y0) * 0.55;
+    const light = el('i', 'comet');
+    hud.append(light);
+    const fly = light.animate([
+      { transform: `translate(${x0}px, ${y0}px) scale(0.4)`, opacity: 0 },
+      { transform: `translate(${xm}px, ${ym}px) scale(1.3)`, opacity: 1, offset: 0.4 },
+      { transform: `translate(${x1}px, ${y1}px) scale(0.9)`, opacity: 1 },
+    ], { duration: LIGHT_MS, easing: 'cubic-bezier(0.35, 0, 0.25, 1)' });
+    fly.onfinish = fly.oncancel = () => light.remove();
+  }
+
   function fillCard(slot, item, isNew) {
     slot.item = item;
     const { node } = slot;
-    node.className = `card ${COLORS[hash(item.id) % COLORS.length]}${isNew ? ' fresh' : ''}`;
+    const arriving = isNew && !quiet && !finaleOn && !document.hidden;
+    // No entrances once the finale has begun: the cards are held still for their words to lift off.
+    const entrance = finaleOn ? '' : isNew ? ' fresh' : ' swap';
+    if (entrance) {
+      // Hidden for a moment first, so the entrance plays again even if the classes are unchanged.
+      node.className = 'card hidden';
+      void node.offsetWidth;
+    }
+    node.style.setProperty('--wait', arriving ? `${LIGHT_MS - 90}ms` : quiet ? `${(quiet - 1) * 55}ms` : '0ms');
+    node.className = `card ${COLORS[hash(item.id) % COLORS.length]}${entrance}${arriving ? ' lit' : ''}`;
+    if (arriving) {
+      sendLight(node);
+      kick = 1.3;
+      pulseAt = clock;
+      world.emitFromFleet(14);
+    }
     node.replaceChildren(el('small', '', 'I commit to'));
     const body = el('p');
     item.text.split(/\s+/).forEach((word, i) => {
@@ -169,7 +214,12 @@ export async function startWall(root, connect, { token }) {
     arrivals.length = 0;
     queueIndex = 0;
     const all = [...net.items.values()].slice(-SLOTS);
-    all.forEach((item) => showNext.call(null, arrivals.push(item)));
+    all.forEach((item, i) => {
+      quiet = i + 1;
+      arrivals.push(item);
+      showNext();
+    });
+    quiet = 0;
   }
 
   function saveCache() {
@@ -196,6 +246,8 @@ export async function startWall(root, connect, { token }) {
   let localAt = 0;     // set when the finale has to run without the server
   const net = connect({
     welcome() {
+      // Joining while the finale is already under way: the cards go straight to their places.
+      finaleOn = !!net.state.finaleAt;
       rebuildCards();
       saveCache();
       localAt = 0;
@@ -273,9 +325,9 @@ export async function startWall(root, connect, { token }) {
   };
 
   let override = null;
-  let clock = 0;
   let prevMs = performance.now();
   let wasActive = false;
+  let countShown = null;
   function loop(nowMs) {
     requestAnimationFrame(loop);
     const dt = Math.min(0.05, (nowMs - prevMs) / 1000);
@@ -299,7 +351,21 @@ export async function startWall(root, connect, { token }) {
       rebuildCards();
     }
     wasActive = active;
-    if (active) finale.update(Math.max(t, 0), clock);
+    finaleOn = active;
+    if (active) {
+      finale.update(Math.max(t, 0), clock);
+      // When the bulb catches, light rolls out across the water.
+      const a = t - T.ignite;
+      world.setPulse(14 + a * 58, a >= 0 && a < 3.4 ? 1 - a / 3.4 : 0);
+      kick = 0;
+    } else {
+      // By day: the lantern flares for each new commitment, and a spark drifts up now and then.
+      kick *= Math.exp(-dt * 1.6);
+      world.setLantern(1 + kick);
+      const a = clock - pulseAt;
+      world.setPulse(14 + a * 46, a < 2.6 ? 1 - a / 2.6 : 0);
+      if (Math.random() < dt * 0.7) world.emitFromFleet(1);
+    }
 
     const n = net.items.size;
     if (demoButton) {
@@ -308,7 +374,17 @@ export async function startWall(root, connect, { token }) {
     }
     net.demoPaused = active;     // as on the real server, the wall closes for the finale
     // --- Panels.
-    countNum.textContent = localAt ? n : (s.count || n);
+    const total = localAt ? n : (s.count || n);
+    if (total !== countShown) {
+      // The number jumps when it grows.
+      if (countShown != null && total > countShown && !active) {
+        countNum.classList.remove('bump');
+        void countNum.offsetWidth;
+        countNum.classList.add('bump');
+      }
+      countShown = total;
+      countNum.textContent = total;
+    }
     countLabel.textContent = (s.count || n) === 1 ? 'commitment' : 'commitments';
     const gone = active && t > 0;
     hud.classList.toggle('finale', gone);

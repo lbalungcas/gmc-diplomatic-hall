@@ -16,6 +16,7 @@ bulb lights up the room: on the screen and on every phone.
 
 ## Before the event
 
+0. **Check the server knows the wall.** `https://gmc-presence.onrender.com/health` must show a `"commit"` section. If it doesn't, the `gmc-presence` service on Render is still deploying the older `youth-innovations-marketplace` repository: connect it to `gmc-diplomatic-hall` (branch `main`, start command `node server/presence.js`) and redeploy. The moderator panel says "Old server" when this is the problem.
 1. **Create the database table, or commitments can be lost.** Render wipes its disk on every restart. In Supabase, open the SQL Editor and run the "Live commitment wall" part of `server/schema.sql`, then restart the Render service. The moderator panel shows a red warning until this is working.
 2. **Agree who moderates.** Someone needs to be on the panel for the whole time the wall is open, and they need the Safeguarding Team's contact (see below). Have a second person ready for busy moments.
 3. **Rehearse, then clear.** `npm run commit:bots -- 60 wss://gmc-presence.onrender.com/presence` posts made-up commitments. Afterwards press **Clear everything** on the moderator panel, so rehearsal words can't end up in the real bulb.
