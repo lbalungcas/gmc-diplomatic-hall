@@ -32,6 +32,13 @@ from mathutils import Matrix, Vector
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 with open(os.path.join(ROOT, 'src', 'data', 'hallLayout.json'), encoding='utf-8') as _fh:
     LAYOUT = json.load(_fh)
+# Booth number -> backwall art (scripts/prepare_assets.py). Only the accent colour is used here:
+# the print itself is laid on at runtime by src/modules/boothGrid.js.
+try:
+    with open(os.path.join(ROOT, 'src', 'data', 'backwalls.json'), encoding='utf-8') as _fh:
+        BACKWALL_ART = json.load(_fh)
+except FileNotFoundError:
+    BACKWALL_ART = {}
 
 
 def srgb(r, g, b):
@@ -101,8 +108,12 @@ MATERIALS = {
                                detail=('booth_fabric_normal', 'booth_fabric_orm', 9.0), normal_strength=0.6),
     'Mat_Screen_Glow':    dict(color=srgb(120, 180, 255), roughness=0.3, metallic=0.0,
                                emit_color=srgb(120, 190, 255), emit_strength=2.0),
-    # Booth-style reference: blue backwall returns, black draped tables, black chairs, easels.
+    # Booths: navy spine partition, satin frames round the prints, black draped tables, black
+    # chairs, easels. Mat_Booth_Edge is the blue cap on the end totems.
     'Mat_Booth_Edge':     dict(color=srgb(0, 80, 160), roughness=0.5, metallic=0.05),
+    'Mat_Booth_Spine':    dict(color=srgb(27, 52, 97), roughness=0.82, metallic=0.0,
+                               detail=('booth_fabric_normal', 'booth_fabric_orm', 8.0), normal_strength=0.5),
+    'Mat_Booth_Frame':    dict(color=srgb(226, 229, 234), roughness=0.34, metallic=0.75),
     'Mat_Table_Cloth':    dict(color=srgb(18, 18, 20), roughness=0.92, metallic=0.0,
                                detail=('booth_fabric_normal', 'booth_fabric_orm', 8.0), normal_strength=0.6),
     'Mat_Chair_Black':    dict(color=srgb(22, 22, 25), roughness=0.55, metallic=0.1),
@@ -125,6 +136,19 @@ MATERIALS = {
 # One material per booth-row colour zone, from the layout.
 for _row, _zone in LAYOUT['grid']['zones'].items():
     MATERIALS[f'Mat_Zone_{_row}'] = dict(color=hex_lin(_zone['color']), roughness=0.55, metallic=0.0)
+
+# One cloth material per accent colour found on the booth backwalls (the table runners).
+for _accent in sorted({_a['accent'] for _a in BACKWALL_ART.values()}):
+    MATERIALS[f'Mat_Accent_{_accent.lstrip("#").upper()}'] = dict(
+        color=hex_lin(_accent), roughness=0.85, metallic=0.0,
+        detail=('booth_fabric_normal', 'booth_fabric_orm', 8.0), normal_strength=0.6)
+
+
+def accent_material(booth_id, row):
+    """The booth's accent cloth; a booth without backwall art falls back to its row colour."""
+    art = BACKWALL_ART.get(str(booth_id))
+    return f'Mat_Accent_{art["accent"].lstrip("#").upper()}' if art else f'Mat_Zone_{row}'
+
 
 STAGE_WOOD = 'Mat_Stage_Wood'   # existing textured material, reused for the platform deck
 
@@ -152,10 +176,19 @@ def frame(x, z3, angle_deg, y_up=0.0):
 # is a handful of objects rather than hundreds of tiny ones.
 # =============================================================================================
 class Builder:
-    def __init__(self, name):
+    def __init__(self, name, tag_bevels=False):
+        """`tag_bevels`: give the faces a bevel creates the material of the box they round.
+
+        Blender's bevel leaves its new faces on material index 0, so without this they take
+        whatever material the builder used first. The booths ask for the fix. Everything else
+        keeps the old behaviour for now, because parts of the venue have looked that way since
+        they were approved (the audience chairs' gold edging is exactly this: their cushions'
+        bevels landing on the brass of their legs) - switch those over one at a time, on purpose.
+        """
         self.name = name
         self.bm = bmesh.new()
         self.mats = []
+        self.tag_bevels = tag_bevels
 
     def _slot(self, mat_name):
         if mat_name not in self.mats:
@@ -179,13 +212,15 @@ class Builder:
         mm = m @ Matrix.Translation(centre) @ Matrix.Diagonal((size.x, size.y, size.z, 1.0))
         res = bmesh.ops.create_cube(self.bm, size=1.0, matrix=mm)
         verts = res['verts']
-        # Tag first: bevel replaces the corner verts, and its new faces take the material of
-        # the faces they were cut from.
         self._tag(verts, mat_name)
         if bevel > 0:
             edges = list({e for v in verts for e in v.link_edges})
-            bmesh.ops.bevel(self.bm, geom=edges + list(verts), offset=bevel, segments=segments,
-                            affect='EDGES', profile=0.5, clamp_overlap=True)
+            res = bmesh.ops.bevel(self.bm, geom=edges + list(verts), offset=bevel, segments=segments,
+                                  affect='EDGES', profile=0.5, clamp_overlap=True)
+            if self.tag_bevels:
+                idx = self._slot(mat_name)
+                for f in res['faces']:
+                    f.material_index = idx
 
     def curved_slab(self, mat_name, width, height, thick, radius, m=Matrix(), cols=10):
         """A slab bent round a vertical axis `radius` in front of it, so it wraps toward the
@@ -230,6 +265,23 @@ class Builder:
         rot = d.to_track_quat('Z', 'Y').to_matrix().to_4x4()
         # Rods always meet something at both ends, so their caps are never seen.
         self.cyl(mat_name, r, r, d.length, Matrix.Translation(a) @ rot, segments, caps=False)
+
+    def cone(self, mat_name, a, b, r1, r2, segments=10):
+        """Capped, tapered cylinder between two world points (a lamp head, a lens)."""
+        a, b = Vector(a), Vector(b)
+        d = b - a
+        rot = d.to_track_quat('Z', 'Y').to_matrix().to_4x4()
+        self.cyl(mat_name, r1, r2, d.length, Matrix.Translation(a) @ rot, segments, caps=True)
+
+    def loft(self, mat_name, rings):
+        """Skin between closed loops of equal length, ring to ring (a cloth falling in folds)."""
+        vr = [[self.bm.verts.new(p) for p in ring] for ring in rings]
+        n = len(vr[0])
+        idx = self._slot(mat_name)
+        for lo, hi in zip(vr, vr[1:]):
+            for i in range(n):
+                j = (i + 1) % n
+                self.bm.faces.new((lo[i], lo[j], hi[j], hi[i])).material_index = idx
 
     def torus(self, mat_name, major, minor, m=Matrix(), seg=16, ring=6):
         verts = []
@@ -824,13 +876,14 @@ def build_lobby(say):
 # =============================================================================================
 # 4. Booths — the booth-style reference
 # =============================================================================================
-def plant(b, m, scale=1.0, seed=0):
-    """Planter with a fan of curved blade leaves."""
+def plant(b, m, scale=1.0, seed=0, pot='Mat_Planter', soil='Mat_Soil', leaf_mats=('Mat_Plant_Leaf', 'Mat_Plant_Leaf_Lt')):
+    """Planter with a fan of curved blade leaves. The materials can be swapped for ones the
+    surrounding mesh already uses, so a small plant does not cost extra draw calls."""
     import random
     rnd = random.Random(seed)
     r = 0.14 * scale
-    b.cyl('Mat_Planter', r * 0.8, r, 0.32 * scale, m, 16)
-    b.cyl('Mat_Soil', r * 0.94, r * 0.94, 0.005, m @ Matrix.Translation((0, 0, 0.31 * scale)), 16)
+    b.cyl(pot, r * 0.8, r, 0.32 * scale, m, 16)
+    b.cyl(soil, r * 0.94, r * 0.94, 0.005, m @ Matrix.Translation((0, 0, 0.31 * scale)), 16)
     base_z = 0.3 * scale
     leaves = 16
     for i in range(leaves):
@@ -851,14 +904,14 @@ def plant(b, m, scale=1.0, seed=0):
             w = width * math.sin(math.pi * min(1.0, t * 1.15 + 0.08))
             left.append(m @ (c + side * w))
             right.append(m @ (c - side * w))
-        b.quad_strip('Mat_Plant_Leaf' if i % 3 else 'Mat_Plant_Leaf_Lt', left, right)
+        b.quad_strip(leaf_mats[0] if i % 3 else leaf_mats[1], left, right)
 
 
 def chair_black(b, m):
     """Plain black conference chair; the sitter faces local -Y."""
-    b.box('Mat_Chair_Black', (-0.22, -0.22, 0.42), (0.22, 0.2, 0.47), m, bevel=0.015, segments=2)
+    b.box('Mat_Chair_Black', (-0.22, -0.22, 0.42), (0.22, 0.2, 0.47), m, bevel=0.015, segments=1)
     back = m @ Matrix.Translation((0, 0.19, 0.47)) @ Matrix.Rotation(math.radians(-8), 4, 'X')
-    b.box('Mat_Chair_Black', (-0.21, -0.02, 0.02), (0.21, 0.02, 0.42), back, bevel=0.012, segments=2)
+    b.box('Mat_Chair_Black', (-0.21, -0.02, 0.02), (0.21, 0.02, 0.42), back, bevel=0.012, segments=1)
     for sx in (-0.19, 0.19):
         for sy in (-0.19, 0.17):
             b.rod('Mat_Chair_Black', m @ Vector((sx, sy, 0.0)), m @ Vector((sx, sy, 0.42)), 0.012, 6)
@@ -888,27 +941,154 @@ def easel(b, m, board_w, board_h, bottom, tilt):
     b.box('Mat_Foam', (-board_w / 2, 0.0, 0.0), (board_w / 2, 0.006, board_h), ledge)
 
 
-def build_grid(say):
-    """Two islands of open booths after the client's booth-style reference.
+def draped_table(b, m, width, depth, height, floor=0.03):
+    """Black cloth to the floor: flat over the top, then falling in soft folds that gather at the
+    corners. Local frame: centred on the table, -Y toward the visitor, Z up.
 
-    Each booth: a free-standing printed backwall with blue returns (backed onto its neighbour
-    across the spine), a black draped table, two black chairs for the exhibitors, and an easel
-    with the team poster on the visitor's left. The runtime prints the backwall and the poster.
+    The outline is walked once round the table (sides and rounded corners); each point is pushed
+    out along its normal by a little flare plus a wave along the hem, strongest near the corners,
+    growing from nothing under the top to its full depth at the floor.
+    """
+    hw, hd, r = width / 2, depth / 2, 0.03
+    outline = []                                     # (x, y, nx, ny, distance to the nearest corner)
+
+    def side(x0, y0, x1, y1, nx, ny):
+        length = math.hypot(x1 - x0, y1 - y0)
+        k = max(2, round(length / 0.11))
+        for i in range(k):
+            t = i / k
+            outline.append((x0 + (x1 - x0) * t, y0 + (y1 - y0) * t, nx, ny, min(t, 1 - t) * length))
+
+    def corner(cx, cy, a0):
+        for i in range(3):
+            a = a0 + math.pi / 2 * i / 3
+            outline.append((cx + math.cos(a) * r, cy + math.sin(a) * r, math.cos(a), math.sin(a), 0.0))
+
+    side(-hw + r, -hd, hw - r, -hd, 0, -1)
+    corner(hw - r, -hd + r, -math.pi / 2)
+    side(hw, -hd + r, hw, hd - r, 1, 0)
+    corner(hw - r, hd - r, 0.0)
+    side(hw - r, hd, -hw + r, hd, 0, 1)
+    corner(-hw + r, hd - r, math.pi / 2)
+    side(-hw, hd - r, -hw, -hd + r, -1, 0)
+    corner(-hw + r, -hd + r, math.pi)
+
+    # Arc length along the outline, and a fold wavelength that closes exactly round the table.
+    s_at, total = [], 0.0
+    for i, pt in enumerate(outline):
+        s_at.append(total)
+        nxt = outline[(i + 1) % len(outline)]
+        total += math.hypot(nxt[0] - pt[0], nxt[1] - pt[1])
+    wave = total / round(total / 0.36)
+
+    rings = []
+    for t, z in ((0.0, height - 0.03), (0.5, (height + floor) / 2), (1.0, floor + 0.008)):
+        ring = []
+        for (x, y, nx, ny, near), sl in zip(outline, s_at):
+            fold = (0.004 + 0.02 * math.exp(-near / 0.16)) * math.cos(2 * math.pi * sl / wave)
+            off = 0.02 * t + fold * t ** 1.3
+            ring.append(m @ Vector((x + nx * off, y + ny * off, z)))
+        rings.append(ring)
+    b.loft('Mat_Table_Cloth', rings)
+    b.box('Mat_Table_Cloth', (-hw - 0.015, -hd - 0.015, height - 0.03), (hw + 0.015, hd + 0.015, height), m,
+          bevel=0.012, segments=1)
+
+
+def table_runner(b, m, accent, tb):
+    """Runner in the team's accent colour: over the middle of the table and down its front, where
+    the runtime prints the booth number on it. Same local frame as the table."""
+    ru = tb['runner']
+    hd, h, rw, th = tb['depth'] / 2, tb['height'], ru['width'] / 2, ru['thickness']
+    front = -hd - ru['proud']
+    b.box(accent, (-rw, front - th, h + 0.001), (rw, hd + 0.022, h + th), m)           # over the top
+    b.box(accent, (-rw, front - th, ru['bottom']), (rw, front, h + th), m)             # front drop
+    b.box(accent, (-rw, hd + 0.022, h - 0.2), (rw, hd + 0.022 + th, h + th), m)        # short back drop
+
+
+def table_dressing(b, m, accent, height, booth_id):
+    """What an exhibitor leaves on the table: two stacks of handouts on the visitor's left of the
+    runner, and on the right a plant (odd booths) or a leaflet stand (even booths)."""
+    def at(x, y, deg):
+        return m @ Matrix.Translation((x, y, height)) @ Matrix.Rotation(math.radians(deg), 4, 'Z')
+
+    b.box('Mat_Foam', (-0.105, -0.148, 0.0), (0.105, 0.148, 0.034), at(-0.7, 0.02, -7))
+    b.box('Mat_Foam', (-0.074, -0.105, 0.0), (0.074, 0.105, 0.02), at(-0.44, -0.08, 9))
+    b.box(accent, (-0.074, -0.105, 0.02), (0.074, 0.105, 0.0225), at(-0.44, -0.08, 9))
+    if booth_id % 2:
+        plant(b, at(0.64, 0.06, 0), scale=0.45, seed=booth_id, pot='Mat_Foam', soil='Mat_Chair_Black',
+              leaf_mats=('Mat_Plant_Leaf', 'Mat_Plant_Leaf'))
+    else:
+        stand = at(0.6, -0.04, -6)
+        b.box('Mat_Chair_Black', (-0.125, -0.06, 0.0), (0.125, 0.07, 0.012), stand)
+        lean = stand @ Matrix.Translation((0, -0.01, 0.012)) @ Matrix.Rotation(-math.radians(16), 4, 'X')
+        b.box('Mat_Foam', (-0.11, 0.0, 0.0), (0.11, 0.006, 0.3), lean)
+        b.box(accent, (-0.11, -0.002, 0.205), (0.11, 0.0, 0.3), lean)
+
+
+def arm_spotlight(b, m, base, reach, aim):
+    """Clip-on arm light on the top of a backwall frame: up, out over the aisle side, with the
+    head turned back at the print. Local frame: -Y toward the aisle."""
+    base, aim = Vector(base), Vector(aim)
+    elbow = base + Vector((0, -0.02, 0.09))
+    tip = elbow + Vector((0, -reach, 0.05))
+    b.rod('Mat_Chair_Black', m @ base, m @ elbow, 0.008, 6)
+    b.rod('Mat_Chair_Black', m @ elbow, m @ tip, 0.008, 6)
+    d = (aim - tip).normalized()
+    back, mouth = tip - d * 0.03, tip + d * 0.085
+    b.cone('Mat_Chair_Black', m @ back, m @ mouth, 0.026, 0.042, 10)
+    b.cone('Mat_Lamp_Glow', m @ (mouth - d * 0.004), m @ (mouth + d * 0.0025), 0.035, 0.035, 10)
+
+
+def booth_backwall(b, m, G):
+    """One booth's backwall hardware, standing against the spine partition: the satin frame the
+    print is stretched in (on two flat feet), the booth-number fascia on top of it, and two arm
+    spotlights. Local frame: x across the booth from its centre, -Y toward the aisle, Z up.
+
+    The runtime lays the print on the frame's front face and the number on the fascia, from the
+    same numbers in hallLayout.json (`grid.graphic`, `grid.fascia`)."""
+    S = G['booth']
+    fr = G['backwall']['frame']
+    fa = G['fascia']
+    x0, x1 = fr['u0'] - S / 2, fr['u1'] - S / 2
+    top = fr['height']
+    b.box('Mat_Booth_Frame', (x0, -fr['d1'], 0.03), (x1, -fr['d0'], top), m, bevel=0.006, segments=1)
+    for sx in (x0 + 0.14, x1 - 0.14):
+        b.box('Mat_Booth_Frame', (sx - 0.03, -0.44, 0.03), (sx + 0.03, -fr['d1'], 0.044), m)
+    # Fascia: a navy plate standing on the frame; its face is printed by the runtime.
+    b.box('Mat_Sign_Frame', (-fa['width'] / 2 - 0.012, -fa['d'], top), (fa['width'] / 2 + 0.012, -fa['d'] + 0.03,
+                                                                       top + fa['height'] + 0.024), m, bevel=0.006, segments=1)
+    for ox in G['lamps']['offsets']:
+        arm_spotlight(b, m, (ox, -fr['d1'] + 0.03, top), G['lamps']['reach'], (ox * 0.55, -fr['d1'], 1.7))
+
+
+def build_grid(say):
+    """Two islands of open booths, dressed after the client's booth art.
+
+    Each island has a navy spine partition with a satin cap rail. Each booth stands against it: a
+    framed 2.0 x 2.44 m backwall with two arm spotlights and a booth-number fascia, a black draped
+    table with a runner in the team's accent colour and a few handouts, two black chairs for the
+    exhibitors, and an easel with the team poster on the visitor's left. The runtime prints the
+    backwall, the fascia, the runner's number and the poster.
     """
     G = LAYOUT['grid']
     S, n = G['booth'], G['cols']
     X0 = G['x0']
     X1 = X0 + n * S
     bw = G['backwall']
+    sp = bw['spine']
     tb = G['table']
     ch = G['chairs']
     ea = G['easel']
     total = 0
 
     for k, island in enumerate(G['islands']):
-        b = Builder(f'Booth_Grid_{k + 1}')
+        b = Builder(f'Booth_Grid_{k + 1}', tag_bevels=True)
         sz = island['spineZ']
         H = bw['height']
+
+        # Spine partition both rows back onto, with a cap rail.
+        wbox(b, 'Mat_Booth_Spine', X0, X1, sz - sp['d'], sz + sp['d'], 0.03, sp['height'])
+        wbox(b, 'Mat_Booth_Frame', X0, X1, sz - sp['d'] - 0.008, sz + sp['d'] + 0.008, sp['height'], sp['height'] + 0.03)
 
         # Taller end totems carry the row signs.
         for xe, sgn in ((X0, -1), (X1, 1)):
@@ -919,46 +1099,41 @@ def build_grid(say):
             f = row['facing']
             zone = f'Mat_Zone_{row["row"]}'
             za, zb = sz, sz + f * S
+            turn_row = Matrix.Rotation(0.0 if f > 0 else math.pi, 4, 'Z')    # local -Y = the aisle
 
             wbox(b, 'Mat_Booth_Floor', X0, X1, za, zb, 0.0, 0.03)
             wbox(b, zone, X0, X1, zb - f * 0.07, zb, 0.0, 0.034)
             for i in range(1, n):
                 x = X0 + i * S
-                wbox(b, 'Mat_Booth_Line', x - 0.012, x + 0.012, za + f * bw['d1'], zb - f * 0.07, 0.0, 0.032)
+                wbox(b, 'Mat_Booth_Line', x - 0.012, x + 0.012, za + f * sp['d'], zb - f * 0.07, 0.0, 0.032)
 
-            for col in range(n):
-                xw = X0 + col * S
-                xc = xw + S / 2
-                # Backwall box: blue shell, the print goes on its front face.
-                wbox(b, 'Mat_Booth_Edge', xw + bw['u0'], xw + bw['u1'], sz + f * bw['d0'], sz + f * bw['d1'], 0.03, H)
+            for col, booth_id in enumerate(row['booths']):
+                xc = X0 + col * S + S / 2
+                accent = accent_material(booth_id, row['row'])
 
-                # Black draped table: cloth body to the floor, a slightly proud top.
-                d0, d1 = tb['d'] - tb['depth'] / 2, tb['d'] + tb['depth'] / 2
-                wbox(b, 'Mat_Table_Cloth', xc - tb['width'] / 2, xc + tb['width'] / 2, sz + f * d0, sz + f * d1,
-                     0.03, tb['height'] - 0.02)
-                wbox(b, 'Mat_Table_Cloth', xc - tb['width'] / 2 - 0.015, xc + tb['width'] / 2 + 0.015,
-                     sz + f * (d0 - 0.015), sz + f * (d1 + 0.015), tb['height'] - 0.025, tb['height'], bevel=0.01, segments=1)
+                booth_backwall(b, Matrix.Translation(B(xc, sz, 0.0)) @ turn_row, G)
 
-                # Two chairs between table and backwall, facing the aisle (local -Y = aisle).
+                tm = Matrix.Translation(B(xc, sz + f * tb['d'], 0.0)) @ turn_row
+                draped_table(b, tm, tb['width'], tb['depth'], tb['height'])
+                table_runner(b, tm, accent, tb)
+                table_dressing(b, tm, accent, tb['height'], booth_id)
+
+                # Two chairs between table and backwall, facing the aisle.
                 for off in ch['offsets']:
-                    m = Matrix.Translation(B(xc + off, sz + f * ch['d'], 0.03)) @ \
-                        Matrix.Rotation(0.0 if f > 0 else math.pi, 4, 'Z')
-                    chair_black(b, m)
+                    chair_black(b, Matrix.Translation(B(xc + off, sz + f * ch['d'], 0.03)) @ turn_row)
 
                 # Easel on the visitor's left (viewer faces -f, so their left is -f in x),
-                # turned slightly toward the middle of the aisle.
+                # turned slightly toward the middle of the aisle. A positive turn swings the
+                # board's face toward the booth's centre line for both facings.
                 ex = xc - f * ea['side']
-                # A positive turn swings the board's face toward the booth's centre line for
-                # both facings (the base rotation already flips with the row).
-                turn = math.radians(ea['turn'])
-                m = Matrix.Translation(B(ex, sz + f * ea['d'], 0.03)) @ \
-                    Matrix.Rotation((0.0 if f > 0 else math.pi) + turn, 4, 'Z')
+                m = Matrix.Translation(B(ex, sz + f * ea['d'], 0.03)) @ turn_row @ \
+                    Matrix.Rotation(math.radians(ea['turn']), 4, 'Z')
                 easel(b, m, ea['boardW'], ea['boardH'], ea['bottom'], ea['tilt'])
                 total += 1
 
         b.to_object()
-    say(f'  {total} booths in {len(G["islands"])} islands ({S} m square): blue-edged backwalls, '
-        f'black draped tables, 2 chairs each, poster easels')
+    say(f'  {total} booths in {len(G["islands"])} islands ({S} m square): framed backwalls on a navy spine, '
+        f'arm spotlights, number fascias, draped tables with accent runners, 2 chairs each, poster easels')
 
 
 # =============================================================================================

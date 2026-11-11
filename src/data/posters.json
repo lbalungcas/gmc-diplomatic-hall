@@ -76,6 +76,13 @@
     "source": "YIM Booth Signages/6.png",
     "confirmed": true
   },
+  "12": {
+    "lg": "/booths/posters/12.webp",
+    "sm": "/booths/posters/12-sm.webp",
+    "aspect": 0.7069,
+    "source": "YIM Booth Signages/24.png",
+    "confirmed": true
+  },
   "13": {
     "lg": "/booths/posters/13.webp",
     "sm": "/booths/posters/13-sm.webp",

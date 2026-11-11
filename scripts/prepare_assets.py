@@ -4,20 +4,28 @@ Turns the client's design files into web-ready assets for the 3D venue.
 Run:  python scripts/prepare_assets.py
 
 Sources (kept out of git — large print-resolution files):
-  YIM Booth Signages/<n>.png       booth posters for the easels (numbered by the designer, not by booth)
+  venue designs/booth art/         the client's booth art drop, in the client's own folder names:
+    Backwall Booth Design/<innovation>.png   the 24 backwall prints (2.0 x 2.44 m), named by innovation
+    YIM Booth Signages/<n>.png               booth posters for the easels (numbered by the designer, not by booth)
+    Organizers booth/<ORG>/...               backwall, table and standing-banner art
   venue designs/event arc.png      the entrance arch, drawn on a flat light-blue background
   venue designs/stage design.png   stage render: LED wall, two logo banners, set furniture
   venue designs/YIM Venue Signages/<1-5>.png   area standees
-  venue designs/organizer booths/<ORG>/...     backwall, table and standing-banner art
+  (`YIM Booth Signages/` at the repo root and `venue designs/organizer booths/` are the previous
+  drop, superseded by `booth art/` and no longer read.)
 
 Outputs:
+  public/booths/backwalls/<booth>.webp    the backwall print at the client's resolution
+  public/booths/backwalls/<booth>-sm.webp 400 px wide, what a backwall shows from across the hall
+  src/data/backwalls.json                 booth number -> backwall files and the print's accent colour
   public/booths/posters/<booth>.webp      1240 px wide, for close-up reading and the booth pop-up
   public/booths/posters/<booth>-sm.webp   384 px wide, what an easel shows from across the hall
   public/venue/signs/<id>.webp            area standees
   public/venue/arch.webp                  the arch with its background keyed out (alpha)
   public/venue/stage/led.webp             LED wall content, rebuilt where furniture covered it
   public/venue/stage/banner.webp          the logo banner either side of the LED
-  public/venue/organizers/<org>-{backwall,table,banner}.webp
+  public/venue/organizers/<org>-{backwall,table,banner}[-sm].webp   (-sm for tablets and kiosks)
+  src/data/organizerArt.json              organizer id -> art files and their aspect ratios
   public/venue/logos.webp                 organizer + supporter logo strip, for printed placeholders
   src/data/posters.json                   booth number -> poster files (read by src/main.js)
 """
@@ -30,20 +38,53 @@ import numpy as np
 from PIL import Image
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-SIGNAGES = os.path.join(ROOT, 'YIM Booth Signages')
 DESIGNS = os.path.join(ROOT, 'venue designs')
+BOOTH_ART = os.path.join(DESIGNS, 'booth art')
+SIGNAGES = os.path.join(BOOTH_ART, 'YIM Booth Signages')
+BACKWALLS = os.path.join(BOOTH_ART, 'Backwall Booth Design')
+ORGANIZERS = os.path.join(BOOTH_ART, 'Organizers booth')
 PUB = os.path.join(ROOT, 'public')
 
 # Designer file number -> official booth number (Team List sheet). Matched by each poster's title
 # and its "supported by" logos. Two are matched by country because the poster titles differ from
 # the sheet's innovation names (flagged so they can be confirmed): 4 "Time to Play" (TdH NL, Kenya)
 # -> 22 Simba, and 19 "GOOD for a Sustainable Future" (India) -> 8 Mica to Microphones.
-# Booth 12 (SAFE Steps) has no poster yet.
 POSTER_TO_BOOTH = {
     1: 18, 2: 7, 3: 21, 4: 22, 5: 1, 6: 11, 7: 3, 8: 5, 9: 2, 10: 19, 11: 14, 12: 10,
-    13: 23, 14: 6, 15: 15, 16: 24, 17: 9, 18: 4, 19: 8, 20: 20, 21: 17, 22: 16, 23: 13,
+    13: 23, 14: 6, 15: 15, 16: 24, 17: 9, 18: 4, 19: 8, 20: 20, 21: 17, 22: 16, 23: 13, 24: 12,
 }
 UNCONFIRMED = {4, 19}
+
+# Backwall print (file name without .png) -> official booth number. Each backwall carries the
+# same title, theme and logos as that booth's poster, so this is the poster mapping by name; the
+# two by-country matches above apply here too ("Time to Play" -> 22, "GOOD ..." -> 8).
+BACKWALL_TO_BOOTH = {
+    'D-KAWACH': 1,
+    'Voice 4 Change': 2,
+    'Steps and Respond': 3,
+    'Screensafe Stories': 4,
+    'Her Life, Her Choice': 5,
+    'Eco-scouts': 6,
+    'Secure Shield': 7,
+    'GOOD for Sustainable Future': 8,
+    'Gain Line': 9,
+    'Safe Scan': 10,
+    'Plan International': 11,
+    'Safe Steps': 12,
+    'Zero Harm Tracker': 13,
+    'PAUSE': 14,
+    'Balmanch': 15,
+    'Safe Together': 16,
+    'Hands Off, Hearts On': 17,
+    'Red Ant Movement': 18,
+    'MAPPING CHILD LABOUR RISKS IN THE E-WASTE WORLD IN EASTERN SAMAR, PHILIPPINES': 19,
+    'Positive Discipline Champions': 20,
+    'Empower Chatbot': 21,
+    'Time to Play': 22,
+    'Child-led Research': 23,
+    'Youth-Led Solutions to End Violence Against Children_ From Ideas to Impact': 24,
+}
+BACKWALL_UNCONFIRMED = {'Time to Play', 'GOOD for Sustainable Future'}
 
 SIGNS = {1: 'registration', 2: 'dealCorner', 3: 'mediaHub', 4: 'safeguarding', 5: 'innovationMarketplace'}
 
@@ -79,6 +120,41 @@ def posters():
     missing = sorted(set(range(1, 25)) - {int(k) for k in manifest})
     print(f'  posters: {len(manifest)} booths, missing {missing}, unconfirmed booths '
           f'{sorted(POSTER_TO_BOOTH[n] for n in UNCONFIRMED)}')
+
+
+def backwalls():
+    """The 24 backwall prints. Each is 787 x 960 px for a 2.0 x 2.44 m wall, which is all the
+    client supplied, so the large version is kept at that size; the small one is what every
+    booth shows until a visitor walks up (src/modules/boothGrid.js swaps them). The accent is the
+    colour of the band across the foot of the print: the team's theme colour, which the booth's
+    table runner and number sign pick up."""
+    out_dir = os.path.join(PUB, 'booths', 'backwalls')
+    found = {os.path.splitext(f)[0] for f in os.listdir(BACKWALLS) if f.lower().endswith('.png')}
+    unknown = sorted(found - set(BACKWALL_TO_BOOTH))
+    if unknown:
+        raise SystemExit(f'backwalls: no booth number for {unknown} (add them to BACKWALL_TO_BOOTH)')
+    manifest = {}
+    for name, booth in BACKWALL_TO_BOOTH.items():
+        path = os.path.join(BACKWALLS, name + '.png')
+        if not os.path.exists(path):
+            continue
+        im = Image.open(path).convert('RGB')
+        a = np.asarray(im)
+        band = a[int(im.height * 0.90):int(im.height * 0.98)].reshape(-1, 3)
+        accent = '#%02X%02X%02X' % tuple(int(c) for c in np.median(band, axis=0))
+        lg = os.path.join(out_dir, f'{booth}.webp')
+        sm = os.path.join(out_dir, f'{booth}-sm.webp')
+        save_webp(im, lg, quality=90)
+        save_webp(im, sm, width=400, quality=86)
+        manifest[str(booth)] = {'lg': rel(lg), 'sm': rel(sm), 'aspect': round(im.width / im.height, 4),
+                                'accent': accent, 'source': f'Backwall Booth Design/{name}.png',
+                                'confirmed': name not in BACKWALL_UNCONFIRMED}
+    with open(os.path.join(ROOT, 'src', 'data', 'backwalls.json'), 'w', encoding='utf-8', newline='\n') as fh:
+        json.dump(dict(sorted(manifest.items(), key=lambda kv: int(kv[0]))), fh, indent=2)
+        fh.write('\n')
+    missing = sorted(set(range(1, 25)) - {int(k) for k in manifest})
+    accents = sorted({m['accent'] for m in manifest.values()})
+    print(f'  backwalls: {len(manifest)} booths, missing {missing}, accents {accents}')
 
 
 def signs():
@@ -165,17 +241,29 @@ def stage():
 
 
 def organizers():
+    """Organizer stand art, in two sizes: the large one for desktop, `-sm` for tablets and kiosks.
+    The manifest records each print's aspect ratio so src/modules/organizers.js can size the
+    stand before the images have loaded."""
     files = {
         'vewu': {'backwall': 'VEWU/Backwall.png', 'table': 'VEWU/Booth Table.png', 'banner': 'VEWU/Standing Banner.png'},
         'tdh': {'backwall': 'TdH/backwall.png', 'table': 'TdH/booth table.png', 'banner': 'TdH/standing banner.png'},
-        'knh': {'backwall': 'KNH/backwall.png', 'banner': 'KNH/standing banner.png'},
+        'knh': {'backwall': 'KNH/backwall.png', 'table': 'KNH/table booth.png', 'banner': 'KNH/standee.png'},
     }
+    widths = {'backwall': (2048, 1024), 'table': (1024, 512), 'banner': (768, 512)}
+    manifest = {}
     for org, parts in files.items():
+        manifest[org] = {}
         for part, f in parts.items():
-            im = Image.open(os.path.join(DESIGNS, 'organizer booths', f)).convert('RGB')
-            out = os.path.join(PUB, 'venue', 'organizers', f'{org}-{part}.webp')
-            size = save_webp(im, out, width={'backwall': 2048, 'table': 1024, 'banner': 768}[part], quality=88)
+            im = Image.open(os.path.join(ORGANIZERS, f)).convert('RGB')
+            lg = os.path.join(PUB, 'venue', 'organizers', f'{org}-{part}.webp')
+            sm = os.path.join(PUB, 'venue', 'organizers', f'{org}-{part}-sm.webp')
+            size = save_webp(im, lg, width=widths[part][0], quality=88)
+            save_webp(im, sm, width=widths[part][1], quality=86)
+            manifest[org][part] = {'lg': rel(lg), 'sm': rel(sm), 'aspect': round(im.width / im.height, 4)}
             print(f'  {org} {part}: {size}')
+    with open(os.path.join(ROOT, 'src', 'data', 'organizerArt.json'), 'w', encoding='utf-8', newline='\n') as fh:
+        json.dump(manifest, fh, indent=2)
+        fh.write('\n')
 
 
 def sail_logo():
@@ -260,6 +348,7 @@ if __name__ == '__main__':
         raise SystemExit(0)
     print('Preparing client art:')
     posters()
+    backwalls()
     signs()
     logo_strip()
     arch()

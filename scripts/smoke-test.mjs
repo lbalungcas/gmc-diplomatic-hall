@@ -149,7 +149,7 @@ await check('booth proximity prompt', `
   const t = ${G}.activeTarget;
   return { ok: !!t && t.type === 'booth' && t.id === 1, detail: t ? t.type + ' ' + (t.id ?? t.key) : 'none' };`);
 
-// Every booth has a poster on its easel: 23 from posters.json and a stand-in for the one without.
+// Every booth has a poster on its easel, from posters.json.
 await check('easel posters on all 24 booths', `
   const meshes = [];
   ${G}.scene.traverse(o => { if (/^Booth_\\d\\d_Poster$/.test(o.name)) meshes.push(o); });
@@ -167,6 +167,40 @@ await check('sharp poster loads near an easel', `
   for (let i = 0; i < 40 && !(mesh.material.map.image && mesh.material.map.image.width > 1000); i++) await new Promise(r => setTimeout(r, 250));
   const w = mesh.material.map.image ? mesh.material.map.image.width : 0;
   return { ok: w > 1000, detail: 'poster texture ' + w + ' px wide' };`);
+
+// Every backwall carries the client's print, at the size it is drawn for (2.0 x 2.44 m).
+await check('backwall prints on all 24 booths', `
+  const meshes = [];
+  ${G}.scene.traverse(o => { if (/^Booth_\\d\\d_BackWall$/.test(o.name)) meshes.push(o); });
+  for (let i = 0; i < 40 && meshes.some(m => !m.material.map || !m.material.map.image); i++) await new Promise(r => setTimeout(r, 250));
+  const loaded = meshes.filter(m => m.material.map && m.material.map.image && m.material.map.image.width > 0);
+  const p = meshes[0] ? meshes[0].geometry.parameters : {};
+  const sized = Math.abs(p.width - 2.0) < 0.01 && Math.abs(p.height - 2.44) < 0.01;
+  return { ok: meshes.length === 24 && loaded.length === 24 && sized,
+           detail: meshes.length + ' walls, ' + loaded.length + ' with a print, ' + (p.width || 0).toFixed(2) + ' x ' + (p.height || 0).toFixed(2) + ' m' };`);
+
+// Standing at a booth swaps in its sharp backwall and brings its lights up.
+await check('sharp backwall + booth lights at a booth', `
+  const b = ${G}.BOOTH_POSITIONS[9];
+  ${G}.teleportPlayer(b.ax, 1.45, b.az, 0);
+  ${G}.boothGrid.update(b.ax, b.az);
+  let mesh = null;
+  ${G}.scene.traverse(o => { if (o.name === 'Booth_09_BackWall') mesh = o; });
+  for (let i = 0; i < 40 && !(mesh.material.map.image && mesh.material.map.image.width > 700); i++) await new Promise(r => setTimeout(r, 250));
+  const w = mesh.material.map.image ? mesh.material.map.image.width : 0;
+  const idle = mesh.material.lightMapIntensity;
+  for (let i = 0; i < 40; i++) ${G}.boothGrid.animate(0.1);
+  const lit = mesh.material.lightMapIntensity;
+  return { ok: w > 700 && ${G}.boothGrid.focus === 9 && lit > idle,
+           detail: 'print ' + w + ' px wide, focus booth ' + ${G}.boothGrid.focus + ', lights ' + idle.toFixed(2) + ' -> ' + lit.toFixed(2) };`);
+
+// The booth-number signs are one mesh: a fascia and a runner disc per booth.
+await check('booth number signs: one mesh, 48 signs', `
+  let signs = null;
+  ${G}.scene.traverse(o => { if (o.name === 'BoothSigns') signs = o; });
+  const quads = signs ? signs.geometry.index.count / 6 : 0;
+  ${G}.boothGrid.setVisited(9);
+  return { ok: quads === 48 && !!signs.material.map, detail: quads + ' signs in ' + (signs ? 1 : 0) + ' draw call' };`);
 
 await check('spine wall blocks walking through an island', `
   const b = ${G}.BOOTH_POSITIONS[14];
@@ -283,6 +317,20 @@ await check('minimap static layer + dynamic marks', `
 await check('organizer booths + mascots built', `
   return { ok: ${G}.organizerBooths.size === 3 && !!${G}.mascots,
            detail: ${G}.organizerBooths.size + ' stands, ' + (${G}.mascots ? ${G}.mascots.list.length : 0) + ' mascots' };`);
+
+// Each organizer stand carries its own backwall, table and banner prints.
+await check('organizer stands carry their prints', `
+  const out = [];
+  let ok = true;
+  for (const [id, { group }] of ${G}.organizerBooths) {
+    const maps = new Set();
+    group.traverse(o => { if (o.isMesh && o.material && o.material.map) maps.add(o.material.map); });
+    for (let i = 0; i < 40 && [...maps].some(t => !t.image); i++) await new Promise(r => setTimeout(r, 250));
+    const loaded = [...maps].filter(t => t.image && t.image.width > 0).length;
+    ok = ok && loaded === 3;
+    out.push(id + ' ' + loaded + '/3');
+  }
+  return { ok, detail: out.join(', ') };`);
 
 await check('policy wall built, no registration desk', `
   let desk = false;

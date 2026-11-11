@@ -18,6 +18,8 @@ import mascotsData from './data/mascots.json';
 import tutuFaqs from './data/tutuFaqs.json';
 import hallLayout from './data/hallLayout.json';
 import postersData from './data/posters.json';
+import backwallsData from './data/backwalls.json';
+import organizerArt from './data/organizerArt.json';
 import { createPresence, getVisitorInfo, colorFromId } from './modules/presence.js';
 import { track } from './modules/analytics.js';
 import { buildOrganizerBooth, organizerObstacles, TV_W, TV_H } from './modules/organizers.js';
@@ -1168,6 +1170,8 @@ function refreshBoothVisual(id) {
     label.material.map = createBoothLabelTexture({ id, ...b, name: info.name }, state);
     label.material.needsUpdate = true;
   }
+  // The booth's own number signs carry a tick once its stamp is collected.
+  if (boothGrid) boothGrid.setVisited(id);
 }
 
 function createGlowTexture() {
@@ -1377,15 +1381,16 @@ function attachTV(parent, localPos, meta, { w = TV_W, h = TV_H } = {}) {
   return group;
 }
 
-/** Booth backwall prints, easel posters, island row totems and the venue signage. */
+/** Booth backwall prints, number signs, easel posters, island row totems and the venue signage. */
 function createBoothTVs() {
   venueSignage = createVenueSignage(scene, hallLayout, {
     lowPower: isLowPowerDevice,
     anisotropy: Math.min(8, renderer.capabilities.getMaxAnisotropy()),
   });
   wayfinding = createWayfinding(scene, hallLayout);
-  boothGrid = createBoothGrid(scene, hallLayout, BOOTH_POSITIONS, boothsData, postersData, {
+  boothGrid = createBoothGrid(scene, hallLayout, BOOTH_POSITIONS, boothsData, { posters: postersData, backwalls: backwallsData }, {
     lowPower: isLowPowerDevice,
+    isVisited: (id) => visitedBooths.has(id),
     anisotropy: Math.min(8, renderer.capabilities.getMaxAnisotropy()),
     attachTV: (parent, localPos, b, size) => {
       const info = boothsData.find(x => x.id === b.id) || {};
@@ -1425,6 +1430,8 @@ function openTV(tv) {
 function createOrganizerBooths() {
   for (const org of organizersData) {
     const { group, solids } = buildOrganizerBooth(org, {
+      art: organizerArt[org.id],
+      lowPower: isLowPowerDevice,
       castShadow: !isLowPowerDevice,
       attachTV: (parent, localPos) => attachTV(parent, localPos, {
         key: `org-${org.id}`,
@@ -3793,6 +3800,10 @@ function teleportPlayer(x, y, z, yaw) {
     camera.position.set(x, y, z);
     lightPool.update(camera, 0, { instant: true });
   }
+  // A jump can cross zones (hall / lobby): re-cull on the next frame rather than up to eight
+  // frames later, and re-rank the booth prints for the new spot.
+  zoneCullTick = 7;
+  posterTick = 15;
 }
 
 // --- HUD Setup & Click Handlers ---
@@ -4269,8 +4280,12 @@ function animate() {
   if (wayfinding) wayfinding.update(t, player.pos);
   updateZoneEnvironment();
   updateZoneCulling();
-  // Sharp easel posters near the player (about four times a second is plenty).
-  if (boothGrid && (++posterTick & 15) === 0) boothGrid.update(player.pos.x, player.pos.z);
+  // Sharp backwalls and posters near the player, and which booth they are standing at (about
+  // four times a second is plenty); the booth lights fade every frame.
+  if (boothGrid) {
+    if ((++posterTick & 15) === 0) boothGrid.update(player.pos.x, player.pos.z);
+    boothGrid.animate(delta);
+  }
   checkProximity();
   drawMinimap();
 

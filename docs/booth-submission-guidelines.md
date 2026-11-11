@@ -107,11 +107,25 @@ Up to **4** supporting photos or graphics for future gallery use.
 
 ### D. Booth back-wall artwork (**optional**)
 Booths are open-style squares (2.4 × 2.4 m) set back to back in two islands. Each booth has one
-printed back wall behind its counter, with the booth TV mounted in the middle of it. Until you send
-artwork, the wall shows the hall's placeholder design (your booth number, row colour and name).
+printed back wall, lit by two arm spotlights, with a draped table and two chairs in front of it and
+the team poster on an easel beside it. The hall shows the organizers' back-wall design for your
+innovation; send your own only if you want to replace it.
 
 | Spec | Requirement |
 |------|-------------|
+| Panels | **One** image — the back wall |
+| Printable area | 2.0 m wide × 2.44 m tall, from the floor up |
+| Size | **1640 × 2000 px** or larger (portrait, 0.82 : 1) |
+| Header | Put your name and logos in the top third: that is what visitors read from across the aisle |
+| Table | From the aisle the table hides the bottom ~0.4 m (bottom 15 % of the image) — keep it free of text. The organizers' design fills it with a colour band, and that colour is used for your table runner and booth-number sign |
+| Format | PNG or JPG, under 2 MB |
+
+The organizers' designs live in `venue designs/booth art/Backwall Booth Design/` and are prepared
+by `python scripts/prepare_assets.py backwalls` (see `src/data/backwalls.json`). To override one
+booth, put the file under `public/booths/` and set `"panelArt": ["/booths/<id>.png"]` on that
+booth in `src/data/booths.json`.
+
+------|-------------|
 | Panels | **One** image — the back wall |
 | Printable area | 2.26 m wide × 2.40 m tall (0.10–2.50 m above the floor) |
 | Size | **1130 × 1200 px** (portrait, ~0.94 : 1) |

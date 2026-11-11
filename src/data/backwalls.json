@@ -1,0 +1,194 @@
+{
+  "1": {
+    "lg": "/booths/backwalls/1.webp",
+    "sm": "/booths/backwalls/1-sm.webp",
+    "aspect": 0.8198,
+    "accent": "#9CCCE3",
+    "source": "Backwall Booth Design/D-KAWACH.png",
+    "confirmed": true
+  },
+  "2": {
+    "lg": "/booths/backwalls/2.webp",
+    "sm": "/booths/backwalls/2-sm.webp",
+    "aspect": 0.8198,
+    "accent": "#9CCCE3",
+    "source": "Backwall Booth Design/Voice 4 Change.png",
+    "confirmed": true
+  },
+  "3": {
+    "lg": "/booths/backwalls/3.webp",
+    "sm": "/booths/backwalls/3-sm.webp",
+    "aspect": 0.8198,
+    "accent": "#F2C668",
+    "source": "Backwall Booth Design/Steps and Respond.png",
+    "confirmed": true
+  },
+  "4": {
+    "lg": "/booths/backwalls/4.webp",
+    "sm": "/booths/backwalls/4-sm.webp",
+    "aspect": 0.8198,
+    "accent": "#D45BA5",
+    "source": "Backwall Booth Design/Screensafe Stories.png",
+    "confirmed": true
+  },
+  "5": {
+    "lg": "/booths/backwalls/5.webp",
+    "sm": "/booths/backwalls/5-sm.webp",
+    "aspect": 0.8198,
+    "accent": "#9CCCE3",
+    "source": "Backwall Booth Design/Her Life, Her Choice.png",
+    "confirmed": true
+  },
+  "6": {
+    "lg": "/booths/backwalls/6.webp",
+    "sm": "/booths/backwalls/6-sm.webp",
+    "aspect": 0.8198,
+    "accent": "#F2C668",
+    "source": "Backwall Booth Design/Eco-scouts.png",
+    "confirmed": true
+  },
+  "7": {
+    "lg": "/booths/backwalls/7.webp",
+    "sm": "/booths/backwalls/7-sm.webp",
+    "aspect": 0.8198,
+    "accent": "#D45BA5",
+    "source": "Backwall Booth Design/Secure Shield.png",
+    "confirmed": true
+  },
+  "8": {
+    "lg": "/booths/backwalls/8.webp",
+    "sm": "/booths/backwalls/8-sm.webp",
+    "aspect": 0.8198,
+    "accent": "#DD9366",
+    "source": "Backwall Booth Design/GOOD for Sustainable Future.png",
+    "confirmed": false
+  },
+  "9": {
+    "lg": "/booths/backwalls/9.webp",
+    "sm": "/booths/backwalls/9-sm.webp",
+    "aspect": 0.8198,
+    "accent": "#F2C668",
+    "source": "Backwall Booth Design/Gain Line.png",
+    "confirmed": true
+  },
+  "10": {
+    "lg": "/booths/backwalls/10.webp",
+    "sm": "/booths/backwalls/10-sm.webp",
+    "aspect": 0.8198,
+    "accent": "#D45BA5",
+    "source": "Backwall Booth Design/Safe Scan.png",
+    "confirmed": true
+  },
+  "11": {
+    "lg": "/booths/backwalls/11.webp",
+    "sm": "/booths/backwalls/11-sm.webp",
+    "aspect": 0.8198,
+    "accent": "#9CCCE3",
+    "source": "Backwall Booth Design/Plan International.png",
+    "confirmed": true
+  },
+  "12": {
+    "lg": "/booths/backwalls/12.webp",
+    "sm": "/booths/backwalls/12-sm.webp",
+    "aspect": 0.8198,
+    "accent": "#9CCCE3",
+    "source": "Backwall Booth Design/Safe Steps.png",
+    "confirmed": true
+  },
+  "13": {
+    "lg": "/booths/backwalls/13.webp",
+    "sm": "/booths/backwalls/13-sm.webp",
+    "aspect": 0.8198,
+    "accent": "#DD9366",
+    "source": "Backwall Booth Design/Zero Harm Tracker.png",
+    "confirmed": true
+  },
+  "14": {
+    "lg": "/booths/backwalls/14.webp",
+    "sm": "/booths/backwalls/14-sm.webp",
+    "aspect": 0.8198,
+    "accent": "#9CCCE3",
+    "source": "Backwall Booth Design/PAUSE.png",
+    "confirmed": true
+  },
+  "15": {
+    "lg": "/booths/backwalls/15.webp",
+    "sm": "/booths/backwalls/15-sm.webp",
+    "aspect": 0.8198,
+    "accent": "#DD9366",
+    "source": "Backwall Booth Design/Balmanch.png",
+    "confirmed": true
+  },
+  "16": {
+    "lg": "/booths/backwalls/16.webp",
+    "sm": "/booths/backwalls/16-sm.webp",
+    "aspect": 0.8198,
+    "accent": "#DD9366",
+    "source": "Backwall Booth Design/Safe Together.png",
+    "confirmed": true
+  },
+  "17": {
+    "lg": "/booths/backwalls/17.webp",
+    "sm": "/booths/backwalls/17-sm.webp",
+    "aspect": 0.8198,
+    "accent": "#9CCCE3",
+    "source": "Backwall Booth Design/Hands Off, Hearts On.png",
+    "confirmed": true
+  },
+  "18": {
+    "lg": "/booths/backwalls/18.webp",
+    "sm": "/booths/backwalls/18-sm.webp",
+    "aspect": 0.8198,
+    "accent": "#DD9366",
+    "source": "Backwall Booth Design/Red Ant Movement.png",
+    "confirmed": true
+  },
+  "19": {
+    "lg": "/booths/backwalls/19.webp",
+    "sm": "/booths/backwalls/19-sm.webp",
+    "aspect": 0.8198,
+    "accent": "#DD9366",
+    "source": "Backwall Booth Design/MAPPING CHILD LABOUR RISKS IN THE E-WASTE WORLD IN EASTERN SAMAR, PHILIPPINES.png",
+    "confirmed": true
+  },
+  "20": {
+    "lg": "/booths/backwalls/20.webp",
+    "sm": "/booths/backwalls/20-sm.webp",
+    "aspect": 0.8198,
+    "accent": "#F2C668",
+    "source": "Backwall Booth Design/Positive Discipline Champions.png",
+    "confirmed": true
+  },
+  "21": {
+    "lg": "/booths/backwalls/21.webp",
+    "sm": "/booths/backwalls/21-sm.webp",
+    "aspect": 0.8198,
+    "accent": "#DD9366",
+    "source": "Backwall Booth Design/Empower Chatbot.png",
+    "confirmed": true
+  },
+  "22": {
+    "lg": "/booths/backwalls/22.webp",
+    "sm": "/booths/backwalls/22-sm.webp",
+    "aspect": 0.8198,
+    "accent": "#DD9366",
+    "source": "Backwall Booth Design/Time to Play.png",
+    "confirmed": false
+  },
+  "23": {
+    "lg": "/booths/backwalls/23.webp",
+    "sm": "/booths/backwalls/23-sm.webp",
+    "aspect": 0.8198,
+    "accent": "#F2C668",
+    "source": "Backwall Booth Design/Child-led Research.png",
+    "confirmed": true
+  },
+  "24": {
+    "lg": "/booths/backwalls/24.webp",
+    "sm": "/booths/backwalls/24-sm.webp",
+    "aspect": 0.8198,
+    "accent": "#F2C668",
+    "source": "Backwall Booth Design/Youth-Led Solutions to End Violence Against Children_ From Ideas to Impact.png",
+    "confirmed": true
+  }
+}

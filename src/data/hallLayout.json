@@ -66,7 +66,7 @@
     }
   },
   "grid": {
-    "_comment": "Open-style booths, as in the October 19 floor plan: two islands of twelve 2.4 m square booths, back to back on a shared spine wall, separated by a 3 m alleyway that lines up with the foyer door. Each row is one colour zone. `rows[].booths` lists the official booth numbers left to right (west -> east), so moving an exhibitor is a one-line edit. `facing` is the z direction a row opens toward (-1 = north, at the stage).",
+    "_comment": "Open-style booths, as in the October 19 floor plan: two islands of twelve 2.4 m square booths, back to back on a shared spine wall, separated by a 3 m alleyway that lines up with the foyer door. Each row is one colour zone. `rows[].booths` lists the official booth numbers left to right (west -> east), so moving an exhibitor is a one-line edit. `facing` is the z direction a row opens toward (-1 = north, at the stage). Each booth is dressed after the client's booth art: a 2.0 x 2.44 m printed backwall in a slim frame against a navy spine partition, two clip-on arm spotlights and a booth-number fascia above it, a black draped table with a runner in the team's accent colour, two chairs and a poster easel.",
     "booth": 2.4,
     "cols": 6,
     "x0": 2.48,
@@ -151,14 +151,14 @@
         "name": "Row D"
       }
     },
-    "spineHalf": 0.14,
+    "spineHalf": 0.16,
     "graphic": {
-      "_comment": "Printed front of the backwall, in the booth frame (u, height), and its distance from the spine.",
-      "u0": 0.08,
-      "u1": 2.32,
-      "y0": 0.06,
-      "y1": 2.46,
-      "offset": 0.134
+      "_comment": "Printed front of the backwall, in the booth frame (u, height), and its distance from the spine. 2.0 x 2.44 m, the size the client's backwall art is drawn for.",
+      "u0": 0.2,
+      "u1": 2.2,
+      "y0": 0.05,
+      "y1": 2.49,
+      "offset": 0.153
     },
     "tv": {
       "enabled": false,
@@ -168,19 +168,36 @@
     },
     "anchorDepth": 2.65,
     "backwall": {
-      "_comment": "Per-booth backwall box: u span from the booth west edge, d span from the spine.",
-      "u0": 0.05,
-      "u1": 2.35,
-      "d0": 0.01,
-      "d1": 0.13,
+      "_comment": "Spine partition (one per island, `spine.d` either side of the spine line) and each booth's backwall frame standing against it: u span from the booth west edge, d span from the spine. `height` is the nominal wall height the end totems are sized from.",
       "height": 2.5,
-      "edge": "#0050A0"
+      "spine": {
+        "d": 0.07,
+        "height": 2.42
+      },
+      "frame": {
+        "u0": 0.18,
+        "u1": 2.22,
+        "d0": 0.07,
+        "d1": 0.15,
+        "height": 2.51
+      }
     },
     "table": {
       "width": 1.8,
       "depth": 0.75,
       "height": 0.76,
-      "d": 1.55
+      "d": 1.55,
+      "runner": {
+        "_comment": "Accent-colour runner over the middle of the table; `proud` is how far its front drop hangs in front of the table edge, `badge` the booth-number disc printed on it.",
+        "width": 0.56,
+        "proud": 0.034,
+        "thickness": 0.006,
+        "bottom": 0.12,
+        "badge": {
+          "size": 0.34,
+          "y": 0.45
+        }
+      }
     },
     "chairs": {
       "d": 0.78,
@@ -198,6 +215,20 @@
       "bottom": 0.74,
       "tilt": 12,
       "turn": 12
+    },
+    "fascia": {
+      "_comment": "Booth-number sign standing on top of the backwall frame; `d` is its printed face's distance from the spine.",
+      "width": 0.62,
+      "height": 0.26,
+      "d": 0.14
+    },
+    "lamps": {
+      "_comment": "Clip-on arm spotlights on the frame top: x offsets from the booth centre, and how far each arm reaches toward the aisle.",
+      "offsets": [
+        -0.66,
+        0.66
+      ],
+      "reach": 0.36
     }
   },
   "foyer": {

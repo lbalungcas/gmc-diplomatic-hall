@@ -12,9 +12,11 @@
  *                          GPU behaviour: SwiftShader hid an MSAA black-screen bug once.
  *   CAPTURE_QUERY=...      extra query string, e.g. `device=tablet` for the tablet/kiosk path
  *   CAPTURE_SIZE=1280x800  window size;  CAPTURE_DPR=2  device scale factor
+ *   CAPTURE_ONLY=13,14     only the poses whose name starts with one of these prefixes
+ *   CAPTURE_POSES=file     JSON array of extra poses ({ name, x, y, z, yaw, pitch, fly, before }) to add
  */
 import { spawn } from 'node:child_process';
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 
 const require = createRequire('file:///' + process.cwd().replace(/\\/g, '/') + '/');
@@ -48,6 +50,12 @@ const POSES = [
   { name: '17-chairs',       x: 9.68,  y: 1.45, z: -20.4,  yaw: 0,       pitch: -0.3,  note: 'the 20 audience chairs, 10 each side of the aisle' },
   { name: '16-stage',        x: 9.68,  y: 1.45, z: -19.6,  yaw: 0,       pitch: 0.12,  note: 'stage design: LED wall, banners, lectern, chairs, grass' },
 ];
+
+if (process.env.CAPTURE_POSES) POSES.push(...JSON.parse(readFileSync(process.env.CAPTURE_POSES, 'utf8')));
+if (process.env.CAPTURE_ONLY) {
+  const only = process.env.CAPTURE_ONLY.split(',').map((s) => s.trim()).filter(Boolean);
+  POSES.splice(0, POSES.length, ...POSES.filter((p) => only.some((o) => p.name.startsWith(o))));
+}
 
 mkdirSync(OUT, { recursive: true });
 
@@ -166,6 +174,8 @@ await sleep(2500);
 
 const results = [];
 for (const pose of POSES) {
+  // A pose can set the scene up first (`before`: a JS expression, e.g. opening a booth to mark it visited).
+  if (pose.before) await cdp.eval(pose.before);
   // teleportPlayer forces pitch to 0, so set it afterwards to frame floors and ceilings.
   await cdp.eval(`(() => {
     const g = window.__diplomaticGame;

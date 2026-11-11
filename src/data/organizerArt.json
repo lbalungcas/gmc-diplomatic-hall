@@ -1,0 +1,53 @@
+{
+  "vewu": {
+    "backwall": {
+      "lg": "/venue/organizers/vewu-backwall.webp",
+      "sm": "/venue/organizers/vewu-backwall-sm.webp",
+      "aspect": 1.3332
+    },
+    "table": {
+      "lg": "/venue/organizers/vewu-table.webp",
+      "sm": "/venue/organizers/vewu-table-sm.webp",
+      "aspect": 2.0
+    },
+    "banner": {
+      "lg": "/venue/organizers/vewu-banner.webp",
+      "sm": "/venue/organizers/vewu-banner-sm.webp",
+      "aspect": 0.4231
+    }
+  },
+  "tdh": {
+    "backwall": {
+      "lg": "/venue/organizers/tdh-backwall.webp",
+      "sm": "/venue/organizers/tdh-backwall-sm.webp",
+      "aspect": 1.3333
+    },
+    "table": {
+      "lg": "/venue/organizers/tdh-table.webp",
+      "sm": "/venue/organizers/tdh-table-sm.webp",
+      "aspect": 2.0
+    },
+    "banner": {
+      "lg": "/venue/organizers/tdh-banner.webp",
+      "sm": "/venue/organizers/tdh-banner-sm.webp",
+      "aspect": 0.4147
+    }
+  },
+  "knh": {
+    "backwall": {
+      "lg": "/venue/organizers/knh-backwall.webp",
+      "sm": "/venue/organizers/knh-backwall-sm.webp",
+      "aspect": 1.3332
+    },
+    "table": {
+      "lg": "/venue/organizers/knh-table.webp",
+      "sm": "/venue/organizers/knh-table-sm.webp",
+      "aspect": 2.0
+    },
+    "banner": {
+      "lg": "/venue/organizers/knh-banner.webp",
+      "sm": "/venue/organizers/knh-banner-sm.webp",
+      "aspect": 0.4231
+    }
+  }
+}

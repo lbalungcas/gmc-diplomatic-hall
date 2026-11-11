@@ -39,10 +39,8 @@
       }
     ],
     "yaw": 0,
-    "art": {
-      "backwall": "/venue/organizers/tdh-backwall.webp",
-      "table": "/venue/organizers/tdh-table.webp",
-      "banner": "/venue/organizers/tdh-banner.webp"
+    "stand": {
+      "tableColor": "#F7F7F5"
     }
   },
   {
@@ -85,9 +83,8 @@
       }
     ],
     "yaw": 0,
-    "art": {
-      "backwall": "/venue/organizers/knh-backwall.webp",
-      "banner": "/venue/organizers/knh-banner.webp"
+    "stand": {
+      "tableColor": "#F7F7F5"
     }
   },
   {
@@ -130,10 +127,8 @@
       }
     ],
     "yaw": 0,
-    "art": {
-      "backwall": "/venue/organizers/vewu-backwall.webp",
-      "table": "/venue/organizers/vewu-table.webp",
-      "banner": "/venue/organizers/vewu-banner.webp"
+    "stand": {
+      "tableColor": "#1A3461"
     }
   }
 ]
