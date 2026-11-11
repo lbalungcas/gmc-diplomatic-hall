@@ -39,6 +39,17 @@
   to = "/commit/index.html"
   status = 200
 
+# YIM Feedback & Resources (unlinked; shared by QR code)
+[[redirects]]
+  from = "/resources"
+  to = "/resources/index.html"
+  status = 200
+
+[[redirects]]
+  from = "/resources/"
+  to = "/resources/index.html"
+  status = 200
+
 # Redirect old /innovator-guidelines/ route to home
 [[redirects]]
   from = "/innovator-guidelines"
