@@ -53,6 +53,30 @@ export const TRACKS = [
         photo: 'arceu-honculada.jpg',
         bio: 'Arceu James P. Honculada is a development professional and child rights advocate serving as the Child’s Rights Programming Manager of Kindernothilfe (KNH) in the Philippines. He provides strategic and technical leadership in child rights-based programming, with a focus on child protection, meaningful child participation and child-centred disaster risk reduction, working with civil society organisations and development partners to strengthen child protection systems. Beyond his professional role, James created Positive Parenting Matters, a digital advocacy platform with over 1.7 million followers that promotes positive parenting, healthy family relationships and nurturing environments where children can thrive.',
       },
+      {
+        slug: 'abby-roberts',
+        name: 'Abby Roberts',
+        role: 'Technical Expert, Sexual Exploitation of Children',
+        org: 'Terre des Hommes Netherlands',
+        photo: 'abby-roberts.jpg',
+        bio: 'Abby Roberts is a strategic child protection specialist with over seven years of expertise in preventing and responding to the sexual exploitation of children. As Technical Expert on the Sexual Exploitation of Children at Terre des Hommes Netherlands, she provides high-level guidance to ensure that global programmes, research and advocacy align with evidence-based best practice. Her career includes driving sector-wide standardisation across hotlines, law enforcement and industry partners through specialised training and focus groups, leading programme development, and influencing key global and EU policy and legislation.',
+      },
+      {
+        slug: 'amina-moni',
+        name: 'Dr. Amina Moni',
+        role: 'Regional Advocacy and Youth Civic Engagement Advisor',
+        org: 'Plan International Asia Pacific',
+        photo: 'amina-moni.jpg',
+        bio: 'Dr. Amina Moni is a development professional with over 19 years of experience, serving as Regional Advocacy and Youth Civic Engagement Advisor at Plan International’s Asia Regional Office. She provides strategic support on advocacy, youth civic engagement, human rights programming, policy analysis, inclusive partnerships and strategic communication. Committed to children’s and young people’s rights at national, regional and international levels, she has worked with the British Council, ARTICLE 19, Educo, Save the Children and Plan International Bangladesh. She holds a PhD and MPhil in Government and Politics and a Master’s in Development Studies, and was a youth volunteer with UNICEF Bangladesh and Bangladesh Scouts.',
+      },
+      {
+        slug: 'erickson-name',
+        name: 'Erickson B. Name, RSW',
+        role: 'Strategic Innovations Manager',
+        org: 'Consuelo Zobel Alger Foundation – Philippines',
+        photo: 'erickson-name.jpg',
+        bio: 'Erickson B. Name is a registered social worker and the Strategic Innovations Manager of Consuelo Zobel Alger Foundation – Philippines. He leads strategic partnerships and initiatives focused on child protection, strengthening local child protection systems and advancing children’s rights, working with government agencies, civil society organisations and communities to promote sustainable and responsive programmes for children and families. He is passionate about empowering young people, promoting meaningful youth participation, and supporting innovative solutions to prevent child, early and forced marriage.',
+      },
     ],
   },
   {
@@ -90,7 +114,16 @@ export const TRACKS = [
     icon: 'fa-cloud-sun',
     blurb: 'Youth-driven advocacy addressing the intersection of climate emergencies and children’s safety, ensuring environmental policies protect the most vulnerable.',
     target: 'Climate-resilient child protection',
-    experts: [],
+    experts: [
+      {
+        slug: 'maria-stella-echano',
+        name: 'Maria Stella “Telay” Echano',
+        role: 'Country Manager',
+        org: 'Kindernothilfe e.V. Philippines',
+        photo: 'maria-stella-echano.jpg',
+        bio: 'Maria Stella “Telay” Echano is a child rights and climate change advocate and development leader with extensive experience in programme engagement, strategic partnerships and organisational development. As Country Manager of Kindernothilfe Philippines, she advances integrated programming on children’s rights, child protection, climate change adaptation and community resilience, promoting child-centred, climate-responsive and rights-based approaches that recognise where climate vulnerabilities and child protection risks meet. She works with local partners, civil society, networks and development stakeholders to strengthen protective systems, advance climate justice, and promote children’s meaningful participation in building safer, more resilient communities.',
+      },
+    ],
   },
   {
     id: 'asrh',

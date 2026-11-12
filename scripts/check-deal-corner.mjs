@@ -80,20 +80,21 @@ await go('/deal-corner/');
 await check('seven tracks in order, 01 to 07', `
   const nos = [...document.querySelectorAll('.dc-track .thematic-tag')].map(t => t.firstChild.textContent);
   return { ok: nos.join() === 'Track 01,Track 02,Track 03,Track 04,Track 05,Track 06,Track 07', detail: nos.join(' | ') };`);
-await check('nine expert cards; Climate and ASRH say coming soon', `
+await check('13 expert cards (4 on Child Marriage); only ASRH says coming soon', `
   const cards = document.querySelectorAll('.dc-expert').length;
+  const cefmu = document.querySelectorAll('#child-marriage .dc-expert').length;
   const soon = [...document.querySelectorAll('.dc-soon')].map(s => s.closest('.dc-track').id);
-  return { ok: cards === 9 && soon.join() === 'climate,asrh', detail: cards + ' cards; coming soon: ' + soon.join(', ') };`);
+  return { ok: cards === 13 && cefmu === 4 && soon.join() === 'asrh', detail: cards + ' cards, ' + cefmu + ' on Child Marriage; coming soon: ' + soon.join(', ') };`);
 await check('hero counts come from the data', `
   const t = document.getElementById('dcTrackCount').textContent, e = document.getElementById('dcExpertCount').textContent;
-  return { ok: t === '7' && e === '9', detail: t + ' tracks, ' + e + ' experts' };`);
+  return { ok: t === '7' && e === '13', detail: t + ' tracks, ' + e + ' experts' };`);
 await check('every expert has a photo and it loads', `
   const imgs = [...document.querySelectorAll('.dc-photo img')];
   imgs.forEach(i => { i.loading = 'eager'; });
   await Promise.all(imgs.map(i => i.complete ? 0 : new Promise(r => { i.onload = i.onerror = r; })));
   const broken = imgs.filter(i => !i.naturalWidth).map(i => i.alt);
   const initials = [...document.querySelectorAll('.dc-initials')].map(n => n.textContent);
-  return { ok: imgs.length === 9 && !broken.length && !initials.length, detail: imgs.length + ' photos, broken: ' + (broken.join('; ') || 'none') + ', initials: ' + initials.join() };`);
+  return { ok: imgs.length === 13 && !broken.length && !initials.length, detail: imgs.length + ' photos, broken: ' + (broken.join('; ') || 'none') + ', initials: ' + initials.join() };`);
 await check('all seven chips fit on one row at 1440 px', `
   const list = document.getElementById('dcChipsList');
   return { ok: list.scrollWidth <= list.clientWidth + 1, detail: list.scrollWidth + ' of ' + list.clientWidth + ' px' };`);
