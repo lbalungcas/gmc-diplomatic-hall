@@ -50,6 +50,17 @@
   to = "/resources/index.html"
   status = 200
 
+# Deal Corner Experts (linked from the main nav)
+[[redirects]]
+  from = "/deal-corner"
+  to = "/deal-corner/index.html"
+  status = 200
+
+[[redirects]]
+  from = "/deal-corner/"
+  to = "/deal-corner/index.html"
+  status = 200
+
 # Redirect old /innovator-guidelines/ route to home
 [[redirects]]
   from = "/innovator-guidelines"

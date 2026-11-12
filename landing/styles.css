@@ -385,6 +385,9 @@ section[id] {
   -webkit-backdrop-filter: blur(12px);
   border-bottom: 1px solid var(--border-light);
   transition: box-shadow var(--transition-normal), background-color var(--transition-normal);
+  /* backdrop-filter makes the header the containing block of the fixed mobile drawer, so the closed
+     drawer widened the page and phones zoomed out. clip, unlike hidden, leaves the open drawer's height. */
+  overflow-x: clip;
 }
 
 .main-header.scrolled {
@@ -1285,6 +1288,15 @@ section[id] {
 
 .space-features span i {
   color: var(--vewu-blue);
+}
+
+.deal-experts-link {
+  align-self: flex-start;
+  margin-top: 1.25rem;
+}
+
+.deal-banner-content .deal-experts-link {
+  margin: 0 0 1.25rem;
 }
 
 /* ==========================================================================
@@ -3063,6 +3075,12 @@ section[id] {
 }
 
 @media (max-width: 640px) {
+  /* The long registration button pushed the header past the screen, so phones zoomed the page out.
+     The drawer carries the same button. */
+  .header-actions #headerRegBtn {
+    display: none;
+  }
+
   .top-announcement-bar {
     padding: 0.55rem 0;
   }
