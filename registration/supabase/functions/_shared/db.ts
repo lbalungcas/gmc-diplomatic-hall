@@ -46,7 +46,7 @@ export interface EventRow {
   map_url: string | null;
   contact_email: string;
   arrival_note: string | null;
-  capacity: number;
+  capacity: number | null;
 }
 
 export interface RegistrationRow {

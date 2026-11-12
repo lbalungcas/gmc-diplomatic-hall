@@ -1,6 +1,7 @@
 import { Scanner, type IDetectedBarcode, type IScannerError } from '@yudiel/react-qr-scanner';
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
+import { KitToggle } from '../../components/KitToggle';
 import { useAuth } from '../../lib/auth';
 import { formatTime } from '../../lib/format';
 import { supabase } from '../../lib/supabase';
@@ -8,6 +9,14 @@ import type { CheckInResult, EventStats } from '../../lib/types';
 import { useEvent } from '../../lib/useEvent';
 
 type Shown = CheckInResult | { result: 'network_error' };
+
+/** The guest who was just admitted, so door staff can tick "Kit given" after the result screen closes. */
+interface LastGuest {
+  id: string;
+  name: string;
+  photo_consent: boolean;
+  kit_received_at: string | null;
+}
 
 const RESULT_MS = 2000;
 const TOKEN_RE = /^[A-Za-z0-9_-]{20,100}$/;
@@ -64,15 +73,22 @@ export default function Scan() {
   const [shown, setShown] = useState<Shown | null>(null);
   const [processing, setProcessing] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
-  const [stats, setStats] = useState<Pick<EventStats, 'checked_in' | 'approved'> | null>(null);
+  const [stats, setStats] = useState<Pick<EventStats, 'checked_in' | 'approved' | 'kit_received'> | null>(null);
   const [manual, setManual] = useState('');
+  const [lastGuest, setLastGuest] = useState<LastGuest | null>(null);
   const hideTimer = useRef<number | undefined>(undefined);
 
   const loadStats = useCallback(async () => {
     if (!event) return;
     const { data } = await supabase.rpc('event_stats', { p_event: event.id });
-    if (data) setStats({ checked_in: data.checked_in, approved: data.approved });
+    if (data) setStats({ checked_in: data.checked_in, approved: data.approved, kit_received: data.kit_received ?? 0 });
   }, [event]);
+
+  function onKitChange(kitReceivedAt: string | null) {
+    const delta = kitReceivedAt && !lastGuest?.kit_received_at ? 1 : !kitReceivedAt && lastGuest?.kit_received_at ? -1 : 0;
+    setLastGuest((g) => (g ? { ...g, kit_received_at: kitReceivedAt } : g));
+    if (delta) setStats((s) => (s ? { ...s, kit_received: s.kit_received + delta } : s));
+  }
 
   useEffect(() => {
     loadStats();
@@ -100,6 +116,11 @@ export default function Scan() {
       const r = data as CheckInResult;
       show(r);
       if (r.result === 'checked_in') setStats((s) => (s ? { ...s, checked_in: s.checked_in + 1 } : s));
+      if (r.result === 'checked_in' || r.result === 'already_checked_in') {
+        setLastGuest({ id: r.registration_id, name: r.full_name, photo_consent: r.photo_consent, kit_received_at: r.kit_received_at ?? null });
+      } else {
+        setLastGuest(null);
+      }
     } catch {
       show({ result: 'network_error' });
     } finally {
@@ -136,7 +157,9 @@ export default function Scan() {
         <div className="text-center" aria-live="polite">
           <span className="font-display text-3xl font-bold tabular-nums">{stats ? stats.checked_in : '–'}</span>
           <span className="text-xl text-white/60 tabular-nums"> / {stats ? stats.approved : '–'}</span>
-          <div className="text-xs tracking-wide text-white/60 uppercase">checked in</div>
+          <div className="text-xs tracking-wide text-white/60 uppercase">
+            checked in · {stats ? stats.kit_received : '–'} kits
+          </div>
         </div>
         <Link to="/admin/checkin" className="text-sm font-semibold text-white/70 hover:text-white">Search</Link>
       </header>
@@ -176,6 +199,18 @@ export default function Scan() {
         )}
         {shown && <ResultScreen r={shown} onDismiss={() => setShown(null)} />}
       </div>
+
+      {lastGuest && (
+        <div className="flex items-center gap-3 border-t border-white/10 bg-white/5 px-3 py-2.5" aria-label="Last guest">
+          <div className="min-w-0 flex-1">
+            <div className="truncate text-lg font-bold">{lastGuest.name}</div>
+            <span className={`mt-0.5 inline-block rounded px-2 py-0.5 text-xs font-black ${lastGuest.photo_consent ? 'bg-white/15' : 'bg-black text-white ring-1 ring-white/40'}`}>
+              {lastGuest.photo_consent ? 'Photos OK' : 'NO PHOTOS'}
+            </span>
+          </div>
+          <KitToggle key={lastGuest.id} id={lastGuest.id} kitReceivedAt={lastGuest.kit_received_at} onChange={onKitChange} size="large" />
+        </div>
+      )}
 
       <form onSubmit={onManual} className="flex gap-2 border-t border-white/10 p-3">
         <label htmlFor="manual" className="sr-only">Ticket code or link</label>

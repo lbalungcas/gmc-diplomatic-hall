@@ -45,19 +45,27 @@ for (const f of [
   'migrations/20261020000002_registration_rls.sql',
   'migrations/20261020000003_registration_functions.sql',
   'migrations/20261111000001_safeguarding_email.sql',
+  'migrations/20261112000001_no_capacity_and_reg_kit.sql',
   'seed.sql',
 ]) {
   await db.exec(mig(f));
   console.log(`applied ${f}`);
 }
-// Migrations must be re-runnable (create … if not exists / or replace).
+// Migrations must be re-runnable (create … if not exists / or replace). Re-applying the original
+// functions file reverts the functions the newer migration replaced, so that one is re-applied last.
 await db.exec(mig('migrations/20261020000001_registration_schema.sql'));
 await db.exec(mig('migrations/20261020000002_registration_rls.sql'));
+// search_checkin's return type grew a column later; "create or replace" can't shrink it back.
+await db.exec('drop function public.search_checkin(uuid, text)');
 await db.exec(mig('migrations/20261020000003_registration_functions.sql'));
 await db.exec(mig('migrations/20261111000001_safeguarding_email.sql'));
+await db.exec(mig('migrations/20261112000001_no_capacity_and_reg_kit.sql'));
 console.log('re-applied migrations OK');
 
 const [{ id: eventId }] = await q(`select id from events where slug = 'yim-2026'`);
+const seeded = (await q(`select capacity, auto_waitlist, registration_closes_at from events`))[0];
+ok(seeded.capacity === null && seeded.auto_waitlist === false && new Date(seeded.registration_closes_at).toISOString() === '2026-11-17T09:00:00.000Z',
+  'seed: no capacity limit, no auto-waitlist, open through the event day', JSON.stringify(seeded));
 
 const as = async (role, sub, fn) => {
   await db.exec(`set role ${role}`);
@@ -147,7 +155,7 @@ await as('authenticated', scannerId, async () => {
 await as('authenticated', adminId, async () => {
   ok((await q('select * from registrations')).length === 4, 'admin can read registrations');
   ok((await q('select * from admin_users')).length === 2, 'admin can read admin_users');
-  await q(`update events set capacity = 2 where id = $1`, [eventId]);
+  await q(`update events set capacity = 2, auto_waitlist = true where id = $1`, [eventId]);
   ok((await q('select capacity from events'))[0].capacity === 2, 'admin can update event settings');
   await expectError(() => q(`update events set form_schema = '{}' where id = $1`, [eventId]), /permission denied/, 'admin cannot bypass the audited form save');
   const schema = { version: 1, sections: [{ id: 's1', blocks: [] }] };
@@ -198,13 +206,43 @@ await as('authenticated', scannerId, async () => {
     'event_stats counts', JSON.stringify({ ...s, by_category: undefined }));
 });
 
+// ── reg kit ──
+await as('authenticated', randoId, async () => {
+  await expectError(() => q(`select public.set_kit_received($1, true)`, [r1.registration_id]), /not authorized/, 'non-staff cannot mark the reg kit');
+});
+await as('authenticated', scannerId, async () => {
+  await expectError(() => q(`select public.set_kit_received($1, true)`, [r5.registration_id]), /check the guest in/, 'kit cannot be given before check-in');
+  const c = (await q(`select public.check_in_manual($1) r`, [r5.registration_id]))[0].r;
+  ok(c.result === 'checked_in' && c.kit_received_at === null, 'check-in result includes kit_received_at (null)');
+  const k = (await q(`select public.set_kit_received($1, true) r`, [r5.registration_id]))[0].r;
+  ok(!!k.kit_received_at, 'scanner marks the kit as given');
+  const again = (await q(`select public.check_in_manual($1) r`, [r5.registration_id]))[0].r;
+  ok(again.result === 'already_checked_in' && again.kit_received_at === k.kit_received_at, 'already-checked-in result shows the kit time');
+  const hit = (await q(`select * from public.search_checkin($1, 'Person 5')`, [eventId]))[0];
+  ok(hit?.kit_received_at != null, 'search_checkin returns kit_received_at');
+  const s = (await q(`select public.event_stats($1) s`, [eventId]))[0].s;
+  ok(s.kit_received === 1 && s.checked_in === 2, 'event_stats counts kits', JSON.stringify({ kit: s.kit_received, in: s.checked_in }));
+  const off = (await q(`select public.set_kit_received($1, false) r`, [r5.registration_id]))[0].r;
+  ok(off.kit_received_at === null, 'scanner can untick the kit');
+  await q(`select public.set_kit_received($1, true)`, [r5.registration_id]);
+  await q(`select public.undo_check_in($1)`, [r5.registration_id]);
+  const row = await q(`select public.check_in_manual($1) r`, [r5.registration_id]);
+  ok(row[0].r.kit_received_at === null, 'undoing a check-in clears the kit');
+  await q(`select public.undo_check_in($1)`, [r5.registration_id]);
+});
+await expectError(() => q(`update registrations set kit_received_at = now() where id = $1`, [r6.registration_id]),
+  /kit_requires_checkin/, 'kit_received_at requires a check-in (constraint)');
+const kitAudit = await q(`select action from audit_log where action in ('kit_received', 'kit_undo') and registration_id = $1 order by id`, [r5.registration_id]);
+ok(JSON.stringify(kitAudit.map((a) => a.action)) === JSON.stringify(['kit_received', 'kit_undo', 'kit_received']), 'kit changes are audited',
+  kitAudit.map((a) => a.action).join(','));
+
 out = await decide([r1.registration_id], 'declined');
 ok(out[0].outcome === 'checked_in', 'cannot decline someone already checked in');
 
 const audit = await q(`select action, actor_email, meta from audit_log where registration_id = $1 order by id`, [r1.registration_id]);
 ok(JSON.stringify(audit.map((a) => a.action)) === JSON.stringify(['register', 'approve', 'check_in']), 'audit trail for registrant', audit.map((a) => a.action).join(','));
 ok(audit[2].actor_email === 'door@x.org' && audit[2].meta.method === 'scan', 'check-in audit records scanner + method');
-const undoAudit = await q(`select 1 from audit_log where action = 'undo_check_in'`);
+const undoAudit = await q(`select 1 from audit_log where action = 'undo_check_in' and registration_id = $1`, [r3.registration_id]);
 ok(undoAudit.length === 1, 'undo check-in is audited');
 
 // ── import ──
@@ -237,6 +275,21 @@ ok((await q(`select 1 from email_log where registration_id = $1 and template = '
 await expectError(() => q(`insert into email_log (registration_id, type, template, status) values ($1, 'bogus', 'bogus', 'sent')`, [r1.registration_id]),
   /email_log_type_check|email_log_template_check/, 'email_log still rejects unknown email types');
 
+// ── no capacity limit ──
+await q(`update events set capacity = 1, auto_waitlist = true where id = $1`, [eventId]);
+ok((await register(person(9))).status === 'waitlisted', 'with a limit of 1 a new sign-up is waitlisted');
+await q(`update events set capacity = null where id = $1`, [eventId]);
+const r10 = await register(person(10));
+ok(r10.status === 'pending', 'capacity null: no auto-waitlist even with auto_waitlist on');
+out = await decide([r10.registration_id], 'approved');
+ok(out[0].outcome === 'updated', 'capacity null: approving never returns over_capacity');
+const av2 = (await q(`select public.event_availability('yim-2026') a`))[0].a;
+ok(av2.is_full === false, 'capacity null: event_availability is never full');
+await as('authenticated', adminId, async () => {
+  const s = (await q(`select public.event_stats($1) s`, [eventId]))[0].s;
+  ok(s.capacity === null && s.remaining === null, 'capacity null: event_stats remaining is null', JSON.stringify({ c: s.capacity, r: s.remaining }));
+});
+
 // ── rate limit ──
 let allowed = 0;
 for (let i = 0; i < 7; i++) if ((await q(`select public.hit_rate_limit('t', 5, 600) a`))[0].a) allowed++;
@@ -246,7 +299,7 @@ ok(allowed === 5, 'rate limit allows 5 of 7');
 const n = (await q(`select public.anonymize_event_registrations($1) n`, [eventId]))[0].n;
 const leftovers = await q(`select * from registrations where full_name <> 'Anonymized' or email not like 'anon-%' or guardian_email is not null
   or preferred_name is not null or nationality is not null or age is not null or answers <> '{}'::jsonb`);
-ok(n === 7 && leftovers.length === 0, 'anonymize strips personal data incl. form answers', `n=${n}`);
+ok(n === 9 && leftovers.length === 0, 'anonymize strips personal data incl. form answers', `n=${n}`);
 ok((await q(`select public.get_ticket($1) t`, [r1.ticket_token]))[0].t === null, 'old ticket links stop working after anonymizing');
 
 console.log(failures ? `\n${failures} FAILURE(S)` : '\nALL PASSED');

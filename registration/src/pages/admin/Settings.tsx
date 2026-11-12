@@ -9,14 +9,14 @@ const fromLocalInput = (v: string) => (v ? new Date(`${v}:00+08:00`).toISOString
 
 export default function Settings() {
   const { event, reload } = useEvent();
-  const [form, setForm] = useState({ capacity: 200, opens: '', closes: '', auto_waitlist: true, contact_email: '', arrival_note: '' });
+  const [form, setForm] = useState({ capacity: '', opens: '', closes: '', auto_waitlist: true, contact_email: '', arrival_note: '' });
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (!event) return;
     setForm({
-      capacity: event.capacity,
+      capacity: event.capacity == null ? '' : String(event.capacity),
       opens: toLocalInput(event.registration_opens_at),
       closes: toLocalInput(event.registration_closes_at),
       auto_waitlist: event.auto_waitlist,
@@ -32,7 +32,7 @@ export default function Settings() {
     const { error } = await supabase
       .from('events')
       .update({
-        capacity: form.capacity,
+        capacity: form.capacity.trim() ? Number(form.capacity) : null,
         registration_opens_at: fromLocalInput(form.opens),
         registration_closes_at: fromLocalInput(form.closes),
         auto_waitlist: form.auto_waitlist,
@@ -52,8 +52,8 @@ export default function Settings() {
       <h1 className="text-2xl font-bold">Event settings</h1>
       <div>
         <label htmlFor="capacity" className="label">Capacity</label>
-        <input id="capacity" type="number" min={1} required className="input" value={form.capacity} onChange={(e) => setForm({ ...form, capacity: Number(e.target.value) })} />
-        <p className="mt-1 text-xs text-slate-500">Counts <strong>approved</strong> registrants only. Approving beyond this asks for confirmation.</p>
+        <input id="capacity" type="number" min={1} className="input" placeholder="No limit" value={form.capacity} onChange={(e) => setForm({ ...form, capacity: e.target.value })} />
+        <p className="mt-1 text-xs text-slate-500">Leave empty for no limit. Counts <strong>approved</strong> registrants only. Approving beyond this asks for confirmation.</p>
       </div>
       <div className="grid gap-4 sm:grid-cols-2">
         <div>
@@ -68,7 +68,7 @@ export default function Settings() {
       </div>
       <label className="flex items-start gap-3 text-sm">
         <input type="checkbox" className="mt-0.5 size-5 accent-navy" checked={form.auto_waitlist} onChange={(e) => setForm({ ...form, auto_waitlist: e.target.checked })} />
-        <span><strong>Auto-waitlist when full.</strong> Once approved registrants reach capacity, new registrations go straight to the waitlist and get the waitlist email.</span>
+        <span><strong>Auto-waitlist when full.</strong> Once approved registrants reach capacity, new registrations go straight to the waitlist and get the waitlist email. Has no effect when there is no capacity limit.</span>
       </label>
       <div>
         <label htmlFor="contact" className="label">Contact email (shown in emails and on tickets)</label>

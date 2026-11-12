@@ -15,7 +15,8 @@ export interface EventRow {
   map_url: string | null;
   contact_email: string;
   arrival_note: string | null;
-  capacity: number;
+  /** Null = no limit. */
+  capacity: number | null;
   registration_opens_at: string | null;
   registration_closes_at: string | null;
   auto_waitlist: boolean;
@@ -48,6 +49,7 @@ export interface Registration {
   created_at: string;
   decided_at: string | null;
   checked_in_at: string | null;
+  kit_received_at: string | null;
 }
 
 export interface CategoryStats {
@@ -61,7 +63,7 @@ export interface CategoryStats {
 }
 
 export interface EventStats {
-  capacity: number;
+  capacity: number | null;
   total: number;
   pending: number;
   approved: number;
@@ -69,7 +71,9 @@ export interface EventStats {
   waitlisted: number;
   cancelled: number;
   checked_in: number;
-  remaining: number;
+  kit_received: number;
+  /** Null when there is no capacity limit. */
+  remaining: number | null;
   by_category: CategoryStats[];
 }
 
@@ -86,6 +90,7 @@ export type CheckInResult =
       status: Status;
       photo_consent: boolean;
       checked_in_at: string | null;
+      kit_received_at: string | null;
     };
 
 export interface Ticket {

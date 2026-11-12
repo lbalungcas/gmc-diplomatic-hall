@@ -36,7 +36,8 @@ Scanner ─────── rpc check_in(token) ────────▶ at
 - **Approval first:** the QR code only leaves the server in the "You're confirmed" email, and only shows on the ticket page once the registrant is approved.
 - **QR contents:** `https://youthinnovationsmarketplace.org/register/t/<token>`. The token is 256 random bits and is never the row id. The QR holds no personal data.
 - **Atomic check-in:** if two phones scan the same code at the same moment, the second one gets **Already checked in**.
-- **Capacity** counts *approved* registrants. Approving past capacity asks the admin to confirm, and the override is recorded in the audit log. When **auto-waitlist** is on and the event is full, new sign-ups go straight to the waitlist.
+- **Capacity** counts *approved* registrants, and is optional: leave it empty in Settings for no limit. Approving past capacity asks the admin to confirm, and the override is recorded in the audit log. When **auto-waitlist** is on and the event is full, new sign-ups go straight to the waitlist.
+- **Reg kit:** door staff tick **Kit given** after a check-in (scanner, manual check-in, or the registrant drawer). The dashboard shows a Reg kit column, filter and count; the CSV export has **Received Reg Kit?** and **Reg kit given at**.
 - **Audit log:** every registration, approve, decline, waitlist, check-in, undo, resend, import and export is recorded. The registrant drawer shows that history together with the email delivery log.
 
 ## The registration form

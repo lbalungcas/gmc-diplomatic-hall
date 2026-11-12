@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { KitToggle } from '../../components/KitToggle';
 import { StatusBadge } from '../../components/StatusBadge';
 import { formatTime } from '../../lib/format';
 import { supabase } from '../../lib/supabase';
@@ -15,6 +16,7 @@ interface Hit {
   status: Status;
   photo_consent: boolean;
   checked_in_at: string | null;
+  kit_received_at: string | null;
 }
 
 /** For guests without their phone: find by name or organization and check in by hand. */
@@ -43,7 +45,7 @@ export default function CheckIn() {
   async function checkIn(h: Hit) {
     const { data, error } = await supabase.rpc('check_in_manual', { p_id: h.id });
     if (error) setMessage({ tone: 'warn', text: error.message });
-    else if (data.result === 'checked_in') setMessage({ tone: 'ok', text: `${h.full_name} checked in.${h.photo_consent ? '' : ' NO PHOTOS for this guest.'}` });
+    else if (data.result === 'checked_in') setMessage({ tone: 'ok', text: `${h.full_name} checked in. Hand over the reg kit and tap Kit given.${h.photo_consent ? '' : ' NO PHOTOS for this guest.'}` });
     else if (data.result === 'already_checked_in') setMessage({ tone: 'warn', text: `${h.full_name} was already checked in at ${formatTime(data.checked_in_at)}.` });
     else setMessage({ tone: 'warn', text: `${h.full_name} is not approved (${data.status}). Do not admit — refer to an admin.` });
     setVersion((v) => v + 1);
@@ -85,7 +87,11 @@ export default function CheckIn() {
               </div>
             </div>
             {h.checked_in_at ? (
-              <button className="btn-ghost" onClick={() => undo(h)}>Undo</button>
+              <div className="flex items-center gap-2">
+                <KitToggle id={h.id} kitReceivedAt={h.kit_received_at}
+                  onChange={(at) => setHits((list) => list.map((x) => (x.id === h.id ? { ...x, kit_received_at: at } : x)))} />
+                <button className="btn-ghost" onClick={() => undo(h)}>Undo</button>
+              </div>
             ) : h.status === 'approved' ? (
               <button className="btn-primary px-6 py-3 text-base" onClick={() => checkIn(h)}>Check in</button>
             ) : (
@@ -94,7 +100,12 @@ export default function CheckIn() {
           </li>
         ))}
       </ul>
-      {q.trim().length >= 2 && !searching && hits.length === 0 && <p className="text-center text-slate-500">No one found.</p>}
+      {q.trim().length >= 2 && !searching && hits.length === 0 && (
+        <p className="text-center text-slate-500">
+          No one found. Try another spelling or their organization.<br />
+          Not registered? Ask them to scan the walk-in QR code to register, then send them to the help desk.
+        </p>
+      )}
     </div>
   );
 }

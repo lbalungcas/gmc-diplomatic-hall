@@ -308,7 +308,7 @@ export const DEFAULT_FORM: FormSchema = {
           id: 'please_note',
           title: '**Please Note:**',
           body:
-            '- All visitors are invited to fill out the pre-registration form before 8:00 PM Philippine Standard Time on Saturday, 14 November 2026. Registered visitors will receive a confirmation email from the organisers.\n' +
+            '- Please pre-register by 8:00 PM Philippine Standard Time on Saturday, 14 November 2026. If you missed it, you can still register on the day at the venue; the registration team will confirm you on site. Registered visitors will receive a confirmation email from the organisers.\n' +
             '- To help guests find their way around, the organisers will provide a **treasure map** to guide them through the Youth Innovation Booths, Deal Corner, Policy Wall, Photo Booth, and other areas of the Marketplace.',
         },
       ],

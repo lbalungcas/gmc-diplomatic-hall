@@ -14,10 +14,10 @@ values (
   'https://maps.google.com/?q=Marriott+Hotel+Manila+Newport+World+Resorts+Pasay',
   'violenceendswithus@gmail.com',
   'The registration desk opens at 9:00 AM. Please bring a valid photo ID and have your QR code ready on your phone or printed.',
-  200,
+  null,                      -- no capacity limit
   null,
-  '2026-11-14 20:00:00+08',  -- "before 8:00 PM Philippine Standard Time on Saturday, 14 November 2026"
-  true)
+  '2026-11-17 17:00:00+08',  -- open through the event day for on-site registration
+  false)
 on conflict (slug) do update set
   name = excluded.name,
   subtitle = excluded.subtitle,

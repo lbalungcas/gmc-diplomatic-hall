@@ -31,6 +31,8 @@ export function registrationsToCsv(rows: Registration[], schema: FormSchema): st
     ['Source', (r) => r.source],
     ['Decided at', (r) => r.decided_at],
     ['Checked in at', (r) => r.checked_in_at],
+    ['Received Reg Kit?', (r) => yesNo(r.kit_received_at != null)],
+    ['Reg kit given at', (r) => r.kit_received_at],
   ];
 
   return Papa.unparse({

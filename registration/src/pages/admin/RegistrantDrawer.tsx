@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
+import { KitToggle } from '../../components/KitToggle';
 import { StatusBadge } from '../../components/StatusBadge';
 import type { Decision } from '../../lib/decide';
 import { ageLabel, formatDateTime } from '../../lib/format';
@@ -37,6 +38,8 @@ const ACTION_LABELS: Record<string, string> = {
   resend_email: 'Email resent',
   safeguarding_email: 'Safeguarding form emailed',
   guardian_consent: 'Guardian consent recorded',
+  kit_received: 'Reg kit given',
+  kit_undo: 'Reg kit unmarked',
 };
 
 export function RegistrantDrawer({ id, version, form, onClose, onChanged, onDecide }: {
@@ -146,6 +149,10 @@ export function RegistrantDrawer({ id, version, form, onClose, onChanged, onDeci
               <button className="btn-ghost" disabled={busy || reg.status === 'cancelled'} onClick={resend}>Resend {reg.status} email</button>
               {reg.status === 'approved' && <button className="btn-ghost" disabled={busy} onClick={sendSafeguardingForm}>Send safeguarding form</button>}
               {reg.status === 'approved' && !reg.checked_in_at && <button className="btn-primary" disabled={busy} onClick={checkIn}>Check in now</button>}
+              {reg.checked_in_at && (
+                <KitToggle key={reg.kit_received_at ?? 'none'} id={reg.id} kitReceivedAt={reg.kit_received_at}
+                  onChange={async () => { await load(); onChanged(); }} />
+              )}
               {reg.checked_in_at && <button className="btn-ghost" disabled={busy} onClick={undoCheckIn}>Undo check-in</button>}
               <button className="btn-ghost" onClick={copyLink}>Copy ticket link</button>
             </div>
@@ -175,6 +182,7 @@ export function RegistrantDrawer({ id, version, form, onClose, onChanged, onDeci
               <Field label="Registered" value={formatDateTime(reg.created_at)} />
               <Field label="Decided" value={formatDateTime(reg.decided_at)} />
               <Field label="Checked in" value={formatDateTime(reg.checked_in_at)} />
+              <Field label="Received reg kit?" value={reg.kit_received_at ? `Yes, ${formatDateTime(reg.kit_received_at)}` : 'No'} />
               </dl>
             </Section>
 

@@ -14,7 +14,7 @@ import { ImportDialog } from './ImportDialog';
 import { RegistrantDrawer } from './RegistrantDrawer';
 
 const PAGE_SIZE = 50;
-type SortKey = 'created_at' | 'full_name' | 'organization' | 'category' | 'status' | 'checked_in_at';
+type SortKey = 'created_at' | 'full_name' | 'organization' | 'category' | 'status' | 'checked_in_at' | 'kit_received_at';
 
 interface Filters {
   search: string;
@@ -22,16 +22,26 @@ interface Filters {
   category: string;
   country: string;
   checkedIn: '' | 'yes' | 'no';
+  kit: '' | 'yes' | 'no';
+  /** Registered since midnight Manila time: on-site sign-ups on the event day. */
+  today: boolean;
   /** Filter on any choice question: question id + option label. */
   answerQ: string;
   answerV: string;
 }
 
-const EMPTY_FILTERS: Filters = { search: '', status: '', category: '', country: '', checkedIn: '', answerQ: '', answerV: '' };
+const EMPTY_FILTERS: Filters = { search: '', status: '', category: '', country: '', checkedIn: '', kit: '', today: false, answerQ: '', answerV: '' };
+
+/** Midnight today in Manila (UTC+8 all year), as an ISO timestamp. */
+function manilaMidnight(): string {
+  const day = new Date(Date.now() + 8 * 3600 * 1000).toISOString().slice(0, 10);
+  return new Date(`${day}T00:00:00+08:00`).toISOString();
+}
 
 interface Filterable<T> {
   or: (s: string) => T;
   eq: (c: string, v: string) => T;
+  gte: (c: string, v: string) => T;
   not: (c: string, op: string, v: null) => T;
   is: (c: string, v: null) => T;
   contains: (c: string, v: Record<string, unknown>) => T;
@@ -46,6 +56,9 @@ function applyFilters<T extends Filterable<T>>(q: T, f: Filters, form: FormSchem
   if (f.country) q = q.eq('country', f.country);
   if (f.checkedIn === 'yes') q = q.not('checked_in_at', 'is', null);
   if (f.checkedIn === 'no') q = q.is('checked_in_at', null);
+  if (f.kit === 'yes') q = q.not('kit_received_at', 'is', null);
+  if (f.kit === 'no') q = q.is('kit_received_at', null);
+  if (f.today) q = q.gte('created_at', manilaMidnight());
   const aq = questions(form).find((x) => x.id === f.answerQ);
   if (aq && f.answerV) {
     q = aq.kind === 'checkbox' ? q.contains('answers', { [aq.id]: [f.answerV] }) : q.eq(`answers->>${aq.id}`, f.answerV);
@@ -301,6 +314,13 @@ export default function Dashboard() {
             options={countries.map((c) => [c, c])} />
           <FilterSelect label="Checked in" value={filters.checkedIn} onChange={(v) => { setFilters((f) => ({ ...f, checkedIn: v as Filters['checkedIn'] })); setPage(0); }}
             options={[['yes', 'Checked in'], ['no', 'Not checked in']]} />
+          <FilterSelect label="Reg kit" value={filters.kit} onChange={(v) => { setFilters((f) => ({ ...f, kit: v as Filters['kit'] })); setPage(0); }}
+            options={[['yes', 'Received'], ['no', 'Not yet']]} />
+          <label className="flex items-center gap-2 self-center pt-4 text-sm font-semibold text-slate-600" title="On-site sign-ups: registered since midnight (Manila time)">
+            <input type="checkbox" className="size-4 accent-navy" checked={filters.today}
+              onChange={(e) => { setFilters((f) => ({ ...f, today: e.target.checked })); setPage(0); }} />
+            Registered today
+          </label>
           <FilterSelect label="Answer to question" value={filters.answerQ} onChange={(v) => { setFilters((f) => ({ ...f, answerQ: v, answerV: '' })); setPage(0); }}
             options={choiceQuestions.map((q) => [q.id, truncate(plainText(q.label), 60)])} />
           {filters.answerQ && (
@@ -353,6 +373,7 @@ export default function Dashboard() {
               <th scope="col" className="px-3 py-2.5 text-left font-semibold" title="Photo / filming consent">Photo</th>
               {sortHeader('created_at', 'Registered')}
               {sortHeader('checked_in_at', 'Checked in')}
+              {sortHeader('kit_received_at', 'Reg kit')}
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
@@ -383,10 +404,15 @@ export default function Dashboard() {
                 </td>
                 <td className="px-3 py-2.5 whitespace-nowrap text-slate-500">{formatDateTime(r.created_at)}</td>
                 <td className="px-3 py-2.5 whitespace-nowrap">{r.checked_in_at ? formatDateTime(r.checked_in_at) : <span className="text-slate-400">—</span>}</td>
+                <td className="px-3 py-2.5 whitespace-nowrap">
+                  {r.kit_received_at
+                    ? <span className="text-emerald-700" title={`Given ${formatDateTime(r.kit_received_at)}`}>✓ {formatDateTime(r.kit_received_at)}</span>
+                    : <span className="text-slate-400">—</span>}
+                </td>
               </tr>
             ))}
             {rows.length === 0 && (
-              <tr><td colSpan={9} className="px-3 py-12 text-center text-slate-500">No registrants match.</td></tr>
+              <tr><td colSpan={10} className="px-3 py-12 text-center text-slate-500">No registrants match.</td></tr>
             )}
           </tbody>
         </table>
@@ -449,15 +475,18 @@ function StatsPanel({ stats, event, showCategories, onToggleCategories }: { stat
     ['Declined', stats?.declined, 'text-red-700'],
     ['Waitlisted', stats?.waitlisted, 'text-sky-700'],
     ['Checked in', stats?.checked_in, 'text-navy'],
-    ['Spots left', stats?.remaining, 'text-slate-900'],
+    ['Kits given', stats?.kit_received, 'text-emerald-700'],
   ];
+  if (event.capacity != null) tiles.push(['Spots left', stats?.remaining ?? undefined, 'text-slate-900']);
   return (
     <section aria-label="Statistics" className="space-y-3">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <h1 className="text-2xl font-bold">{event.name}</h1>
-        <p className="text-sm text-slate-500">Capacity {event.capacity} (approved registrants) · updates every 15 s</p>
+        <p className="text-sm text-slate-500">
+          {event.capacity != null ? `Capacity ${event.capacity} (approved registrants)` : 'No capacity limit'} · updates every 15 s
+        </p>
       </div>
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-7">
+      <div className={`grid grid-cols-2 gap-3 sm:grid-cols-4 ${tiles.length > 7 ? 'lg:grid-cols-8' : 'lg:grid-cols-7'}`}>
         {tiles.map(([label, value, tone]) => (
           <div key={label} className="card px-4 py-3">
             <div className="text-xs font-semibold tracking-wide text-slate-500 uppercase">{label}</div>
