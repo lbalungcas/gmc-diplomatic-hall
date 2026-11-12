@@ -57,6 +57,15 @@ EXPERTS = [
     ('mary-grace-blando', 'docx:', r'Child Protection (CANE+D)\MGZB_Bionote 2024.docx', (0.51, 0.21, 0.45)),
 ]
 
+# The Deal Corner team: photos only, in the 'Deal Corner' folder next to the source folder.
+# Written to public/deal-corner/facilitators/<slug>.jpg.
+FACILITATORS = [
+    ('lance-balungcas', r'Lance Balungcas\image.jpg', (0.47, 0.42, 0.78)),
+    ('chrisindah-khosuma', r'Chrisindah Janecilsky Khosuma\Chrisindah Khosuma.jpg', (0.5, 0.34, 0.8)),
+    ('keumala-dewi', r'Keumala Dewi\IMG_4752.JPG', (0.5, 0.31, 0.9)),
+    ('sd-gatchalian-gador', r'SD Gatchalian Gador\WhatsApp Image 2026-11-12 at 5.30.24 PM.jpeg', (0.5, 0.25, 0.6)),
+]
+
 W = '{http://schemas.openxmlformats.org/wordprocessingml/2006/main}'
 CONTACT = re.compile(r'[\w.+-]+@[\w-]+\.[\w.]+|(?:\+?\d[\d\s()-]{8,}\d)')
 
@@ -111,6 +120,31 @@ def square(img, crop):
     return img.crop((left, top, left + s, top + s)).resize((SIZE, SIZE), Image.LANCZOS)
 
 
+def save_photo(img, crop, out):
+    img = ImageOps.exif_transpose(img)
+    if img.mode in ('RGBA', 'LA', 'P'):
+        img = img.convert('RGBA')
+        flat = Image.new('RGB', img.size, (255, 255, 255))
+        flat.paste(img, mask=img.split()[-1])
+        img = flat
+    img = square(img.convert('RGB'), crop)
+    img.save(out, 'JPEG', quality=82, optimize=True, progressive=True)
+    return f'{os.path.getsize(out) // 1024} KB photo'
+
+
+def build_facilitators(src):
+    team = os.path.join(os.path.dirname(os.path.abspath(src)), 'Deal Corner')
+    out_dir = os.path.join(ROOT, 'public', 'deal-corner', 'facilitators')
+    os.makedirs(out_dir, exist_ok=True)
+    print('\n=== facilitators')
+    for slug, photo, crop in FACILITATORS:
+        path = os.path.join(team, photo)
+        if not os.path.exists(path):
+            print(f'  {slug}: PHOTO MISSING ({path})')
+            continue
+        print(f'  {slug}: ' + save_photo(Image.open(path), crop, os.path.join(out_dir, f'{slug}.jpg')))
+
+
 def main():
     src = sys.argv[1] if len(sys.argv) > 1 else DEFAULT_SRC
     if not os.path.isdir(src):
@@ -126,15 +160,7 @@ def main():
             note = 'photo not in this pack, existing one kept' if os.path.exists(out) else 'PHOTO MISSING'
         else:
             img = docx_photo(doc) if photo == 'docx:' else Image.open(os.path.join(src, photo))
-            img = ImageOps.exif_transpose(img)
-            if img.mode in ('RGBA', 'LA', 'P'):
-                img = img.convert('RGBA')
-                flat = Image.new('RGB', img.size, (255, 255, 255))
-                flat.paste(img, mask=img.split()[-1])
-                img = flat
-            img = square(img.convert('RGB'), crop)
-            img.save(out, 'JPEG', quality=82, optimize=True, progressive=True)
-            note = f'{os.path.getsize(out) // 1024} KB photo'
+            note = save_photo(img, crop, out)
 
         paras = docx_text(doc)
         print(f'\n=== {slug}  ({note})')
@@ -143,6 +169,8 @@ def main():
         found = sorted({m.strip() for p in paras for m in CONTACT.findall(p)})
         if found:
             print(f'  !! contact details in this bionote, do not publish: {found}')
+
+    build_facilitators(src)
 
 
 if __name__ == '__main__':

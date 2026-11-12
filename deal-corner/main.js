@@ -1,6 +1,7 @@
-import { TRACKS } from './experts.js';
+import { TRACKS, FACILITATORS } from './experts.js';
 
 const PHOTO_DIR = '/deal-corner/experts/';
+const TEAM_PHOTO_DIR = '/deal-corner/facilitators/';
 
 const el = (tag, cls, text) => {
   const n = document.createElement(tag);
@@ -19,7 +20,7 @@ const initials = (name) => name
   .filter((_, i, a) => i === 0 || i === a.length - 1)
   .join('');
 
-function photo(expert) {
+function photo(expert, dir = PHOTO_DIR) {
   const wrap = el('div', 'dc-photo');
   const fallback = () => {
     const box = el('div', 'dc-initials', initials(expert.name));
@@ -31,7 +32,7 @@ function photo(expert) {
     return wrap;
   }
   const img = new Image(160, 160);
-  img.src = PHOTO_DIR + expert.photo;
+  img.src = dir + expert.photo;
   img.alt = `${expert.name}, ${expert.role}`;
   img.loading = 'lazy';
   img.decoding = 'async';
@@ -45,7 +46,7 @@ function expertCard(expert, track, i) {
   card.style.setProperty('--delay', `${Math.min(i, 5) * 0.07}s`);
 
   const top = el('div', 'dc-expert-top');
-  const id = `bio-${expert.slug}`;
+  const id = `bio-${track.id}-${expert.slug}`;
   const who = el('div');
   who.append(el('h3', null, expert.name), el('p', 'dc-role', expert.role));
   const org = el('span', 'dc-org');
@@ -113,6 +114,16 @@ function trackSection(track) {
   container.append(head, grid);
   section.append(container);
   return section;
+}
+
+function facilitatorCard(person, i) {
+  const card = el('article', 'dc-member dc-reveal');
+  card.style.setProperty('--delay', `${Math.min(i, 5) * 0.07}s`);
+  const who = el('div');
+  who.append(el('h3', null, person.name), el('p', 'dc-role', person.role));
+  card.append(photo(person, TEAM_PHOTO_DIR), who);
+  if (i === 0) card.classList.add('dc-member-lead');
+  return card;
 }
 
 function chip(track) {
@@ -190,12 +201,13 @@ function reveal() {
 }
 
 function render() {
-  const experts = TRACKS.reduce((sum, t) => sum + t.experts.length, 0);
+  const experts = new Set(TRACKS.flatMap((t) => t.experts.map((x) => x.slug))).size;
   document.getElementById('dcTrackCount').textContent = TRACKS.length;
   document.getElementById('dcExpertCount').textContent = experts;
 
   document.getElementById('dcChipsList').replaceChildren(...TRACKS.map(chip));
   document.getElementById('dcTracks').replaceChildren(...TRACKS.map(trackSection));
+  document.getElementById('dcTeamList').replaceChildren(...FACILITATORS.map(facilitatorCard));
 
   stickChipsUnderHeader();
   spyOnTracks();

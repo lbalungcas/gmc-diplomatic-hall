@@ -400,6 +400,77 @@
   font-size: 0.9rem;
 }
 
+/* --- Deal Corner facilitators --- */
+.dc-team {
+  padding: 1.5rem 0 3.25rem;
+  scroll-margin-top: 140px;
+}
+
+.dc-team-head {
+  text-align: center;
+  max-width: 720px;
+  margin: 0 auto 1.8rem;
+}
+
+.dc-team-head h2 {
+  font-family: var(--font-display);
+  font-size: clamp(1.5rem, 2.8vw, 2rem);
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--text-dark);
+  margin: 0.8rem 0 0.6rem;
+}
+
+.dc-team-head p {
+  font-size: 0.95rem;
+  line-height: 1.62;
+  color: var(--text-body);
+  margin: 0;
+}
+
+.dc-team-list {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1.4rem;
+}
+
+.dc-member {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 0.9rem;
+  background: var(--bg-white);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-lg);
+  padding: 1.7rem 1.2rem 1.5rem;
+  box-shadow: var(--shadow-xs);
+}
+
+.dc-member .dc-photo {
+  width: 112px;
+  height: 112px;
+}
+
+.dc-member h3 {
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+  font-weight: 700;
+  line-height: 1.28;
+  color: var(--text-dark);
+  margin: 0 0 0.3rem;
+}
+
+.dc-member-lead {
+  border-color: rgba(251, 217, 96, 0.9);
+  box-shadow: var(--shadow-md);
+}
+
+.dc-member-lead .dc-role {
+  font-weight: 700;
+  color: var(--vewu-blue);
+}
+
 /* --- Closing call to action --- */
 .dc-cta {
   padding: 1rem 0 4.5rem;
@@ -480,7 +551,8 @@
 
 /* --- Responsive --- */
 @media (max-width: 1080px) {
-  .dc-experts {
+  .dc-experts,
+  .dc-team-list {
     grid-template-columns: repeat(2, 1fr);
   }
 
@@ -512,6 +584,24 @@
 
   .dc-experts {
     grid-template-columns: 1fr;
+  }
+
+  .dc-team-list {
+    gap: 0.9rem;
+  }
+
+  .dc-member {
+    padding: 1.3rem 0.8rem 1.2rem;
+  }
+
+  .dc-member .dc-photo {
+    width: 88px;
+    height: 88px;
+  }
+
+  .dc-member h3 {
+    font-size: 0.95rem;
+    overflow-wrap: anywhere;
   }
 
   .dc-expert {

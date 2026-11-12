@@ -80,21 +80,36 @@ await go('/deal-corner/');
 await check('seven tracks in order, 01 to 07', `
   const nos = [...document.querySelectorAll('.dc-track .thematic-tag')].map(t => t.firstChild.textContent);
   return { ok: nos.join() === 'Track 01,Track 02,Track 03,Track 04,Track 05,Track 06,Track 07', detail: nos.join(' | ') };`);
-await check('13 expert cards (4 on Child Marriage); only ASRH says coming soon', `
+await check('14 expert cards; Amina on Child Marriage and ASRH; no track says coming soon', `
   const cards = document.querySelectorAll('.dc-expert').length;
   const cefmu = document.querySelectorAll('#child-marriage .dc-expert').length;
-  const soon = [...document.querySelectorAll('.dc-soon')].map(s => s.closest('.dc-track').id);
-  return { ok: cards === 13 && cefmu === 4 && soon.join() === 'asrh', detail: cards + ' cards, ' + cefmu + ' on Child Marriage; coming soon: ' + soon.join(', ') };`);
+  const asrh = [...document.querySelectorAll('#asrh .dc-expert h3')].map(h => h.textContent);
+  const soon = document.querySelectorAll('.dc-soon').length;
+  const ids = [...document.querySelectorAll('[id]')].map(n => n.id);
+  const dupes = ids.filter((id, i) => ids.indexOf(id) !== i);
+  return { ok: cards === 14 && cefmu === 4 && asrh.join() === 'Dr. Amina Moni' && !soon && !dupes.length,
+    detail: cards + ' cards, ' + cefmu + ' on Child Marriage, ASRH: ' + asrh.join() + '; coming soon: ' + soon + '; duplicate ids: ' + (dupes.join() || 'none') };`);
+await check('facilitators after the tracks, the lead first, photos load', `
+  const team = document.getElementById('facilitators');
+  const after = document.getElementById('dcTracks').compareDocumentPosition(team) & Node.DOCUMENT_POSITION_FOLLOWING;
+  const before = team.compareDocumentPosition(document.querySelector('.dc-cta')) & Node.DOCUMENT_POSITION_FOLLOWING;
+  const people = [...team.querySelectorAll('.dc-member')].map(m => m.querySelector('h3').textContent + ' (' + m.querySelector('.dc-role').textContent + ')');
+  const imgs = [...team.querySelectorAll('img')];
+  imgs.forEach(i => { i.loading = 'eager'; });
+  await Promise.all(imgs.map(i => i.complete ? 0 : new Promise(r => { i.onload = i.onerror = r; })));
+  const broken = imgs.filter(i => !i.naturalWidth).length;
+  return { ok: !!after && !!before && people.length === 4 && people[0] === 'Lance Balungcas (Deal Corner Lead)' && imgs.length === 4 && !broken,
+    detail: people.join(', ') + '; broken photos: ' + broken };`);
 await check('hero counts come from the data', `
   const t = document.getElementById('dcTrackCount').textContent, e = document.getElementById('dcExpertCount').textContent;
   return { ok: t === '7' && e === '13', detail: t + ' tracks, ' + e + ' experts' };`);
 await check('every expert has a photo and it loads', `
-  const imgs = [...document.querySelectorAll('.dc-photo img')];
+  const imgs = [...document.querySelectorAll('.dc-expert .dc-photo img')];
   imgs.forEach(i => { i.loading = 'eager'; });
   await Promise.all(imgs.map(i => i.complete ? 0 : new Promise(r => { i.onload = i.onerror = r; })));
   const broken = imgs.filter(i => !i.naturalWidth).map(i => i.alt);
   const initials = [...document.querySelectorAll('.dc-initials')].map(n => n.textContent);
-  return { ok: imgs.length === 13 && !broken.length && !initials.length, detail: imgs.length + ' photos, broken: ' + (broken.join('; ') || 'none') + ', initials: ' + initials.join() };`);
+  return { ok: imgs.length === 14 && !broken.length && !initials.length, detail: imgs.length + ' photos, broken: ' + (broken.join('; ') || 'none') + ', initials: ' + initials.join() };`);
 await check('all seven chips fit on one row at 1440 px', `
   const list = document.getElementById('dcChipsList');
   return { ok: list.scrollWidth <= list.clientWidth + 1, detail: list.scrollWidth + ' of ' + list.clientWidth + ' px' };`);
@@ -112,6 +127,9 @@ await check('clicking a chip scrolls its track under the sticky bars and marks t
   const active = document.querySelector('.dc-chip.active')?.dataset.track;
   return { ok: head.top >= bars - 2 && head.top < bars + 80 && active === 'ocsea', detail: 'head at ' + Math.round(head.top) + ', bars end ' + Math.round(bars) + ', active ' + active };`);
 await shot('desk-ocsea');
+await evaluate(`document.getElementById('facilitators').scrollIntoView(); document.querySelectorAll('.dc-reveal').forEach(n => n.classList.add('in')); return 1;`);
+await sleep(600);
+await shot('desk-team');
 
 await check('"Read full bio" opens and closes the whole bio', `
   const card = document.querySelector('#ocsea .dc-expert');
@@ -182,6 +200,9 @@ for (const [w, h, name] of [[768, 1024, 'tab'], [390, 844, 'mob']]) {
     return { ok: Math.abs(header.top) < 1 && Math.abs(bar.top - header.bottom) < 1 && head.top >= bar.bottom - 2 && head.top < bar.bottom + 80,
       detail: 'header ' + Math.round(header.top) + '-' + Math.round(header.bottom) + ', bar ' + Math.round(bar.top) + '-' + Math.round(bar.bottom) + ', track at ' + Math.round(head.top) };`);
   await shot(`${name}-track`);
+  await evaluate(`document.getElementById('facilitators').scrollIntoView(); document.querySelectorAll('.dc-reveal').forEach(n => n.classList.add('in')); return 1;`);
+  await sleep(600);
+  await shot(`${name}-team`);
 }
 
 await check('no script errors', `return { ok: true };`);

@@ -6,8 +6,20 @@
  * `python scripts/build_deal_corner.py` for the photo (public/deal-corner/experts/<slug>.jpg), then
  * add an entry here. `photo: null` shows the expert's initials instead. `chip` is the short label in
  * the sticky track bar. Bios are plain text;
- * `blurb` is trusted markup copied from the landing page.
+ * `blurb` is trusted markup copied from the landing page. An expert may sit on more than one track;
+ * the hero count counts them once.
  */
+
+// On Track 02 and Track 05.
+const AMINA_MONI = {
+  slug: 'amina-moni',
+  name: 'Dr. Amina Moni',
+  role: 'Regional Advocacy and Youth Civic Engagement Advisor',
+  org: 'Plan International Asia Pacific',
+  photo: 'amina-moni.jpg',
+  bio: 'Dr. Amina Moni is a development professional with over 19 years of experience, serving as Regional Advocacy and Youth Civic Engagement Advisor at Plan International’s Asia Regional Office. She provides strategic support on advocacy, youth civic engagement, human rights programming, policy analysis, inclusive partnerships and strategic communication. Committed to children’s and young people’s rights at national, regional and international levels, she has worked with the British Council, ARTICLE 19, Educo, Save the Children and Plan International Bangladesh. She holds a PhD and MPhil in Government and Politics and a Master’s in Development Studies, and was a youth volunteer with UNICEF Bangladesh and Bangladesh Scouts.',
+};
+
 export const TRACKS = [
   {
     id: 'child-labour',
@@ -61,14 +73,7 @@ export const TRACKS = [
         photo: 'abby-roberts.jpg',
         bio: 'Abby Roberts is a strategic child protection specialist with over seven years of expertise in preventing and responding to the sexual exploitation of children. As Technical Expert on the Sexual Exploitation of Children at Terre des Hommes Netherlands, she provides high-level guidance to ensure that global programmes, research and advocacy align with evidence-based best practice. Her career includes driving sector-wide standardisation across hotlines, law enforcement and industry partners through specialised training and focus groups, leading programme development, and influencing key global and EU policy and legislation.',
       },
-      {
-        slug: 'amina-moni',
-        name: 'Dr. Amina Moni',
-        role: 'Regional Advocacy and Youth Civic Engagement Advisor',
-        org: 'Plan International Asia Pacific',
-        photo: 'amina-moni.jpg',
-        bio: 'Dr. Amina Moni is a development professional with over 19 years of experience, serving as Regional Advocacy and Youth Civic Engagement Advisor at Plan International’s Asia Regional Office. She provides strategic support on advocacy, youth civic engagement, human rights programming, policy analysis, inclusive partnerships and strategic communication. Committed to children’s and young people’s rights at national, regional and international levels, she has worked with the British Council, ARTICLE 19, Educo, Save the Children and Plan International Bangladesh. She holds a PhD and MPhil in Government and Politics and a Master’s in Development Studies, and was a youth volunteer with UNICEF Bangladesh and Bangladesh Scouts.',
-      },
+      AMINA_MONI,
       {
         slug: 'erickson-name',
         name: 'Erickson B. Name, RSW',
@@ -133,7 +138,7 @@ export const TRACKS = [
     icon: 'fa-heart-pulse',
     blurb: 'Youth-led programmes ensuring access to comprehensive, age-appropriate health education, services, and bodily autonomy for all adolescents.',
     target: 'Health access & bodily autonomy',
-    experts: [],
+    experts: [AMINA_MONI],
   },
   {
     id: 'ocsea',
@@ -189,4 +194,13 @@ export const TRACKS = [
       },
     ],
   },
+];
+
+// The Deal Corner team, shown after the tracks; the lead first. Photos are in
+// public/deal-corner/facilitators/, built by the same script.
+export const FACILITATORS = [
+  { slug: 'lance-balungcas', name: 'Lance Balungcas', role: 'Deal Corner Lead', photo: 'lance-balungcas.jpg' },
+  { slug: 'chrisindah-khosuma', name: 'Chrisindah Janecilsky Khosuma', role: 'Deal Corner Facilitator', photo: 'chrisindah-khosuma.jpg' },
+  { slug: 'keumala-dewi', name: 'Keumala Dewi', role: 'Deal Corner Facilitator', photo: 'keumala-dewi.jpg' },
+  { slug: 'sd-gatchalian-gador', name: 'SD Gatchalian Gador', role: 'Deal Corner Facilitator', photo: 'sd-gatchalian-gador.jpg' },
 ];
