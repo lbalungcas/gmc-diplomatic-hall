@@ -1,7 +1,7 @@
 -- YIM Awards: two invite-only ballots, one vote per email each.
 --   mpyi            Most Promising Young Innovator. Voters and candidates are the youth innovator
 --                   roster imported by an admin; nobody can vote for themselves.
---   peoples_choice  People's Choice of Innovation. Voters are approved registrants; candidates
+--   peoples_choice  Peoples Choice of Innovation. Voters are approved registrants; candidates
 --                   are the booths (seed.sql).
 -- Voters get a personal ballot link (/register/vote/<token>) by email. The token is the only thing
 -- that identifies them, so anon can only reach the ballot through get_ballot() and cast_vote().
@@ -147,7 +147,7 @@ as $$
      and (a.closes_at is null or now() <= a.closes_at)
 $$;
 
--- The voter's ballot. Returns null for an unknown token. Never exposes other voters.
+-- The ballot for one voter. Returns null for an unknown token. Never exposes other voters.
 create or replace function public.get_ballot(p_token text)
 returns jsonb
 language sql
@@ -348,7 +348,7 @@ begin
   return jsonb_build_object('inserted', v_inserted, 'updated', v_updated, 'errors', v_errors);
 end $$;
 
--- People's Choice voters: every approved registrant of the event. Safe to press again; it only adds.
+-- Peoples Choice voters: every approved registrant of the event. Safe to press again; it only adds.
 create or replace function public.sync_pc_voters(p_award uuid)
 returns jsonb
 language plpgsql

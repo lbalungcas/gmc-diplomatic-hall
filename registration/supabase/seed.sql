@@ -36,7 +36,7 @@ select e.id, k.kind, k.title
  where e.slug = 'yim-2026'
 on conflict (event_id, kind) do nothing;
 
--- People's Choice candidates: the booths (src/data/booths.json). Re-running only adds missing booths,
+-- Peoples Choice candidates: the booths (src/data/booths.json). Re-running only adds missing booths,
 -- so renames and hides made on the Awards dashboard are kept.
 insert into public.award_candidates (award_id, booth_no, label, track, sort)
 select a.id, b.booth_no, b.label, nullif(b.track, ''), b.booth_no
