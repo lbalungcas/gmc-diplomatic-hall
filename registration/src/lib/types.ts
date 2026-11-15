@@ -103,3 +103,88 @@ export interface Ticket {
   decline_reason: string | null;
   event: Pick<EventRow, 'name' | 'subtitle' | 'starts_at' | 'ends_at' | 'timezone' | 'venue' | 'venue_address' | 'map_url' | 'contact_email' | 'arrival_note'>;
 }
+
+export type AwardKind = 'mpyi' | 'peoples_choice';
+
+export interface BallotCandidate {
+  id: string;
+  label: string;
+  team: string | null;
+  track: string | null;
+  booth_no: number | null;
+}
+
+export interface Ballot {
+  award: { kind: AwardKind; title: string; open: boolean; closes_at: string | null };
+  event: { name: string; contact_email: string };
+  voter: { name: string | null; team: string | null; track: string | null };
+  voted_at: string | null;
+  choice: string | null;
+  candidates: BallotCandidate[];
+}
+
+export type CastVoteResult =
+  | { result: 'voted'; voted_at: string; choice: string }
+  | { result: 'already_voted'; voted_at: string }
+  | { result: 'closed' | 'invalid' };
+
+export interface Award {
+  id: string;
+  event_id: string;
+  kind: AwardKind;
+  title: string;
+  is_open: boolean;
+  opens_at: string | null;
+  closes_at: string | null;
+}
+
+export interface AwardCandidate extends BallotCandidate {
+  award_id: string;
+  email: string | null;
+  hidden: boolean;
+  sort: number;
+}
+
+export interface AwardVoter {
+  id: string;
+  award_id: string;
+  email: string;
+  name: string | null;
+  team: string | null;
+  track: string | null;
+  registration_id: string | null;
+  candidate_self_id: string | null;
+  sent_at: string | null;
+  voted_at: string | null;
+  created_at: string;
+}
+
+export interface AwardVote {
+  id: string;
+  award_id: string;
+  voter_id: string;
+  candidate_id: string;
+  voter_name: string;
+  voter_team: string | null;
+  voter_track: string | null;
+  note: string | null;
+  created_at: string;
+}
+
+export interface AwardTally {
+  candidate_id: string;
+  label: string;
+  team: string | null;
+  track: string | null;
+  booth_no: number | null;
+  hidden: boolean;
+  votes: number;
+}
+
+export interface AwardStats {
+  eligible: number;
+  sent: number;
+  voted: number;
+  open: boolean;
+  tally: AwardTally[];
+}

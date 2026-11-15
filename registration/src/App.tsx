@@ -5,6 +5,7 @@ import NotFound from './pages/NotFound';
 import Register from './pages/Register';
 import Registered from './pages/Registered';
 import Ticket from './pages/Ticket';
+import Vote from './pages/Vote';
 
 // Staff pages (scanner, CSV, tables) load only when someone opens /register/admin.
 const AdminApp = lazy(() => import('./AdminApp'));
@@ -17,6 +18,7 @@ export default function App() {
           <Route path="/" element={<Register />} />
           <Route path="/registered" element={<Registered />} />
           <Route path="/t/:token" element={<Ticket />} />
+          <Route path="/vote/:token" element={<Vote />} />
           <Route path="/admin/*" element={<AdminApp />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
