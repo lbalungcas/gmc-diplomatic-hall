@@ -105,7 +105,7 @@ npx supabase db push                     # applies supabase/migrations/*
 # Then run supabase/seed.sql once in Dashboard → SQL Editor (creates the 17 Nov event).
 ```
 
-If you don't use the CLI, paste the three migration files and `seed.sql`, in order, into the SQL Editor.
+If you don't use the CLI, paste the migration files (oldest first) and `seed.sql` into the SQL Editor.
 
 ### 2. Auth (staff sign-in by email + password)
 
@@ -239,6 +239,16 @@ Every attendee must complete the conference's **Child Safeguarding and Code of C
 - To send a reminder to specific people, tick them and use **Send safeguarding form** in the selection bar. It asks whether to send again to anyone who already received it. A registrant's details panel also has a **Send safeguarding form** button, which always sends.
 - Every send shows in the registrant's email log and history. The system only knows who was **sent** the form, not who completed it, because the Google Form isn't connected.
 - It needs the migration `20261111000001_safeguarding_email.sql`. If the email log can't record a send, the function stops instead of sending emails it can't track.
+
+### Check-out
+
+Guests check out when they leave, so the dashboard shows who is **on site now**. This needs the migration `20261115000002_checkout.sql`.
+
+- **Admin → Check-out QR** shows the exit poster. Print it and put it at every exit. Guests scan it with their phone and tap **Check out**. The phone remembers each ticket opened on it. If the guest hasn't opened their ticket on that phone, the page asks them to open the link from their confirmation email, and that ticket page then shows **Check out now**.
+- The poster code is secret, like a ticket. **Make a new code** replaces it if a photo of the poster is being shared. Old posters then stop working.
+- Guests without a phone: switch the **Scanner** to **Check out** and scan their ticket, or use **Manual check-in / out**.
+- A guest who comes back is scanned in as usual. The scanner shows **Welcome back**, and their first check-in time is kept.
+- The dashboard shows **On site now** and **Checked out**, has a **Checked out** column and filter, and the CSV export includes **Checked out at**. Every check-out is in the audit log with how it was done (self, scan or manual).
 
 ### Importing the Google Form responses
 
