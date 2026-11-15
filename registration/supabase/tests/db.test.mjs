@@ -46,6 +46,7 @@ for (const f of [
   'migrations/20261020000003_registration_functions.sql',
   'migrations/20261111000001_safeguarding_email.sql',
   'migrations/20261112000001_no_capacity_and_reg_kit.sql',
+  'migrations/20261115000001_awards.sql',
   'seed.sql',
 ]) {
   await db.exec(mig(f));
@@ -60,6 +61,8 @@ await db.exec('drop function public.search_checkin(uuid, text)');
 await db.exec(mig('migrations/20261020000003_registration_functions.sql'));
 await db.exec(mig('migrations/20261111000001_safeguarding_email.sql'));
 await db.exec(mig('migrations/20261112000001_no_capacity_and_reg_kit.sql'));
+await db.exec(mig('migrations/20261115000001_awards.sql'));
+await db.exec(mig('seed.sql'));
 console.log('re-applied migrations OK');
 
 const [{ id: eventId }] = await q(`select id from events where slug = 'yim-2026'`);
@@ -294,6 +297,119 @@ await as('authenticated', adminId, async () => {
 let allowed = 0;
 for (let i = 0; i < 7; i++) if ((await q(`select public.hit_rate_limit('t', 5, 600) a`))[0].a) allowed++;
 ok(allowed === 5, 'rate limit allows 5 of 7');
+
+// ── awards ──
+const [mpyi] = await q(`select id from awards where event_id = $1 and kind = 'mpyi'`, [eventId]);
+const [pc] = await q(`select id from awards where event_id = $1 and kind = 'peoples_choice'`, [eventId]);
+ok(!!mpyi && !!pc, 'both awards exist for the event');
+const booths = await q(`select booth_no from award_candidates where award_id = $1 order by booth_no`, [pc.id]);
+ok(booths.length === 24 && booths[0].booth_no === 1 && booths[23].booth_no === 24, 'seed: 24 booths are People\'s Choice candidates (re-run adds no duplicates)');
+
+await as('anon', null, async () => {
+  for (const t of ['awards', 'award_candidates', 'award_voters', 'award_votes']) {
+    await expectError(() => q(`select * from ${t}`), /permission denied/, `anon cannot select ${t}`);
+  }
+  await expectError(() => q(`select public.award_stats($1)`, [pc.id]), /permission denied/, 'anon cannot read award_stats');
+  ok((await q(`select public.get_ballot('nope') b`))[0].b === null, 'get_ballot with bad token → null');
+});
+await as('authenticated', scannerId, async () => {
+  ok((await q('select * from award_votes')).length === 0, 'scanner sees no votes');
+  await expectError(() => q(`select public.award_stats($1)`, [pc.id]), /not authorized/, 'scanner cannot read award_stats');
+  await expectError(() => q(`select public.sync_pc_voters($1)`, [pc.id]), /not authorized/, 'scanner cannot sync voters');
+});
+
+let roster;
+await as('authenticated', adminId, async () => {
+  roster = (await q(`select public.import_award_voters($1, $2::jsonb) r`, [mpyi.id, JSON.stringify([
+    { name: 'Ana Cruz', email: 'Ana@Team.org', team: 'Team A', track: 'OCSEA' },
+    { name: 'Ben Lim', email: 'ben@team.org', team: 'Team B', track: 'Corporal Punishment' },
+    { name: 'Cara Diaz', email: 'cara@team.org', team: 'Team C', track: 'Child Marriage' },
+    { name: '', email: 'bad' },
+  ])]))[0].r;
+  ok(roster.inserted === 3 && roster.errors.length === 1, 'roster import: 3 voters + candidates, bad row reported', JSON.stringify(roster));
+  const again = (await q(`select public.import_award_voters($1, $2::jsonb) r`, [mpyi.id, JSON.stringify([
+    { name: 'Ana Cruz', email: 'ana@team.org', team: 'Team A+', track: 'OCSEA' },
+  ])]))[0].r;
+  ok(again.inserted === 0 && again.updated === 1, 're-importing updates instead of duplicating');
+  await expectError(() => q(`select public.import_award_voters($1, '[]'::jsonb)`, [pc.id]), /only for the Most Promising/, 'roster import refused for People\'s Choice');
+  const sync = (await q(`select public.sync_pc_voters($1) r`, [pc.id]))[0].r;
+  const approved = (await q(`select count(*)::int n from registrations where status = 'approved' and event_id = $1`, [eventId]))[0].n;
+  ok(sync.added === approved && sync.total === approved, 'sync adds every approved registrant', JSON.stringify({ sync, approved }));
+  ok((await q(`select public.sync_pc_voters($1) r`, [pc.id]))[0].r.added === 0, 'syncing again adds nobody');
+  await expectError(() => q(`update award_voters set voted_at = now()`), /permission denied/, 'admin cannot write voters directly');
+  await expectError(() => q(`insert into award_votes (award_id, voter_id, candidate_id, voter_name) select award_id, id, candidate_self_id, 'x' from award_voters limit 1`),
+    /permission denied/, 'admin cannot insert votes directly');
+});
+
+const voter = async (award, email) => (await q(`select * from award_voters where award_id = $1 and email = $2`, [award, email]))[0];
+const ana = await voter(mpyi.id, 'ana@team.org');
+const ben = await voter(mpyi.id, 'ben@team.org');
+const vote = (token, cand, name = 'Me', team = 'T', track = 'OCSEA', note = null) =>
+  as('anon', null, async () => (await q(`select public.cast_vote($1, $2, $3, $4, $5, $6) r`, [token, cand, name, team, track, note]))[0].r);
+
+ok((await vote(ana.ballot_token, ben.candidate_self_id)).result === 'closed', 'voting is closed until an admin opens the award');
+await as('authenticated', adminId, async () => {
+  await q(`update awards set is_open = true where id in ($1, $2)`, [mpyi.id, pc.id]);
+});
+
+const ballot = await as('anon', null, async () => (await q(`select public.get_ballot($1) b`, [ana.ballot_token]))[0].b);
+ok(ballot.award.kind === 'mpyi' && ballot.award.open === true && ballot.voter.team === 'Team A+' && ballot.voted_at === null,
+  'get_ballot returns award, prefilled voter fields');
+ok(ballot.candidates.length === 2 && !ballot.candidates.some((c) => c.id === ana.candidate_self_id) && !JSON.stringify(ballot.candidates).includes('@') && !('email' in ballot.voter),
+  'ballot leaves out the voter themself and exposes no emails');
+
+await expectError(() => vote(ana.ballot_token, ana.candidate_self_id, 'Ana', 'Team A', 'OCSEA'), /vote for yourself/, 'self-vote rejected');
+await expectError(() => vote(ana.ballot_token, ben.candidate_self_id, 'Ana', '', 'OCSEA'), /team and thematic track/, 'MPYI needs team and track');
+const [pcCandidate] = await q(`select id from award_candidates where award_id = $1 limit 1`, [pc.id]);
+await expectError(() => vote(ana.ballot_token, pcCandidate.id, 'Ana', 'A', 'OCSEA'),
+  /choose one of the options/, 'a candidate from the other award is rejected');
+ok((await vote('x'.repeat(43), ben.candidate_self_id)).result === 'invalid', 'bad token → invalid');
+const v1 = await vote(ana.ballot_token, ben.candidate_self_id, 'Ana Cruz', 'Team A', 'OCSEA', 'Great pitch');
+ok(v1.result === 'voted' && v1.choice === 'Ben Lim', 'MPYI vote recorded', JSON.stringify(v1));
+const v2 = await vote(ana.ballot_token, ben.candidate_self_id, 'Ana Cruz', 'Team A', 'OCSEA');
+ok(v2.result === 'already_voted', 'second vote → already_voted');
+const after = await as('anon', null, async () => (await q(`select public.get_ballot($1) b`, [ana.ballot_token]))[0].b);
+ok(after.voted_at !== null && after.choice === 'Ben Lim', 'ballot shows the vote was cast');
+
+const pcVoters = await q(`select ballot_token, email from award_voters where award_id = $1 order by email`, [pc.id]);
+const [booth3] = await q(`select id from award_candidates where award_id = $1 and booth_no = 3`, [pc.id]);
+const [booth7] = await q(`select id from award_candidates where award_id = $1 and booth_no = 7`, [pc.id]);
+await as('authenticated', adminId, async () => {
+  await q(`update award_candidates set hidden = true where id = $1`, [booth7.id]);
+});
+await expectError(() => vote(pcVoters[0].ballot_token, booth7.id, 'Visitor'), /choose one of the options/, 'hidden candidate rejected');
+await expectError(() => vote(pcVoters[0].ballot_token, booth3.id, '  '), /enter your name/, 'People\'s Choice needs a name');
+const pv = await vote(pcVoters[0].ballot_token, booth3.id, 'Visitor', null, null, null);
+ok(pv.result === 'voted', 'People\'s Choice vote with just a name and booth');
+await vote(pcVoters[1].ballot_token, booth3.id, 'Visitor 2');
+ok((await q(`select voter_team, voter_track from award_votes where candidate_id = $1 limit 1`, [booth3.id]))[0].voter_team === null,
+  'People\'s Choice stores no team/track');
+
+await as('authenticated', adminId, async () => {
+  const s = (await q(`select public.award_stats($1) s`, [pc.id]))[0].s;
+  ok(s.eligible === pcVoters.length && s.voted === 2 && s.sent === 0 && s.tally[0].candidate_id === booth3.id && s.tally[0].votes === 2
+    && s.tally.length === 24, 'award_stats: eligible, voted, tally sorted by votes', JSON.stringify({ e: s.eligible, v: s.voted, top: s.tally[0] }));
+  const m = (await q(`select public.award_stats($1) s`, [mpyi.id]))[0].s;
+  ok(m.eligible === 3 && m.voted === 1 && m.tally[0].label === 'Ben Lim', 'MPYI stats');
+  const votes = await q(`select voter_name, voter_team, note from award_votes where award_id = $1`, [mpyi.id]);
+  ok(votes.length === 1 && votes[0].note === 'Great pitch' && votes[0].voter_team === 'Team A', 'admin reads votes with who voted and why');
+  await q(`update awards set is_open = false where id = $1`, [pc.id]);
+});
+ok((await vote(pcVoters[2].ballot_token, booth3.id, 'Late')).result === 'closed', 'closing the award stops votes');
+await as('authenticated', adminId, async () => {
+  await q(`update awards set is_open = true, closes_at = now() - interval '1 minute' where id = $1`, [pc.id]);
+});
+ok((await vote(pcVoters[2].ballot_token, booth3.id, 'Late')).result === 'closed', 'past closes_at counts as closed');
+ok((await q(`select 1 from audit_log where action = 'award_vote'`)).length === 3, 'every vote is audited');
+
+await q(`insert into email_log (award_voter_id, type, template, to_email, status) values ($1, 'ballot', 'ballot_mpyi', 'ben@team.org', 'sent')`, [ben.id]);
+await expectError(() => q(`insert into email_log (type, template, status) values ('ballot', 'ballot_mpyi', 'sent')`),
+  /email_log_owner_check/, 'email_log rows need a registration or an award voter');
+
+const anonVoters = (await q(`select public.anonymize_event_awards($1) n`, [eventId]))[0].n;
+ok(anonVoters === 3 + pcVoters.length && (await q(`select 1 from award_voters where email not like 'anon-%'`)).length === 0
+  && (await q(`select 1 from award_votes where note is not null or voter_name <> 'Anonymized'`)).length === 0,
+  'anonymize_event_awards strips voters and notes, keeps the tally');
 
 // ── anonymize ──
 const n = (await q(`select public.anonymize_event_registrations($1) n`, [eventId]))[0].n;
