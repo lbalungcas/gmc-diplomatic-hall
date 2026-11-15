@@ -48,6 +48,7 @@ for (const f of [
   'migrations/20261112000001_no_capacity_and_reg_kit.sql',
   'migrations/20261115000002_checkout.sql',
   'migrations/20261115000003_awards.sql',
+  'migrations/20261115000004_mpyi_details.sql',
   'seed.sql',
 ]) {
   await db.exec(mig(f));
@@ -64,6 +65,7 @@ await db.exec(mig('migrations/20261111000001_safeguarding_email.sql'));
 await db.exec(mig('migrations/20261112000001_no_capacity_and_reg_kit.sql'));
 await db.exec(mig('migrations/20261115000002_checkout.sql'));
 await db.exec(mig('migrations/20261115000003_awards.sql'));
+await db.exec(mig('migrations/20261115000004_mpyi_details.sql'));
 await db.exec(mig('seed.sql'));
 console.log('re-applied migrations OK');
 
@@ -385,7 +387,7 @@ let roster;
 await as('authenticated', adminId, async () => {
   roster = (await q(`select public.import_award_voters($1, $2::jsonb) r`, [mpyi.id, JSON.stringify([
     { name: 'Ana Cruz', email: 'Ana@Team.org', team: 'Team A', track: 'OCSEA' },
-    { name: 'Ben Lim', email: 'ben@team.org', team: 'Team B', track: 'Corporal Punishment' },
+    { name: 'Ben Lim', email: 'ben@team.org', team: 'Team B', track: 'Corporal Punishment', country: 'Philippines', innovation: 'SafeTalk', gender: 'Male' },
     { name: 'Cara Diaz', email: 'cara@team.org', team: 'Team C', track: 'Child Marriage' },
     { name: '', email: 'bad' },
   ])]))[0].r;
@@ -420,6 +422,14 @@ ok(ballot.award.kind === 'mpyi' && ballot.award.open === true && ballot.voter.te
   'get_ballot returns award, prefilled voter fields');
 ok(ballot.candidates.length === 2 && !ballot.candidates.some((c) => c.id === ana.candidate_self_id) && !JSON.stringify(ballot.candidates).includes('@') && !('email' in ballot.voter),
   'ballot leaves out the voter themself and exposes no emails');
+const benCard = ballot.candidates.find((c) => c.label === 'Ben Lim');
+const caraCard = ballot.candidates.find((c) => c.label === 'Cara Diaz');
+ok(benCard?.country === 'Philippines' && benCard?.innovation === 'SafeTalk' && benCard?.gender === 'Male' && caraCard?.country === null,
+  'ballot shows each innovator\'s country, innovation and gender from the roster (blank when not given)', JSON.stringify(benCard));
+await as('authenticated', adminId, async () => {
+  await q(`update award_candidates set innovation = 'SafeTalk App' where id = $1`, [ben.candidate_self_id]);
+});
+ok((await q(`select innovation from award_candidates where id = $1`, [ben.candidate_self_id]))[0].innovation === 'SafeTalk App', 'admin can edit an innovator\'s details');
 
 await expectError(() => vote(ana.ballot_token, ana.candidate_self_id, 'Ana', 'Team A', 'OCSEA'), /vote for yourself/, 'self-vote rejected');
 await expectError(() => vote(ana.ballot_token, ben.candidate_self_id, 'Ana', '', 'OCSEA'), /team and thematic track/, 'MPYI needs team and track');
