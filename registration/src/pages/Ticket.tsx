@@ -4,8 +4,9 @@ import { Link, useLocation, useParams } from 'react-router-dom';
 import { PublicShell } from '../components/PublicShell';
 import { buildIcs, formatDateTime, formatEventDate } from '../lib/format';
 import { ticketLink } from '../lib/paths';
+import { clearCheckoutCode, pendingCheckoutCode, saveTicket } from '../lib/savedTickets';
 import { supabase } from '../lib/supabase';
-import type { Ticket as TicketData } from '../lib/types';
+import type { SelfCheckOutResult, Ticket as TicketData } from '../lib/types';
 
 const STATUS_COPY = {
   pending: {
@@ -35,10 +36,39 @@ export default function Ticket() {
   const location = useLocation();
   const justRegistered = (location.state as { justRegistered?: boolean } | null)?.justRegistered;
   const [ticket, setTicket] = useState<TicketData | null | undefined>(undefined);
+  const [checkoutCode, setCheckoutCode] = useState(() => pendingCheckoutCode());
+  const [checkingOut, setCheckingOut] = useState(false);
+  const [checkoutError, setCheckoutError] = useState<string | null>(null);
 
   useEffect(() => {
-    supabase.rpc('get_ticket', { p_token: token }).then(({ data, error }) => setTicket(error ? null : (data as TicketData | null)));
+    supabase.rpc('get_ticket', { p_token: token }).then(({ data, error }) => {
+      const t = error ? null : (data as TicketData | null);
+      setTicket(t);
+      if (t?.status === 'approved') saveTicket(token, t.preferred_name || t.full_name);
+    });
   }, [token]);
+
+  async function checkOut() {
+    if (!checkoutCode) return;
+    setCheckingOut(true);
+    setCheckoutError(null);
+    const { data, error } = await supabase.rpc('self_check_out', { p_token: token, p_code: checkoutCode });
+    setCheckingOut(false);
+    const r = data as SelfCheckOutResult | null;
+    if (error || !r) {
+      setCheckoutError('No connection. Check your signal and try again.');
+    } else if (r.result === 'checked_out' || r.result === 'already_checked_out') {
+      clearCheckoutCode();
+      setCheckoutCode(null);
+      setTicket((t) => (t ? { ...t, checked_out_at: r.checked_out_at ?? null } : t));
+    } else if (r.result === 'wrong_station') {
+      clearCheckoutCode();
+      setCheckoutCode(null);
+      setCheckoutError('That check-out code is out of date. Please scan the QR code at the exit again.');
+    } else {
+      setCheckoutError('We couldn\'t check you out. Please see the registration desk.');
+    }
+  }
 
   if (ticket === undefined) {
     return <PublicShell><p className="py-20 text-center text-slate-500">Loading your ticket…</p></PublicShell>;
@@ -92,10 +122,31 @@ export default function Ticket() {
         <div className="h-1 bg-sun" aria-hidden="true" />
 
         <div className="space-y-6 p-6">
-          {ticket.checked_in_at ? (
+          {ticket.checked_in_at && !ticket.checked_out_at ? (
             <div className="rounded-xl border border-navy/30 bg-navy-surface p-4 text-navy">
               <p className="text-lg font-bold">Checked in ✓</p>
               <p className="text-sm">Welcome! You checked in at {formatDateTime(ticket.checked_in_at, event.timezone)}.</p>
+              {checkoutCode ? (
+                <button type="button" className="btn-primary mt-4 w-full justify-center py-3 text-base" disabled={checkingOut} onClick={checkOut}>
+                  {checkingOut ? 'Checking out…' : 'Check out now'}
+                </button>
+              ) : (
+                <p className="mt-2 text-sm">Leaving? Scan the <strong>check-out QR code</strong> at the exit with this phone.</p>
+              )}
+              {checkoutError && <p role="alert" className="mt-2 text-sm font-semibold text-red-700">{checkoutError}</p>}
+            </div>
+          ) : ticket.checked_out_at ? (
+            <div className="space-y-4">
+              <div className="rounded-xl border border-emerald-300 bg-emerald-50 p-4 text-emerald-950">
+                <p className="text-lg font-bold">Checked out ✓</p>
+                <p className="text-sm">Thanks for coming! You checked out at {formatDateTime(ticket.checked_out_at, event.timezone)}.</p>
+              </div>
+              <div className="text-center">
+                <div className="mx-auto w-fit rounded-2xl border-2 border-slate-200 bg-white p-4">
+                  <QRCodeSVG value={ticketUrl} size={200} level="M" fgColor="#0f2240" marginSize={0} title="Your QR ticket" />
+                </div>
+                <p className="mt-3 text-sm text-slate-600">Coming back? Show this code at the registration desk.</p>
+              </div>
             </div>
           ) : approved ? (
             <div className="text-center">

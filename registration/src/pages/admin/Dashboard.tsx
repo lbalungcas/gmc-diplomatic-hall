@@ -14,14 +14,14 @@ import { ImportDialog } from './ImportDialog';
 import { RegistrantDrawer } from './RegistrantDrawer';
 
 const PAGE_SIZE = 50;
-type SortKey = 'created_at' | 'full_name' | 'organization' | 'category' | 'status' | 'checked_in_at' | 'kit_received_at';
+type SortKey = 'created_at' | 'full_name' | 'organization' | 'category' | 'status' | 'checked_in_at' | 'checked_out_at' | 'kit_received_at';
 
 interface Filters {
   search: string;
   status: Status | '';
   category: string;
   country: string;
-  checkedIn: '' | 'yes' | 'no';
+  checkedIn: '' | 'yes' | 'no' | 'on_site' | 'out';
   kit: '' | 'yes' | 'no';
   /** Registered since midnight Manila time: on-site sign-ups on the event day. */
   today: boolean;
@@ -56,6 +56,8 @@ function applyFilters<T extends Filterable<T>>(q: T, f: Filters, form: FormSchem
   if (f.country) q = q.eq('country', f.country);
   if (f.checkedIn === 'yes') q = q.not('checked_in_at', 'is', null);
   if (f.checkedIn === 'no') q = q.is('checked_in_at', null);
+  if (f.checkedIn === 'on_site') q = q.not('checked_in_at', 'is', null).is('checked_out_at', null);
+  if (f.checkedIn === 'out') q = q.not('checked_out_at', 'is', null);
   if (f.kit === 'yes') q = q.not('kit_received_at', 'is', null);
   if (f.kit === 'no') q = q.is('kit_received_at', null);
   if (f.today) q = q.gte('created_at', manilaMidnight());
@@ -313,7 +315,7 @@ export default function Dashboard() {
           <FilterSelect label="Country" value={filters.country} onChange={(v) => { setFilters((f) => ({ ...f, country: v })); setPage(0); }}
             options={countries.map((c) => [c, c])} />
           <FilterSelect label="Checked in" value={filters.checkedIn} onChange={(v) => { setFilters((f) => ({ ...f, checkedIn: v as Filters['checkedIn'] })); setPage(0); }}
-            options={[['yes', 'Checked in'], ['no', 'Not checked in']]} />
+            options={[['yes', 'Checked in'], ['no', 'Not checked in'], ['on_site', 'On site now'], ['out', 'Checked out']]} />
           <FilterSelect label="Reg kit" value={filters.kit} onChange={(v) => { setFilters((f) => ({ ...f, kit: v as Filters['kit'] })); setPage(0); }}
             options={[['yes', 'Received'], ['no', 'Not yet']]} />
           <label className="flex items-center gap-2 self-center pt-4 text-sm font-semibold text-slate-600" title="On-site sign-ups: registered since midnight (Manila time)">
@@ -373,6 +375,7 @@ export default function Dashboard() {
               <th scope="col" className="px-3 py-2.5 text-left font-semibold" title="Photo / filming consent">Photo</th>
               {sortHeader('created_at', 'Registered')}
               {sortHeader('checked_in_at', 'Checked in')}
+              {sortHeader('checked_out_at', 'Checked out')}
               {sortHeader('kit_received_at', 'Reg kit')}
             </tr>
           </thead>
@@ -404,6 +407,7 @@ export default function Dashboard() {
                 </td>
                 <td className="px-3 py-2.5 whitespace-nowrap text-slate-500">{formatDateTime(r.created_at)}</td>
                 <td className="px-3 py-2.5 whitespace-nowrap">{r.checked_in_at ? formatDateTime(r.checked_in_at) : <span className="text-slate-400">—</span>}</td>
+                <td className="px-3 py-2.5 whitespace-nowrap">{r.checked_out_at ? formatDateTime(r.checked_out_at) : <span className="text-slate-400">—</span>}</td>
                 <td className="px-3 py-2.5 whitespace-nowrap">
                   {r.kit_received_at
                     ? <span className="text-emerald-700" title={`Given ${formatDateTime(r.kit_received_at)}`}>✓ {formatDateTime(r.kit_received_at)}</span>
@@ -412,7 +416,7 @@ export default function Dashboard() {
               </tr>
             ))}
             {rows.length === 0 && (
-              <tr><td colSpan={10} className="px-3 py-12 text-center text-slate-500">No registrants match.</td></tr>
+              <tr><td colSpan={11} className="px-3 py-12 text-center text-slate-500">No registrants match.</td></tr>
             )}
           </tbody>
         </table>
@@ -475,6 +479,8 @@ function StatsPanel({ stats, event, showCategories, onToggleCategories }: { stat
     ['Declined', stats?.declined, 'text-red-700'],
     ['Waitlisted', stats?.waitlisted, 'text-sky-700'],
     ['Checked in', stats?.checked_in, 'text-navy'],
+    ['On site now', stats?.on_site, 'text-navy'],
+    ['Checked out', stats?.checked_out, 'text-sky-700'],
     ['Kits given', stats?.kit_received, 'text-emerald-700'],
   ];
   if (event.capacity != null) tiles.push(['Spots left', stats?.remaining ?? undefined, 'text-slate-900']);
@@ -486,7 +492,7 @@ function StatsPanel({ stats, event, showCategories, onToggleCategories }: { stat
           {event.capacity != null ? `Capacity ${event.capacity} (approved registrants)` : 'No capacity limit'} · updates every 15 s
         </p>
       </div>
-      <div className={`grid grid-cols-2 gap-3 sm:grid-cols-4 ${tiles.length > 7 ? 'lg:grid-cols-8' : 'lg:grid-cols-7'}`}>
+      <div className={`grid grid-cols-2 gap-3 sm:grid-cols-4 ${tiles.length > 9 ? 'lg:grid-cols-5 xl:grid-cols-10' : 'lg:grid-cols-9'}`}>
         {tiles.map(([label, value, tone]) => (
           <div key={label} className="card px-4 py-3">
             <div className="text-xs font-semibold tracking-wide text-slate-500 uppercase">{label}</div>

@@ -35,6 +35,8 @@ const ACTION_LABELS: Record<string, string> = {
   reset_pending: 'Moved back to pending',
   check_in: 'Checked in',
   undo_check_in: 'Check-in undone',
+  check_out: 'Checked out',
+  undo_check_out: 'Check-out undone',
   resend_email: 'Email resent',
   safeguarding_email: 'Safeguarding form emailed',
   guardian_consent: 'Guardian consent recorded',
@@ -110,7 +112,20 @@ export function RegistrantDrawer({ id, version, form, onClose, onChanged, onDeci
   const checkIn = () => act(async () => {
     const { data, error } = await supabase.rpc('check_in_manual', { p_id: id });
     if (error) throw error;
-    return data.result === 'checked_in' ? 'Checked in.' : data.result === 'already_checked_in' ? 'Already checked in.' : 'Not approved — cannot check in.';
+    if (data.result === 'checked_in') return data.returned ? 'Checked back in.' : 'Checked in.';
+    return data.result === 'already_checked_in' ? 'Already checked in.' : 'Not approved — cannot check in.';
+  });
+
+  const checkOut = () => act(async () => {
+    const { data, error } = await supabase.rpc('check_out_manual', { p_id: id });
+    if (error) throw error;
+    return data.result === 'checked_out' ? 'Checked out.' : data.result === 'already_checked_out' ? 'Already checked out.' : 'Not checked in — nothing to check out.';
+  });
+
+  const undoCheckOut = () => act(async () => {
+    const { error } = await supabase.rpc('undo_check_out', { p_id: id });
+    if (error) throw error;
+    return 'Check-out undone.';
   });
 
   const undoCheckIn = () => act(async () => {
@@ -153,6 +168,9 @@ export function RegistrantDrawer({ id, version, form, onClose, onChanged, onDeci
                 <KitToggle key={reg.kit_received_at ?? 'none'} id={reg.id} kitReceivedAt={reg.kit_received_at}
                   onChange={async () => { await load(); onChanged(); }} />
               )}
+              {reg.checked_in_at && !reg.checked_out_at && <button className="btn bg-sky-600 text-white hover:bg-sky-700" disabled={busy} onClick={checkOut}>Check out</button>}
+              {reg.checked_out_at && <button className="btn-primary" disabled={busy} onClick={checkIn}>Check back in</button>}
+              {reg.checked_out_at && <button className="btn-ghost" disabled={busy} onClick={undoCheckOut}>Undo check-out</button>}
               {reg.checked_in_at && <button className="btn-ghost" disabled={busy} onClick={undoCheckIn}>Undo check-in</button>}
               <button className="btn-ghost" onClick={copyLink}>Copy ticket link</button>
             </div>
@@ -182,6 +200,7 @@ export function RegistrantDrawer({ id, version, form, onClose, onChanged, onDeci
               <Field label="Registered" value={formatDateTime(reg.created_at)} />
               <Field label="Decided" value={formatDateTime(reg.decided_at)} />
               <Field label="Checked in" value={formatDateTime(reg.checked_in_at)} />
+              <Field label="Checked out" value={formatDateTime(reg.checked_out_at)} />
               <Field label="Received reg kit?" value={reg.kit_received_at ? `Yes, ${formatDateTime(reg.kit_received_at)}` : 'No'} />
               </dl>
             </Section>

@@ -8,13 +8,14 @@ export default function AdminLayout() {
 
   return (
     <div className="min-h-dvh">
-      <header className="bg-navy text-white">
+      <header className="bg-navy text-white print:hidden">
         <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-x-4 gap-y-2 px-4 py-2.5">
           <span className="font-display text-lg font-bold">YIM Registration</span>
           <nav className="flex flex-1 flex-wrap gap-1">
             {role === 'admin' && <NavLink to="/admin" end className={link}>Registrants</NavLink>}
             <NavLink to="/admin/checkin" className={link}>Manual check-in</NavLink>
             <NavLink to="/admin/scan" className={link}>Scanner</NavLink>
+            {role === 'admin' && <NavLink to="/admin/checkout-qr" className={link}>Check-out QR</NavLink>}
             {role === 'admin' && <NavLink to="/admin/form" className={link}>Form</NavLink>}
             {role === 'admin' && <NavLink to="/admin/settings" className={link}>Settings</NavLink>}
           </nav>

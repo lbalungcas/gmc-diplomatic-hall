@@ -17,6 +17,7 @@ interface Hit {
   photo_consent: boolean;
   checked_in_at: string | null;
   kit_received_at: string | null;
+  checked_out_at: string | null;
 }
 
 /** For guests without their phone: find by name or organization and check in by hand. */
@@ -45,9 +46,26 @@ export default function CheckIn() {
   async function checkIn(h: Hit) {
     const { data, error } = await supabase.rpc('check_in_manual', { p_id: h.id });
     if (error) setMessage({ tone: 'warn', text: error.message });
+    else if (data.result === 'checked_in' && data.returned) setMessage({ tone: 'ok', text: `Welcome back, ${h.full_name}. Checked in again.${h.photo_consent ? '' : ' NO PHOTOS for this guest.'}` });
     else if (data.result === 'checked_in') setMessage({ tone: 'ok', text: `${h.full_name} checked in. Hand over the reg kit and tap Kit given.${h.photo_consent ? '' : ' NO PHOTOS for this guest.'}` });
     else if (data.result === 'already_checked_in') setMessage({ tone: 'warn', text: `${h.full_name} was already checked in at ${formatTime(data.checked_in_at)}.` });
     else setMessage({ tone: 'warn', text: `${h.full_name} is not approved (${data.status}). Do not admit — refer to an admin.` });
+    setVersion((v) => v + 1);
+  }
+
+  async function checkOut(h: Hit) {
+    const { data, error } = await supabase.rpc('check_out_manual', { p_id: h.id });
+    if (error) setMessage({ tone: 'warn', text: error.message });
+    else if (data.result === 'checked_out') setMessage({ tone: 'ok', text: `${h.full_name} checked out.` });
+    else if (data.result === 'already_checked_out') setMessage({ tone: 'warn', text: `${h.full_name} already checked out at ${formatTime(data.checked_out_at)}.` });
+    else setMessage({ tone: 'warn', text: `${h.full_name} isn't checked in, so there's nothing to check out.` });
+    setVersion((v) => v + 1);
+  }
+
+  async function undoCheckOut(h: Hit) {
+    if (!window.confirm(`Undo check-out for ${h.full_name}? They'll show as on site again.`)) return;
+    const { error } = await supabase.rpc('undo_check_out', { p_id: h.id });
+    setMessage(error ? { tone: 'warn', text: error.message } : { tone: 'ok', text: `Check-out undone for ${h.full_name}.` });
     setVersion((v) => v + 1);
   }
 
@@ -61,7 +79,7 @@ export default function CheckIn() {
   return (
     <div className="mx-auto max-w-2xl space-y-4">
       <div className="flex items-center justify-between gap-3">
-        <h1 className="text-2xl font-bold">Manual check-in</h1>
+        <h1 className="text-2xl font-bold">Manual check-in / out</h1>
         <Link to="/admin/scan" className="btn-primary">Open scanner</Link>
       </div>
       <label htmlFor="q" className="sr-only">Search by name or organization</label>
@@ -83,13 +101,20 @@ export default function CheckIn() {
               <div className="mt-1 flex flex-wrap items-center gap-2 text-sm">
                 <StatusBadge status={h.status} checkedIn={!!h.checked_in_at} />
                 {h.checked_in_at && <span className="text-slate-500">at {formatTime(h.checked_in_at)}</span>}
+                {h.checked_out_at && <span className="rounded bg-sky-100 px-2 py-0.5 text-xs font-bold text-sky-900">Checked out {formatTime(h.checked_out_at)}</span>}
                 {!h.photo_consent && <span className="rounded bg-slate-900 px-2 py-0.5 text-xs font-bold text-white">NO PHOTOS</span>}
               </div>
             </div>
-            {h.checked_in_at ? (
-              <div className="flex items-center gap-2">
+            {h.checked_out_at ? (
+              <div className="flex flex-wrap items-center gap-2">
+                <button className="btn-primary px-5 py-3 text-base" onClick={() => checkIn(h)}>Check back in</button>
+                <button className="btn-ghost" onClick={() => undoCheckOut(h)}>Undo check-out</button>
+              </div>
+            ) : h.checked_in_at ? (
+              <div className="flex flex-wrap items-center gap-2">
                 <KitToggle id={h.id} kitReceivedAt={h.kit_received_at}
                   onChange={(at) => setHits((list) => list.map((x) => (x.id === h.id ? { ...x, kit_received_at: at } : x)))} />
+                <button className="btn bg-sky-600 text-white hover:bg-sky-700" onClick={() => checkOut(h)}>Check out</button>
                 <button className="btn-ghost" onClick={() => undo(h)}>Undo</button>
               </div>
             ) : h.status === 'approved' ? (
