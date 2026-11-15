@@ -151,7 +151,7 @@ TURNSTILE_SECRET_KEY=0x...
 
 ```bash
 npx supabase secrets set --env-file supabase/.env
-npx supabase functions deploy register decide resend-email import-registrations send-safeguarding --no-verify-jwt
+npx supabase functions deploy register decide resend-email import-registrations send-safeguarding send-ballots --no-verify-jwt
 ```
 
 `--no-verify-jwt` is intentional. The new publishable keys aren't JWTs, so each admin function checks the caller's role itself with `requireAdmin()`.
@@ -211,7 +211,7 @@ When `RESEND_API_KEY` is unset, the functions log emails instead of sending them
 
 ```bash
 npm run typecheck           # frontend
-npm test                    # test:form (form engine, 23 checks) + test:db (69 checks)
+npm test                    # test:form (form engine) + test:db (registration and awards)
 npm run test:db             # migrations + RLS + all RPCs in an in-memory Postgres
 npx deno check --node-modules-dir=none --no-config supabase/functions/*/index.ts
 npm run seed:fake           # 20 fake registrants (needs SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY in .env)
@@ -228,6 +228,7 @@ npm run seed:fake -- 300    # load test
 - auto-waitlist when full
 - the check-in result states (`checked_in` / `already_checked_in` / `not_approved` / `invalid`) and undo
 - the audit trail, import errors, rate limiting and anonymization
+- awards: only listed voters get a ballot, one vote per link, no self-votes, MPYI needs team and track, closed ballots refuse votes, and ballots never expose emails
 
 All fake registrants use `@example.org` addresses. Remove them with `delete from registrations where email like '%@example.org';`.
 
@@ -262,6 +263,36 @@ In Google Forms → **Responses** → ⋮ → **Download responses (.csv)**, the
 - [ ] Run `seed:fake -- 300` and confirm the dashboard, filters and export stay quick.
 - [ ] Give the door team `DOOR-STAFF-GUIDE.md` and do a dry run.
 
+## Awards (Most Promising Young Innovator and People's Choice)
+
+Two closed ballots with one live dashboard at **Admin → Awards** (`/register/admin/awards`, admins only).
+
+| | Most Promising Young Innovator | People's Choice of Innovation |
+|---|---|---|
+| Who votes | Youth innovators on the roster you import | Approved registrants |
+| Ballot asks for | Name, team, thematic track, the innovator, an optional note | Name, the booth, an optional note |
+| Choices | The other innovators on the roster (never yourself) | The 24 booths from `src/data/booths.json` |
+
+Each voter gets a personal link (`/register/vote/<token>`) by email, and each link counts once. Nobody else can vote, because there's no public ballot.
+
+### Setup
+
+1. Apply `supabase/migrations/20261115000001_awards.sql` (`npx supabase db push`, or paste it into the SQL Editor), then re-run `seed.sql`. Re-running the seed is safe: it adds the two awards and the booths and leaves existing rows alone, including any booth names edited in the dashboard.
+2. Deploy the ballot function: `npx supabase functions deploy send-ballots --no-verify-jwt`.
+3. Dashboard → Database → Publications → `supabase_realtime`: check that `award_votes` and `award_voters` are ticked. The migration adds them when the publication exists. Without them the dashboard still updates, by polling every 15 seconds, and shows **Polling** instead of **Live**.
+
+### On the day
+
+1. **MPYI → Import roster.** Upload or paste a CSV with `name`, `email`, `team` and `track` columns (the header names are matched loosely). Each row becomes both a voter and a candidate. Re-importing updates people by email.
+2. **People's Choice → Sync approved registrants.** Run it again later to add anyone approved since.
+3. Check **Edit innovators / Edit booths**. You can rename entries, or hide one so it disappears from ballots.
+4. **Open voting** on each award. You can also set **Closes automatically at**.
+5. **Send ballots.** This only emails people who haven't been sent one. **Send reminder** emails everyone who hasn't voted yet. In the voters table, **Resend** sends one person's link again.
+6. Watch the leaderboard, turnout and latest votes update live. **Close voting** when done, and ballot links will then say voting is closed.
+7. **Export CSV** saves every vote with voter name, team, track and note. Formula characters are neutralized, so it's safe to open in Excel.
+
+Every vote is in the audit log. Ballot emails appear in the email log with type `ballot` or `ballot_reminder`.
+
 ## Data retention (90 days)
 
 The privacy notice promises that personal data is deleted or anonymized **90 days after the event, on or after 15 February 2027**. On that date:
@@ -270,9 +301,12 @@ The privacy notice promises that personal data is deleted or anonymized **90 day
 -- 1. Export anything needed for reporting first.
 -- 2. Then:
 select public.anonymize_event_registrations((select id from events where slug = 'yim-2026'));
+select public.anonymize_event_awards((select id from events where slug = 'yim-2026'));
 ```
 
-This removes names, preferred names, emails, phones, organizations, nationality, exact age, guardian details, **all form answers** and decline reasons, clears addresses from the email log, and invalidates every ticket link. Category, country, age group, status and check-in time stay for anonymous statistics.
+`anonymize_event_awards` clears voter names, emails, teams, tracks and notes, and invalidates every ballot link. Vote counts stay.
+
+`anonymize_event_registrations` removes names, preferred names, emails, phones, organizations, nationality, exact age, guardian details, **all form answers** and decline reasons, clears addresses from the email log, and invalidates every ticket link. Category, country, age group, status and check-in time stay for anonymous statistics.
 
 To schedule it automatically, enable the `pg_cron` extension and run:
 
