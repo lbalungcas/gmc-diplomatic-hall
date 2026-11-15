@@ -431,15 +431,17 @@ await as('authenticated', adminId, async () => {
 });
 ok((await q(`select innovation from award_candidates where id = $1`, [ben.candidate_self_id]))[0].innovation === 'SafeTalk App', 'admin can edit an innovator\'s details');
 
-await expectError(() => vote(ana.ballot_token, ana.candidate_self_id, 'Ana', 'Team A', 'OCSEA'), /vote for yourself/, 'self-vote rejected');
-await expectError(() => vote(ana.ballot_token, ben.candidate_self_id, 'Ana', '', 'OCSEA'), /team and thematic track/, 'MPYI needs team and track');
+await expectError(() => vote(ana.ballot_token, ana.candidate_self_id, null, null, null), /vote for yourself/, 'self-vote rejected');
 const [pcCandidate] = await q(`select id from award_candidates where award_id = $1 limit 1`, [pc.id]);
-await expectError(() => vote(ana.ballot_token, pcCandidate.id, 'Ana', 'A', 'OCSEA'),
+await expectError(() => vote(ana.ballot_token, pcCandidate.id, null, null, null),
   /choose one of the options/, 'a candidate from the other award is rejected');
 ok((await vote('x'.repeat(43), ben.candidate_self_id)).result === 'invalid', 'bad token → invalid');
-const v1 = await vote(ana.ballot_token, ben.candidate_self_id, 'Ana Cruz', 'Team A', 'OCSEA', 'Great pitch');
-ok(v1.result === 'voted' && v1.choice === 'Ben Lim', 'MPYI vote recorded', JSON.stringify(v1));
-const v2 = await vote(ana.ballot_token, ben.candidate_self_id, 'Ana Cruz', 'Team A', 'OCSEA');
+const v1 = await vote(ana.ballot_token, ben.candidate_self_id, null, null, null, 'Great pitch');
+ok(v1.result === 'voted' && v1.choice === 'Ben Lim', 'MPYI vote recorded from roster details (no About-you fields)', JSON.stringify(v1));
+const votedAs = (await q(`select voter_name, voter_team, voter_track from award_votes where voter_id = $1`, [ana.id]))[0];
+ok(votedAs.voter_name === 'Ana Cruz' && votedAs.voter_team === 'Team A+' && votedAs.voter_track === 'OCSEA',
+  'MPYI vote stores the voters roster name, team and track', JSON.stringify(votedAs));
+const v2 = await vote(ana.ballot_token, ben.candidate_self_id, null, null, null);
 ok(v2.result === 'already_voted', 'second vote → already_voted');
 const after = await as('anon', null, async () => (await q(`select public.get_ballot($1) b`, [ana.ballot_token]))[0].b);
 ok(after.voted_at !== null && after.choice === 'Ben Lim', 'ballot shows the vote was cast');
@@ -465,7 +467,7 @@ await as('authenticated', adminId, async () => {
   const m = (await q(`select public.award_stats($1) s`, [mpyi.id]))[0].s;
   ok(m.eligible === 3 && m.voted === 1 && m.tally[0].label === 'Ben Lim', 'MPYI stats');
   const votes = await q(`select voter_name, voter_team, note from award_votes where award_id = $1`, [mpyi.id]);
-  ok(votes.length === 1 && votes[0].note === 'Great pitch' && votes[0].voter_team === 'Team A', 'admin reads votes with who voted and why');
+  ok(votes.length === 1 && votes[0].note === 'Great pitch' && votes[0].voter_team === 'Team A+', 'admin reads votes with who voted and why');
   await q(`update awards set is_open = false where id = $1`, [pc.id]);
 });
 ok((await vote(pcVoters[2].ballot_token, booth3.id, 'Late')).result === 'closed', 'closing the award stops votes');

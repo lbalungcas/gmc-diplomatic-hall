@@ -280,7 +280,7 @@ Two closed ballots with one live dashboard at **Admin → Awards** (`/register/a
 | | Most Promising Young Innovator | People's Choice of Innovation |
 |---|---|---|
 | Who votes | Youth innovators on the roster you import | Approved registrants |
-| Ballot asks for | Name, team, thematic track, the innovator, an optional note | Name, the booth, an optional note |
+| Ballot asks for | A dropdown of innovator names (team, innovation, country and gender fill in), an optional note | Name, the booth, an optional note |
 | Choices | The other innovators on the roster (never yourself) | The 24 booths from `src/data/booths.json` |
 
 Each voter gets a personal link (`/register/vote/<token>`) by email, and each link counts once. Nobody else can vote, because there's no public ballot.
@@ -293,7 +293,7 @@ Each voter gets a personal link (`/register/vote/<token>`) by email, and each li
 
 ### On the day
 
-1. **MPYI → Import roster.** Upload or paste a CSV with `name`, `email`, `team` and `track` columns, plus optional `country`, `innovation` and `gender` (the header names are matched loosely). Each row becomes both a voter and a candidate. Re-importing updates people by email. On the ballot, voters type or pick a name from a dropdown of all delegates, and the chosen person's team, innovation name, country and gender fill in automatically so they can confirm it's the right person. Fix details later under **Edit innovators**. Run `20261115000004_mpyi_details.sql` in the SQL editor if your project predates these columns.
+1. **MPYI → Import roster.** Upload or paste a CSV with `name`, `email`, `team` and `track` columns, plus optional `country`, `innovation` and `gender` (the header names are matched loosely). Each row becomes both a voter and a candidate. Re-importing updates people by email. On the ballot, voters pick a name from a dropdown of all delegates; the chosen person's team, innovation name, country and gender fill in automatically so they can confirm it's the right person. The ballot does not ask for the voter's own details (those come from the roster). Fix details later under **Edit innovators**. Run `20261115000004_mpyi_details.sql` in the SQL editor if your project predates these columns.
 2. **People's Choice → Sync approved registrants.** Run it again later to add anyone approved since.
 3. Check **Edit innovators / Edit booths**. You can rename entries, or hide one so it disappears from ballots.
 4. **Open voting** on each award. You can also set **Closes automatically at**.

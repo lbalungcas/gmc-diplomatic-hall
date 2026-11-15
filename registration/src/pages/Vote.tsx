@@ -1,7 +1,7 @@
-import { useEffect, useId, useMemo, useState, type FormEvent, type KeyboardEvent, type ReactNode } from 'react';
+import { useEffect, useId, useMemo, useState, type FormEvent, type ReactNode } from 'react';
 import { useParams } from 'react-router-dom';
 import { PublicShell } from '../components/PublicShell';
-import { NOTE_MAX, TRACKS } from '../lib/constants';
+import { NOTE_MAX } from '../lib/constants';
 import { supabase } from '../lib/supabase';
 import type { Ballot, BallotCandidate, CastVoteResult } from '../lib/types';
 
@@ -43,95 +43,21 @@ const AUTOFILL = [
   ['gender', 'Gender'],
 ] as const;
 
-/**
- * Most Promising: pick the delegate by name first (type to search or browse), then their team,
- * innovation, country and gender fill in so the voter can check it is the right person.
- */
+/** Most Promising: choose a name from the list; their details fill in below. */
 function DelegatePicker({ candidates, value, onChange }: { candidates: BallotCandidate[]; value: string; onChange: (id: string) => void }) {
   const id = useId();
-  const [query, setQuery] = useState('');
-  const [open, setOpen] = useState(false);
-  const [active, setActive] = useState(0);
   const selected = candidates.find((c) => c.id === value);
-
-  const matches = useMemo(() => {
-    const term = query.trim().toLowerCase();
-    if (!term || (selected && query === selected.label)) return candidates;
-    return candidates.filter((c) => [c.label, c.team, c.country, c.innovation].some((v) => v?.toLowerCase().includes(term)));
-  }, [candidates, query, selected]);
-
-  function choose(c: BallotCandidate) {
-    onChange(c.id);
-    setQuery(c.label);
-    setOpen(false);
-  }
-
-  function type(text: string) {
-    setQuery(text);
-    setOpen(true);
-    setActive(0);
-    if (selected && text !== selected.label) onChange('');
-  }
-
-  function onKeyDown(e: KeyboardEvent<HTMLInputElement>) {
-    if (e.key === 'ArrowDown') {
-      e.preventDefault();
-      if (open) setActive((i) => Math.min(i + 1, matches.length - 1));
-      else setOpen(true);
-    } else if (e.key === 'ArrowUp') {
-      e.preventDefault();
-      setActive((i) => Math.max(i - 1, 0));
-    } else if (e.key === 'Enter' && open && matches[active]) {
-      e.preventDefault();
-      choose(matches[active]);
-    } else if (e.key === 'Escape') {
-      setOpen(false);
-    }
-  }
 
   return (
     <div className="space-y-4">
-      <div className="relative">
-        <label htmlFor={`${id}-input`} className="label">Name of the innovator you are voting for</label>
-        <input
-          id={`${id}-input`}
-          type="text"
-          role="combobox"
-          aria-expanded={open}
-          aria-controls={`${id}-list`}
-          aria-autocomplete="list"
-          aria-activedescendant={open && matches[active] ? `${id}-opt-${matches[active].id}` : undefined}
-          autoComplete="off"
-          className={`input ${selected ? 'border-navy font-semibold text-navy' : ''}`}
-          placeholder="Type a name, or tap to see everyone"
-          value={query}
-          onChange={(e) => type(e.target.value)}
-          onFocus={(e) => { setOpen(true); if (selected) e.target.select(); }}
-          onClick={() => setOpen(true)}
-          onBlur={() => setTimeout(() => setOpen(false), 120)}
-          onKeyDown={onKeyDown}
-        />
-        {open && (
-          <ul id={`${id}-list`} role="listbox" aria-label="Delegates"
-            className="absolute z-20 mt-1 max-h-72 w-full overflow-y-auto rounded-xl border border-slate-200 bg-white py-1 shadow-lg">
-            {matches.map((c, i) => (
-              <li
-                key={c.id}
-                id={`${id}-opt-${c.id}`}
-                role="option"
-                aria-selected={c.id === value}
-                className={`cursor-pointer px-3 py-2 ${i === active ? 'bg-navy-surface' : ''}`}
-                onMouseDown={(e) => e.preventDefault()}
-                onMouseEnter={() => setActive(i)}
-                onClick={() => choose(c)}
-              >
-                <span className="block font-semibold text-navy">{c.label}</span>
-                {(c.team || c.country) && <span className="block text-xs text-slate-600">{[c.team, c.country].filter(Boolean).join(' · ')}</span>}
-              </li>
-            ))}
-            {matches.length === 0 && <li className="px-3 py-2 text-sm text-slate-500">No one matches “{query.trim()}”. Check the spelling.</li>}
-          </ul>
-        )}
+      <div>
+        <label htmlFor={id} className="label">Name of the innovator you are voting for</label>
+        <select id={id} className="input" required value={value} onChange={(e) => onChange(e.target.value)}>
+          <option value="">Choose a name…</option>
+          {candidates.map((c) => (
+            <option key={c.id} value={c.id}>{c.label}</option>
+          ))}
+        </select>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2" aria-live="polite">
@@ -149,7 +75,9 @@ function DelegatePicker({ candidates, value, onChange }: { candidates: BallotCan
           </div>
         ))}
       </div>
-      {selected && <p className="text-xs text-slate-600">Check these details. If this is not the person you meant, change the name above.</p>}
+      {selected && (
+        <p className="text-xs text-slate-600">Check these details. If this is not the person you meant, change the name above.</p>
+      )}
     </div>
   );
 }
@@ -158,8 +86,6 @@ export default function Vote() {
   const { token = '' } = useParams();
   const [ballot, setBallot] = useState<Ballot | null | undefined>(undefined);
   const [name, setName] = useState('');
-  const [team, setTeam] = useState('');
-  const [track, setTrack] = useState('');
   const [choice, setChoice] = useState('');
   const [note, setNote] = useState('');
   const [search, setSearch] = useState('');
@@ -171,11 +97,7 @@ export default function Vote() {
     supabase.rpc('get_ballot', { p_token: token }).then(({ data, error: e }) => {
       const b = e ? null : (data as Ballot | null);
       setBallot(b);
-      if (b) {
-        setName(b.voter.name ?? '');
-        setTeam(b.voter.team ?? '');
-        setTrack(b.voter.track ?? '');
-      }
+      if (b && b.award.kind !== 'mpyi') setName(b.voter.name ?? '');
     });
   }, [token]);
 
@@ -236,12 +158,13 @@ export default function Vote() {
       return;
     }
     setBusy(true);
+    // Most Promising: name/team/track come from the roster on the server; the form only sends the pick.
     const { data, error: rpcError } = await supabase.rpc('cast_vote', {
       p_token: token,
       p_candidate: choice,
-      p_name: name,
-      p_team: mpyi ? team : null,
-      p_track: mpyi ? track : null,
+      p_name: mpyi ? null : name,
+      p_team: null,
+      p_track: null,
       p_note: note,
     });
     setBusy(false);
@@ -255,32 +178,6 @@ export default function Vote() {
     else if (res.result === 'closed') setBallot({ ...ballot!, award: { ...ballot!.award, open: false } });
     else setBallot(null);
   }
-
-  const aboutYou = (
-    <fieldset className="space-y-4">
-      <legend className="mb-1 text-lg font-bold text-navy">About you</legend>
-      <div>
-        <label htmlFor="v-name" className="label">Your name</label>
-        <input id="v-name" className="input" required maxLength={300} autoComplete="name" value={name} onChange={(e) => setName(e.target.value)} />
-      </div>
-      {mpyi && (
-        <>
-          <div>
-            <label htmlFor="v-team" className="label">Your team</label>
-            <input id="v-team" className="input" required maxLength={300} value={team} onChange={(e) => setTeam(e.target.value)} />
-          </div>
-          <div>
-            <label htmlFor="v-track" className="label">Your thematic track</label>
-            <select id="v-track" className="input" required value={track} onChange={(e) => setTrack(e.target.value)}>
-              <option value="">Choose a track…</option>
-              {track && !(TRACKS as readonly string[]).includes(track) && <option value={track}>{track}</option>}
-              {TRACKS.map((t) => <option key={t} value={t}>{t}</option>)}
-            </select>
-          </div>
-        </>
-      )}
-    </fieldset>
-  );
 
   return (
     <PublicShell>
@@ -297,35 +194,41 @@ export default function Vote() {
         <div className="h-1 bg-sun" aria-hidden="true" />
 
         <form onSubmit={submit} className="space-y-6 p-6">
-          {!mpyi && aboutYou}
+          {!mpyi && (
+            <fieldset className="space-y-4">
+              <legend className="mb-1 text-lg font-bold text-navy">About you</legend>
+              <div>
+                <label htmlFor="v-name" className="label">Your name</label>
+                <input id="v-name" className="input" required maxLength={300} autoComplete="name" value={name} onChange={(e) => setName(e.target.value)} />
+              </div>
+            </fieldset>
+          )}
 
           <fieldset>
             <legend className="mb-2 text-lg font-bold text-navy">{mpyi ? 'Who gets your vote?' : 'Which booth gets your vote?'}</legend>
             {mpyi ? (
               <DelegatePicker candidates={ballot.candidates} value={choice} onChange={setChoice} />
             ) : (
-            <>
-            {ballot.candidates.length > 8 && (
-              <input
-                type="search"
-                className="input mb-3"
-                placeholder={mpyi ? 'Search by name, team or track' : 'Search by booth number or name'}
-                aria-label="Search the ballot"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-              />
-            )}
-            <div className={mpyi ? 'grid gap-2' : 'grid gap-2 sm:grid-cols-2'}>
-              {filtered.map((c) => (
-                <Candidate key={c.id} c={c} kind={ballot.award.kind} selected={choice === c.id} onSelect={() => setChoice(c.id)} />
-              ))}
-            </div>
-            {filtered.length === 0 && <p className="text-sm text-slate-500">No match. Try a different search.</p>}
-            </>
+              <>
+                {ballot.candidates.length > 8 && (
+                  <input
+                    type="search"
+                    className="input mb-3"
+                    placeholder="Search by booth number or name"
+                    aria-label="Search the ballot"
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                  />
+                )}
+                <div className="grid gap-2 sm:grid-cols-2">
+                  {filtered.map((c) => (
+                    <Candidate key={c.id} c={c} kind={ballot.award.kind} selected={choice === c.id} onSelect={() => setChoice(c.id)} />
+                  ))}
+                </div>
+                {filtered.length === 0 && <p className="text-sm text-slate-500">No match. Try a different search.</p>}
+              </>
             )}
           </fieldset>
-
-          {mpyi && aboutYou}
 
           <div>
             <label htmlFor="v-note" className="label">{mpyi ? 'Why did you pick them?' : 'Why this booth?'} <span className="font-normal text-slate-500">(optional)</span></label>
