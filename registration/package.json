@@ -10,6 +10,7 @@
     "preview": "vite preview",
     "typecheck": "tsc -p .",
     "seed:fake": "node scripts/seed-fake.mjs",
+    "bundle:functions": "node scripts/bundle-functions.mjs",
     "test:db": "node supabase/tests/db.test.mjs .",
     "test:form": "node supabase/tests/form.test.mjs",
     "test": "npm run test:form && npm run test:db"
