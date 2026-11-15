@@ -437,9 +437,8 @@ function RosterDialog({ award, onClose, onImported }: { award: Award; onClose: (
       <div className="space-y-3 text-sm">
         <p>
           A CSV with the columns <strong>Name, Email, Team, Track</strong>, plus optional <strong>Country, Innovation, Gender</strong>.
-          Each innovator gets a ballot and appears on everyone else's ballot. When a voter picks someone, their team, track,
-          country, innovation and gender (whichever are filled in) show so they can check it's the right person. Leave a column
-          blank to keep it off the ballot. Importing again updates existing people instead of adding them twice.
+          Each innovator gets a ballot and appears on everyone else's ballot. When a voter picks someone by name, their team,
+          innovation, country and gender fill in automatically so they can check it's the right person. Importing again updates existing people instead of adding them twice.
         </p>
         <input type="file" accept=".csv,text/csv" onChange={(e) => readFile(e.target.files?.[0])} className="block text-sm" />
         <label htmlFor="roster-text" className="label">…or paste the CSV</label>
