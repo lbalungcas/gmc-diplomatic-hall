@@ -12,6 +12,7 @@ const CheckIn = lazy(() => import('./pages/admin/CheckIn'));
 const Scan = lazy(() => import('./pages/admin/Scan'));
 const Settings = lazy(() => import('./pages/admin/Settings'));
 const FormEditor = lazy(() => import('./pages/admin/FormEditor'));
+const Awards = lazy(() => import('./pages/admin/Awards'));
 
 let pendingPasswordSetup = authLinkType === 'invite' || authLinkType === 'recovery';
 
@@ -42,6 +43,7 @@ export default function AdminApp() {
           <Route path="checkin" element={<CheckIn />} />
           <Route path="form" element={<RequireRole roles={['admin']}><FormEditor /></RequireRole>} />
           <Route path="settings" element={<RequireRole roles={['admin']}><Settings /></RequireRole>} />
+          <Route path="awards" element={<RequireRole roles={['admin']}><Awards /></RequireRole>} />
         </Route>
         <Route path="*" element={<NotFound />} />
       </Routes>

@@ -2,23 +2,7 @@ import Papa from 'papaparse';
 import { callFunction } from './supabase';
 import type { AwardCandidate, AwardKind, AwardVote, AwardVoter } from './types';
 
-/** The Deal Corner thematic tracks (deal-corner/experts.js on the main site). */
-export const TRACKS = [
-  'Child Exploitation and Labour',
-  'Child, Early, and Forced Marriage',
-  'Corporal Punishment',
-  'Climate Change & Child Rights',
-  'Adolescent Sexual and Reproductive Health',
-  'Online Child Sexual Exploitation and Abuse',
-  'Child Protection (CANE+D)',
-] as const;
-
-export const NOTE_MAX = 500;
-
-export const AWARD_LABEL: Record<AwardKind, string> = {
-  mpyi: 'Most Promising Young Innovator',
-  peoples_choice: "People's Choice of Innovation",
-};
+export { AWARD_LABEL, NOTE_MAX, TRACKS } from './constants';
 
 type SendOutcome = 'sent' | 'failed' | 'skipped' | 'already_sent' | 'already_voted' | 'not_found';
 

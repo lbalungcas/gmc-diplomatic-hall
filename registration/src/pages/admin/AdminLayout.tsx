@@ -15,6 +15,7 @@ export default function AdminLayout() {
             {role === 'admin' && <NavLink to="/admin" end className={link}>Registrants</NavLink>}
             <NavLink to="/admin/checkin" className={link}>Manual check-in</NavLink>
             <NavLink to="/admin/scan" className={link}>Scanner</NavLink>
+            {role === 'admin' && <NavLink to="/admin/awards" className={link}>Awards</NavLink>}
             {role === 'admin' && <NavLink to="/admin/form" className={link}>Form</NavLink>}
             {role === 'admin' && <NavLink to="/admin/settings" className={link}>Settings</NavLink>}
           </nav>

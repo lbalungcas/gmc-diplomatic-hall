@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react';
 import { useParams } from 'react-router-dom';
 import { PublicShell } from '../components/PublicShell';
-import { NOTE_MAX, TRACKS } from '../lib/awards';
+import { NOTE_MAX, TRACKS } from '../lib/constants';
 import { supabase } from '../lib/supabase';
 import type { Ballot, BallotCandidate, CastVoteResult } from '../lib/types';
 
