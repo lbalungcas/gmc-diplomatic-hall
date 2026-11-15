@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { KitToggle } from '../../components/KitToggle';
 import { StatusBadge } from '../../components/StatusBadge';
+import { emailCheckoutBallot } from '../../lib/checkoutBallot';
 import { formatTime } from '../../lib/format';
 import { supabase } from '../../lib/supabase';
 import type { Status } from '../../lib/types';
@@ -56,7 +57,10 @@ export default function CheckIn() {
   async function checkOut(h: Hit) {
     const { data, error } = await supabase.rpc('check_out_manual', { p_id: h.id });
     if (error) setMessage({ tone: 'warn', text: error.message });
-    else if (data.result === 'checked_out') setMessage({ tone: 'ok', text: `${h.full_name} checked out.` });
+    else if (data.result === 'checked_out') {
+      emailCheckoutBallot(h.id);
+      setMessage({ tone: 'ok', text: `${h.full_name} checked out. If People's Choice voting is open, their ballot is on its way by email.` });
+    }
     else if (data.result === 'already_checked_out') setMessage({ tone: 'warn', text: `${h.full_name} already checked out at ${formatTime(data.checked_out_at)}.` });
     else setMessage({ tone: 'warn', text: `${h.full_name} isn't checked in, so there's nothing to check out.` });
     setVersion((v) => v + 1);

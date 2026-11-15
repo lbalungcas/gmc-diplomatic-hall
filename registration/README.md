@@ -151,7 +151,7 @@ TURNSTILE_SECRET_KEY=0x...
 
 ```bash
 npx supabase secrets set --env-file supabase/.env
-npx supabase functions deploy register decide resend-email import-registrations send-safeguarding send-ballots --no-verify-jwt
+npx supabase functions deploy register decide resend-email import-registrations send-safeguarding send-ballots checkout-ballot --no-verify-jwt
 ```
 
 `--no-verify-jwt` is intentional. The new publishable keys aren't JWTs, so each admin function checks the caller's role itself with `requireAdmin()`.
@@ -288,7 +288,7 @@ Each voter gets a personal link (`/register/vote/<token>`) by email, and each li
 ### Setup
 
 1. Apply `supabase/migrations/20261115000003_awards.sql` (`npx supabase db push`, or paste it into the SQL Editor), then re-run `seed.sql`. Re-running the seed is safe: it adds the two awards and the booths and leaves existing rows alone, including any booth names edited in the dashboard.
-2. Deploy the ballot function: `npx supabase functions deploy send-ballots --no-verify-jwt`.
+2. Deploy the ballot functions: `npx supabase functions deploy send-ballots checkout-ballot --no-verify-jwt`.
 3. Dashboard → Database → Publications → `supabase_realtime`: check that `award_votes` and `award_voters` are ticked. The migration adds them when the publication exists. Without them the dashboard still updates, by polling every 15 seconds, and shows **Polling** instead of **Live**.
 
 ### On the day
@@ -301,7 +301,9 @@ Each voter gets a personal link (`/register/vote/<token>`) by email, and each li
 6. Watch the leaderboard, turnout and latest votes update live. **Close voting** when done, and ballot links will then say voting is closed.
 7. **Export CSV** saves every vote with voter name, team, track and note. Formula characters are neutralized, so it's safe to open in Excel.
 
-Every vote is in the audit log. Ballot emails appear in the email log with type `ballot` or `ballot_reminder`.
+**On check-out**, guests get their People's Choice ballot automatically, as long as People's Choice voting is open at that moment. This applies to self check-out at the exit poster, the scanner in check-out mode, and manual check-out. A guest who checks out on their own phone also sees a **Vote for a booth** button straight away. Each guest gets this email once, and never after they've voted. Anyone who checked out before voting opened can be reached with **Sync approved registrants** and then **Send ballots**.
+
+Every vote is in the audit log. Ballot emails appear in the email log with type `ballot`, `ballot_reminder` or `ballot_checkout`.
 
 ## Data retention (90 days)
 

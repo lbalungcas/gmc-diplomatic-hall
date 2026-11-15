@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { KitToggle } from '../../components/KitToggle';
 import { StatusBadge } from '../../components/StatusBadge';
+import { emailCheckoutBallot } from '../../lib/checkoutBallot';
 import type { Decision } from '../../lib/decide';
 import { ageLabel, formatDateTime } from '../../lib/format';
 import { answerText, plainText, questions, type FormSchema } from '../../lib/form';
@@ -119,7 +120,11 @@ export function RegistrantDrawer({ id, version, form, onClose, onChanged, onDeci
   const checkOut = () => act(async () => {
     const { data, error } = await supabase.rpc('check_out_manual', { p_id: id });
     if (error) throw error;
-    return data.result === 'checked_out' ? 'Checked out.' : data.result === 'already_checked_out' ? 'Already checked out.' : 'Not checked in — nothing to check out.';
+    if (data.result === 'checked_out') {
+      emailCheckoutBallot(id);
+      return "Checked out. If People's Choice voting is open, their ballot is on its way by email.";
+    }
+    return data.result === 'already_checked_out' ? 'Already checked out.' : 'Not checked in — nothing to check out.';
   });
 
   const undoCheckOut = () => act(async () => {

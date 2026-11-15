@@ -466,6 +466,8 @@ ok((await vote(pcVoters[2].ballot_token, booth3.id, 'Late')).result === 'closed'
 ok((await q(`select 1 from audit_log where action = 'award_vote'`)).length === 3, 'every vote is audited');
 
 await q(`insert into email_log (award_voter_id, type, template, to_email, status) values ($1, 'ballot', 'ballot_mpyi', 'ben@team.org', 'sent')`, [ben.id]);
+await q(`insert into email_log (award_voter_id, type, template, to_email, status) values ($1, 'ballot_checkout', 'ballot_peoples_choice', 'ben@team.org', 'sent')`, [ben.id]);
+ok((await q(`select 1 from email_log where award_voter_id = $1 and type = 'ballot_checkout'`, [ben.id])).length === 1, 'email_log accepts the check-out ballot email');
 await expectError(() => q(`insert into email_log (type, template, status) values ('ballot', 'ballot_mpyi', 'sent')`),
   /email_log_owner_check/, 'email_log rows need a registration or an award voter');
 

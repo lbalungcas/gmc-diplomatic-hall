@@ -18,7 +18,7 @@ export interface Staff {
  * Server-side role check. The functions are deployed with verify_jwt = false (needed for the
  * new publishable API keys), so every privileged function must call this itself.
  */
-export async function requireAdmin(req: Request): Promise<Staff> {
+export async function requireStaff(req: Request, roles: Staff['role'][] = ['admin', 'scanner']): Promise<Staff> {
   const jwt = req.headers.get('authorization')?.replace(/^Bearer\s+/i, '');
   if (!jwt) throw new HttpError(401, 'Not signed in');
   const { data, error } = await db.auth.getUser(jwt);
@@ -29,9 +29,11 @@ export async function requireAdmin(req: Request): Promise<Staff> {
     .select('email, role, active')
     .eq('user_id', data.user.id)
     .maybeSingle();
-  if (!staff?.active || staff.role !== 'admin') throw new HttpError(403, 'Admins only');
+  if (!staff?.active || !roles.includes(staff.role)) throw new HttpError(403, roles.length === 1 && roles[0] === 'admin' ? 'Admins only' : 'Staff only');
   return { userId: data.user.id, email: staff.email, role: staff.role };
 }
+
+export const requireAdmin = (req: Request): Promise<Staff> => requireStaff(req, ['admin']);
 
 export interface EventRow {
   id: string;

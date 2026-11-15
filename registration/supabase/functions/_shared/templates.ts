@@ -115,29 +115,40 @@ const BALLOT_COPY: Record<AwardKind, { title: string; intro: string; ask: string
   },
 };
 
+export type BallotVariant = 'invite' | 'reminder' | 'checkout';
+
 /** The emailed ballot link. Each link is personal and works for one vote. */
 export function renderBallotEmail(
   kind: AwardKind,
   name: string | null,
   event: EventRow,
   link: string,
-  reminder = false,
+  variant: BallotVariant = 'invite',
 ): RenderedEmail {
   const copy = BALLOT_COPY[kind];
   const first = (name ?? '').trim().split(/\s+/)[0] || 'there';
   const plainIntro = copy.intro.replace(/<\/?strong>/g, '');
-  const lead = reminder ? `Reminder: cast your vote for ${copy.title}` : `Cast your vote: ${copy.title}`;
+  const subject = {
+    invite: `Cast your vote: ${copy.title}`,
+    reminder: `Reminder: cast your vote for ${copy.title}`,
+    checkout: `Thanks for coming! Vote for ${copy.title}`,
+  }[variant];
+  const lead = {
+    invite: '',
+    reminder: "You haven't voted yet. Voting closes soon.",
+    checkout: 'Safe travels home! Before you forget: which booth impressed you most?',
+  }[variant];
   return {
-    subject: `${lead} - ${event.name}`,
+    subject: `${subject} - ${event.name}`,
     html: layout(event, `Your personal ballot for ${copy.title}. One vote per person.`,
       `<h1 style="margin:0 0 16px;color:${NAVY};font-size:22px;line-height:1.3">${esc(copy.title)}</h1>` +
       `<p style="margin:0 0 12px">Hi ${esc(first)},</p>` +
-      (reminder ? `<p style="margin:0 0 12px">You haven't voted yet. Voting closes soon.</p>` : '') +
+      (lead ? `<p style="margin:0 0 12px">${esc(lead)}</p>` : '') +
       `<p style="margin:0 0 12px">${copy.intro}</p>` +
       `<p style="margin:0 0 12px">${esc(copy.ask)}</p>` +
-      button(link, 'Open my ballot') +
+      button(link, kind === 'peoples_choice' ? 'Vote for a booth' : 'Open my ballot') +
       `<p style="margin:0 0 12px;color:${MUTED};font-size:13px">This link is personal and works for one vote only, so please don't forward it. If the button doesn't work, copy this link into your browser:<br><a href="${esc(link)}" style="color:${NAVY};word-break:break-all">${esc(link)}</a></p>`),
-    text: `Hi ${first},\n\n${reminder ? "You haven't voted yet. Voting closes soon.\n\n" : ''}${plainIntro}\n\n${copy.ask}\n\nOpen your ballot: ${link}\n\nThis link is personal and works for one vote only, so please don't forward it.` + textFooter(event),
+    text: `Hi ${first},\n\n${lead ? `${lead}\n\n` : ''}${plainIntro}\n\n${copy.ask}\n\nOpen your ballot: ${link}\n\nThis link is personal and works for one vote only, so please don't forward it.` + textFooter(event),
   };
 }
 

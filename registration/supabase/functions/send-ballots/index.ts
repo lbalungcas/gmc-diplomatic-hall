@@ -67,7 +67,7 @@ serve(async (req, body) => {
     const link = ballotUrl(voter.ballot_token);
     let result: SendResult;
     try {
-      const email = renderBallotEmail(kind, voter.name, event, link, reminder);
+      const email = renderBallotEmail(kind, voter.name, event, link, reminder ? 'reminder' : 'invite');
       result = await emailProvider.send({ to: voter.email, subject: email.subject, html: email.html, text: email.text, replyTo: event.contact_email });
     } catch (err) {
       result = { status: 'failed', error: String(err).slice(0, 500) };

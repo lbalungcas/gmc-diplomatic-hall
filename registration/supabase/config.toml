@@ -34,3 +34,6 @@ verify_jwt = false
 
 [functions.send-ballots]
 verify_jwt = false
+
+[functions.checkout-ballot]
+verify_jwt = false

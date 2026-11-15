@@ -1,8 +1,10 @@
 import { QRCodeSVG } from 'qrcode.react';
 import { useEffect, useState } from 'react';
 import { Link, useLocation, useParams } from 'react-router-dom';
+import { BallotPrompt } from '../components/BallotPrompt';
 import { PublicShell } from '../components/PublicShell';
 import { buildIcs, formatDateTime, formatEventDate } from '../lib/format';
+import { guestCheckoutBallot, type CheckoutBallot } from '../lib/checkoutBallot';
 import { ticketLink } from '../lib/paths';
 import { clearCheckoutCode, pendingCheckoutCode, saveTicket } from '../lib/savedTickets';
 import { supabase } from '../lib/supabase';
@@ -39,6 +41,7 @@ export default function Ticket() {
   const [checkoutCode, setCheckoutCode] = useState(() => pendingCheckoutCode());
   const [checkingOut, setCheckingOut] = useState(false);
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
+  const [ballot, setBallot] = useState<CheckoutBallot | null>(null);
 
   useEffect(() => {
     supabase.rpc('get_ticket', { p_token: token }).then(({ data, error }) => {
@@ -61,6 +64,7 @@ export default function Ticket() {
       clearCheckoutCode();
       setCheckoutCode(null);
       setTicket((t) => (t ? { ...t, checked_out_at: r.checked_out_at ?? null } : t));
+      setBallot(await guestCheckoutBallot(token));
     } else if (r.result === 'wrong_station') {
       clearCheckoutCode();
       setCheckoutCode(null);
@@ -141,6 +145,7 @@ export default function Ticket() {
                 <p className="text-lg font-bold">Checked out ✓</p>
                 <p className="text-sm">Thanks for coming! You checked out at {formatDateTime(ticket.checked_out_at, event.timezone)}.</p>
               </div>
+              {ballot && <BallotPrompt ballot={ballot} />}
               <div className="text-center">
                 <div className="mx-auto w-fit rounded-2xl border-2 border-slate-200 bg-white p-4">
                   <QRCodeSVG value={ticketUrl} size={200} level="M" fgColor="#0f2240" marginSize={0} title="Your QR ticket" />

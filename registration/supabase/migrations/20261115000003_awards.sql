@@ -92,7 +92,7 @@ alter table public.email_log add constraint email_log_owner_check
   check (registration_id is not null or award_voter_id is not null);
 alter table public.email_log drop constraint if exists email_log_type_check;
 alter table public.email_log add constraint email_log_type_check
-  check (type in ('pending', 'approved', 'declined', 'waitlisted', 'resend', 'safeguarding', 'ballot', 'ballot_reminder'));
+  check (type in ('pending', 'approved', 'declined', 'waitlisted', 'resend', 'safeguarding', 'ballot', 'ballot_reminder', 'ballot_checkout'));
 alter table public.email_log drop constraint if exists email_log_template_check;
 alter table public.email_log add constraint email_log_template_check
   check (template in ('pending', 'approved', 'declined', 'waitlisted', 'safeguarding', 'ballot_mpyi', 'ballot_peoples_choice'));

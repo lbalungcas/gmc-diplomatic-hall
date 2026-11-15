@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom';
 import { KitToggle } from '../../components/KitToggle';
 import { useAuth } from '../../lib/auth';
+import { emailCheckoutBallot } from '../../lib/checkoutBallot';
 import { formatTime } from '../../lib/format';
 import { ticketTokenFrom } from '../../lib/paths';
 import { supabase } from '../../lib/supabase';
@@ -139,7 +140,10 @@ export default function Scan() {
         if (error) throw error;
         const r = data as CheckOutResult;
         show(r);
-        if (r.result === 'checked_out') setStats((s) => (s ? { ...s, checked_out: s.checked_out + 1, on_site: s.on_site - 1 } : s));
+        if (r.result === 'checked_out') {
+          setStats((s) => (s ? { ...s, checked_out: s.checked_out + 1, on_site: s.on_site - 1 } : s));
+          emailCheckoutBallot(r.registration_id);
+        }
         setLastGuest(null);
         return;
       }

@@ -1,6 +1,8 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { useParams } from 'react-router-dom';
+import { BallotPrompt } from '../components/BallotPrompt';
 import { PublicShell } from '../components/PublicShell';
+import { guestCheckoutBallot, type CheckoutBallot } from '../lib/checkoutBallot';
 import { formatTime } from '../lib/format';
 import { ticketTokenFrom } from '../lib/paths';
 import { clearCheckoutCode, forgetTicket, rememberCheckoutCode, savedTickets, type SavedTicket } from '../lib/savedTickets';
@@ -16,6 +18,7 @@ export default function Checkout() {
   const [tickets, setTickets] = useState<SavedTicket[]>(() => savedTickets());
   const [busy, setBusy] = useState<string | null>(null);
   const [shown, setShown] = useState<Shown | null>(null);
+  const [ballot, setBallot] = useState<CheckoutBallot | null>(null);
   const [link, setLink] = useState('');
   const [linkError, setLinkError] = useState<string | null>(null);
 
@@ -38,7 +41,11 @@ export default function Checkout() {
         forgetTicket(token);
         setTickets(savedTickets());
       }
-      if (r.result === 'checked_out' || r.result === 'already_checked_out') clearCheckoutCode();
+      setBallot(null);
+      if (r.result === 'checked_out' || r.result === 'already_checked_out') {
+        clearCheckoutCode();
+        setBallot(await guestCheckoutBallot(token));
+      }
       setShown(r);
     } catch {
       setShown({ result: 'network_error' });
@@ -79,6 +86,7 @@ export default function Checkout() {
     return (
       <PublicShell>
         <ResultCard r={shown} tz={tz} contact={station.event.contact_email} onBack={() => setShown(null)} />
+        {ballot && <BallotPrompt ballot={ballot} />}
       </PublicShell>
     );
   }
