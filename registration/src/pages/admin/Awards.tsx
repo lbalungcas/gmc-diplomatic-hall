@@ -436,13 +436,15 @@ function RosterDialog({ award, onClose, onImported }: { award: Award; onClose: (
     <Modal title="Import the youth innovator roster" onClose={onClose} wide>
       <div className="space-y-3 text-sm">
         <p>
-          A CSV with the columns <strong>Name, Email, Team, Track</strong>. Each innovator gets a ballot and appears on everyone
-          else's ballot. Importing again updates existing people instead of adding them twice.
+          A CSV with the columns <strong>Name, Email, Team, Track</strong>, plus optional <strong>Country, Innovation, Gender</strong>.
+          Each innovator gets a ballot and appears on everyone else's ballot. When a voter picks someone, their team, track,
+          country, innovation and gender (whichever are filled in) show so they can check it's the right person. Leave a column
+          blank to keep it off the ballot. Importing again updates existing people instead of adding them twice.
         </p>
         <input type="file" accept=".csv,text/csv" onChange={(e) => readFile(e.target.files?.[0])} className="block text-sm" />
         <label htmlFor="roster-text" className="label">…or paste the CSV</label>
         <textarea id="roster-text" className="input min-h-32 font-mono text-xs" value={text} onChange={(e) => setText(e.target.value)}
-          placeholder={'Name,Email,Team,Track\nAna Cruz,ana@example.org,Team A,Online Child Sexual Exploitation and Abuse'} />
+          placeholder={'Name,Email,Team,Track,Country,Innovation,Gender\nAna Cruz,ana@example.org,Team A,Online Child Sexual Exploitation and Abuse,Philippines,SafeTalk App,Female'} />
         {rows.length > 0 && (
           <div className="rounded-xl border border-slate-200">
             <p className="border-b border-slate-200 px-3 py-2 font-semibold">
@@ -451,9 +453,14 @@ function RosterDialog({ award, onClose, onImported }: { award: Award; onClose: (
             </p>
             <div className="max-h-48 overflow-auto">
               <table className="w-full text-xs">
+                <thead className="sticky top-0 bg-slate-50 text-left text-slate-500">
+                  <tr>{['Name', 'Email', 'Team', 'Track', 'Country', 'Innovation', 'Gender'].map((h) => <th key={h} scope="col" className="px-3 py-1 font-semibold">{h}</th>)}</tr>
+                </thead>
                 <tbody className="divide-y divide-slate-100">
                   {rows.slice(0, 50).map((r, i) => (
-                    <tr key={i}><td className="px-3 py-1">{r.name}</td><td className="px-3 py-1">{r.email}</td><td className="px-3 py-1">{r.team}</td><td className="px-3 py-1">{r.track}</td></tr>
+                    <tr key={i}>
+                      {[r.name, r.email, r.team, r.track, r.country, r.innovation, r.gender].map((v, j) => <td key={j} className="px-3 py-1">{v}</td>)}
+                    </tr>
                   ))}
                 </tbody>
               </table>
@@ -476,7 +483,7 @@ function CandidateEditor({ award, candidates, onChanged }: { award: Award; candi
   const [newNo, setNewNo] = useState('');
   const [newLabel, setNewLabel] = useState('');
 
-  async function update(id: string, patch: Partial<Pick<AwardCandidate, 'label' | 'team' | 'track' | 'hidden'>>) {
+  async function update(id: string, patch: Partial<Pick<AwardCandidate, 'label' | 'team' | 'track' | 'hidden' | 'country' | 'innovation' | 'gender'>>) {
     setError(null);
     const { error: e } = await supabase.from('award_candidates').update(patch).eq('id', id);
     if (e) setError(e.message);
@@ -502,7 +509,7 @@ function CandidateEditor({ award, candidates, onChanged }: { award: Award; candi
     <div className="rounded-xl border border-slate-200 p-3">
       <p className="mb-2 text-sm text-slate-600">
         {mpyi
-          ? 'Innovators come from the roster. Fix a name or team here, or hide someone from the ballot.'
+          ? 'Innovators come from the roster. Fix their details here (voters see them when they pick someone), or hide someone from the ballot.'
           : 'Rename a booth or hide it from the ballot. Votes already cast are kept.'}
       </p>
       <ul className="max-h-72 divide-y divide-slate-100 overflow-y-auto">
@@ -511,10 +518,11 @@ function CandidateEditor({ award, candidates, onChanged }: { award: Award; candi
             {!mpyi && <span className="w-8 text-right font-bold text-slate-500">{c.booth_no}</span>}
             <input className="input min-w-40 flex-1 py-1" defaultValue={c.label} aria-label="Name on the ballot"
               onBlur={(e) => e.target.value.trim() && e.target.value.trim() !== c.label && update(c.id, { label: e.target.value.trim() })} />
-            {mpyi && (
-              <input className="input w-40 py-1" defaultValue={c.team ?? ''} aria-label="Team"
-                onBlur={(e) => e.target.value.trim() !== (c.team ?? '') && update(c.id, { team: e.target.value.trim() || null })} />
-            )}
+            {mpyi && (['team', 'country', 'innovation', 'gender'] as const).map((field) => (
+              <input key={field} className={`input py-1 ${field === 'gender' ? 'w-24' : 'w-36'}`} defaultValue={c[field] ?? ''}
+                placeholder={field[0].toUpperCase() + field.slice(1)} aria-label={`${field[0].toUpperCase() + field.slice(1)} for ${c.label}`}
+                onBlur={(e) => e.target.value.trim() !== (c[field] ?? '') && update(c.id, { [field]: e.target.value.trim() || null })} />
+            ))}
             <label className="flex items-center gap-1 text-xs font-semibold text-slate-600">
               <input type="checkbox" className="size-4 accent-navy" checked={c.hidden} onChange={(e) => update(c.id, { hidden: e.target.checked })} />
               Hidden

@@ -44,6 +44,9 @@ export interface RosterRow {
   email: string;
   team: string;
   track: string;
+  country: string;
+  innovation: string;
+  gender: string;
 }
 
 const pick = (row: Record<string, string>, ...keys: string[]) => {
@@ -51,15 +54,18 @@ const pick = (row: Record<string, string>, ...keys: string[]) => {
   return found ? (row[found] ?? '').trim() : '';
 };
 
-/** Reads a roster CSV with columns like Name, Email, Team, Track (header names are matched loosely). */
+/** Reads a roster CSV with columns like Name, Email, Team, Track, Country, Innovation, Gender (header names are matched loosely). */
 export function parseRoster(text: string): RosterRow[] {
   const { data } = Papa.parse<Record<string, string>>(text.replace(/^\uFEFF/, ''), { header: true, skipEmptyLines: true });
   return data
     .map((r) => ({
       name: pick(r, 'name', 'full name', 'full_name', 'innovator'),
       email: pick(r, 'email', 'email address', 'e-mail'),
-      team: pick(r, 'team', 'team name', 'organisation', 'organization', 'innovation', 'booth'),
+      team: pick(r, 'team', 'team name', 'group', 'group team', 'group / team', 'organisation', 'organization'),
       track: pick(r, 'track', 'thematic track', 'theme'),
+      country: pick(r, 'country', 'nationality'),
+      innovation: pick(r, 'innovation', 'innovation name', 'project', 'project name', 'solution'),
+      gender: pick(r, 'gender', 'sex'),
     }))
     .filter((r) => r.name || r.email);
 }
@@ -79,12 +85,13 @@ export function votesToCsv(kind: AwardKind, votes: AwardVote[], voters: AwardVot
     return kind === 'peoples_choice' && c.booth_no ? `Booth ${c.booth_no}: ${c.label}` : c.label;
   };
   const header = kind === 'mpyi'
-    ? ['Voted at', 'Voter name', 'Voter team', 'Voter track', 'Voter email', 'Voted for', 'Their team', 'Note']
+    ? ['Voted at', 'Voter name', 'Voter team', 'Voter track', 'Voter email', 'Voted for', 'Their team', 'Their country', 'Their innovation', 'Note']
     : ['Voted at', 'Voter name', 'Voter email', 'Booth', 'Note'];
   const rows = votes.map((v) => {
     const email = voterById.get(v.voter_id)?.email ?? '';
     return kind === 'mpyi'
-      ? [v.created_at, v.voter_name, v.voter_team, v.voter_track, email, choice(v.candidate_id), cand.get(v.candidate_id)?.team, v.note]
+      ? [v.created_at, v.voter_name, v.voter_team, v.voter_track, email, choice(v.candidate_id), cand.get(v.candidate_id)?.team,
+         cand.get(v.candidate_id)?.country, cand.get(v.candidate_id)?.innovation, v.note]
       : [v.created_at, v.voter_name, email, choice(v.candidate_id), v.note];
   });
   return Papa.unparse({ fields: header, data: rows.map((r) => r.map(safe)) });

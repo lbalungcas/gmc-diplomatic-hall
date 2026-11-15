@@ -149,6 +149,10 @@ export interface BallotCandidate {
   team: string | null;
   track: string | null;
   booth_no: number | null;
+  /** Most Promising only; null when the roster left them blank. */
+  country?: string | null;
+  innovation?: string | null;
+  gender?: string | null;
 }
 
 export interface Ballot {

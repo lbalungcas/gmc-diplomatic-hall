@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react';
+import { useEffect, useId, useMemo, useRef, useState, type FormEvent, type KeyboardEvent, type ReactNode } from 'react';
 import { useParams } from 'react-router-dom';
 import { PublicShell } from '../components/PublicShell';
 import { NOTE_MAX, TRACKS } from '../lib/constants';
@@ -33,6 +33,133 @@ function Candidate({ c, kind, selected, onSelect }: { c: BallotCandidate; kind: 
         )}
       </span>
     </label>
+  );
+}
+
+const DETAILS = [
+  ['team', 'Team'],
+  ['track', 'Thematic track'],
+  ['country', 'Country'],
+  ['innovation', 'Innovation'],
+  ['gender', 'Gender'],
+] as const;
+
+/**
+ * Most Promising: type a delegate's name (or browse the list), then their details show so the voter
+ * can check they picked the right person.
+ */
+function DelegatePicker({ candidates, value, onChange }: { candidates: BallotCandidate[]; value: string; onChange: (id: string) => void }) {
+  const id = useId();
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [query, setQuery] = useState('');
+  const [open, setOpen] = useState(false);
+  const [active, setActive] = useState(0);
+  const selected = candidates.find((c) => c.id === value);
+
+  const matches = useMemo(() => {
+    const term = query.trim().toLowerCase();
+    if (!term) return candidates;
+    return candidates.filter((c) => [c.label, c.team, c.country, c.innovation].some((v) => v?.toLowerCase().includes(term)));
+  }, [candidates, query]);
+
+  function choose(c: BallotCandidate) {
+    onChange(c.id);
+    setQuery('');
+    setOpen(false);
+  }
+
+  function change() {
+    onChange('');
+    setActive(0);
+    setTimeout(() => inputRef.current?.focus(), 0);
+  }
+
+  function onKeyDown(e: KeyboardEvent<HTMLInputElement>) {
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setOpen(true);
+      setActive((i) => Math.min(i + 1, matches.length - 1));
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setActive((i) => Math.max(i - 1, 0));
+    } else if (e.key === 'Enter' && open && matches[active]) {
+      e.preventDefault();
+      choose(matches[active]);
+    } else if (e.key === 'Escape') {
+      setOpen(false);
+    }
+  }
+
+  if (selected) {
+    const details = DETAILS.filter(([key]) => selected[key]);
+    return (
+      <div className="rounded-xl border-2 border-navy bg-navy-surface p-4" aria-live="polite">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-xs font-semibold tracking-wide text-slate-500 uppercase">Your vote goes to</p>
+            <p className="mt-0.5 text-xl font-extrabold text-navy">{selected.label}</p>
+          </div>
+          <button type="button" className="btn-ghost shrink-0 px-3 py-1.5 text-sm" onClick={change}>Change</button>
+        </div>
+        {details.length > 0 && (
+          <dl className="mt-3 grid gap-x-4 gap-y-2 text-sm sm:grid-cols-2">
+            {details.map(([key, label]) => (
+              <div key={key}>
+                <dt className="text-xs font-semibold text-slate-500">{label}</dt>
+                <dd className="font-medium text-slate-900">{selected[key]}</dd>
+              </div>
+            ))}
+          </dl>
+        )}
+        <p className="mt-3 text-xs text-slate-600">Check these details. If this isn't the person you meant, tap Change.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="relative">
+      <label htmlFor={`${id}-input`} className="label">Type the innovator's name</label>
+      <input
+        ref={inputRef}
+        id={`${id}-input`}
+        type="text"
+        role="combobox"
+        aria-expanded={open}
+        aria-controls={`${id}-list`}
+        aria-autocomplete="list"
+        aria-activedescendant={open && matches[active] ? `${id}-opt-${matches[active].id}` : undefined}
+        autoComplete="off"
+        className="input"
+        placeholder="Start typing a name, or tap to see everyone"
+        value={query}
+        onChange={(e) => { setQuery(e.target.value); setOpen(true); setActive(0); }}
+        onFocus={() => setOpen(true)}
+        onClick={() => setOpen(true)}
+        onBlur={() => setTimeout(() => setOpen(false), 120)}
+        onKeyDown={onKeyDown}
+      />
+      {open && (
+        <ul id={`${id}-list`} role="listbox" aria-label="Delegates"
+          className="absolute z-20 mt-1 max-h-72 w-full overflow-y-auto rounded-xl border border-slate-200 bg-white py-1 shadow-lg">
+          {matches.map((c, i) => (
+            <li
+              key={c.id}
+              id={`${id}-opt-${c.id}`}
+              role="option"
+              aria-selected={i === active}
+              className={`cursor-pointer px-3 py-2 ${i === active ? 'bg-navy-surface' : ''}`}
+              onMouseDown={(e) => e.preventDefault()}
+              onMouseEnter={() => setActive(i)}
+              onClick={() => choose(c)}
+            >
+              <span className="block font-semibold text-navy">{c.label}</span>
+              {(c.team || c.country) && <span className="block text-xs text-slate-600">{[c.team, c.country].filter(Boolean).join(' · ')}</span>}
+            </li>
+          ))}
+          {matches.length === 0 && <li className="px-3 py-2 text-sm text-slate-500">No one matches “{query.trim()}”. Check the spelling.</li>}
+        </ul>
+      )}
+    </div>
   );
 }
 
@@ -179,6 +306,10 @@ export default function Vote() {
 
           <fieldset>
             <legend className="mb-2 text-lg font-bold text-navy">{mpyi ? 'Who gets your vote?' : 'Which booth gets your vote?'}</legend>
+            {mpyi ? (
+              <DelegatePicker candidates={ballot.candidates} value={choice} onChange={setChoice} />
+            ) : (
+            <>
             {ballot.candidates.length > 8 && (
               <input
                 type="search"
@@ -195,6 +326,8 @@ export default function Vote() {
               ))}
             </div>
             {filtered.length === 0 && <p className="text-sm text-slate-500">No match. Try a different search.</p>}
+            </>
+            )}
           </fieldset>
 
           <div>
