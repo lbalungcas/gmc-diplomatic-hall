@@ -50,6 +50,7 @@ export interface Registration {
   decided_at: string | null;
   checked_in_at: string | null;
   kit_received_at: string | null;
+  checked_out_at: string | null;
 }
 
 export interface CategoryStats {
@@ -71,6 +72,9 @@ export interface EventStats {
   waitlisted: number;
   cancelled: number;
   checked_in: number;
+  checked_out: number;
+  /** Checked in and not checked out. */
+  on_site: number;
   kit_received: number;
   /** Null when there is no capacity limit. */
   remaining: number | null;
@@ -81,6 +85,8 @@ export type CheckInResult =
   | { result: 'invalid' }
   | {
       result: 'checked_in' | 'already_checked_in' | 'not_approved';
+      /** Checked in again after checking out. */
+      returned?: boolean;
       registration_id: string;
       event_id: string;
       full_name: string;
@@ -90,8 +96,38 @@ export type CheckInResult =
       status: Status;
       photo_consent: boolean;
       checked_in_at: string | null;
+      checked_out_at?: string | null;
       kit_received_at: string | null;
     };
+
+export type CheckOutResult =
+  | { result: 'invalid' }
+  | {
+      result: 'checked_out' | 'already_checked_out' | 'not_checked_in' | 'not_approved';
+      registration_id: string;
+      event_id: string;
+      full_name: string;
+      preferred_name: string | null;
+      organization: string | null;
+      category: string | null;
+      status: Status;
+      photo_consent: boolean;
+      checked_in_at: string | null;
+      checked_out_at: string | null;
+      kit_received_at: string | null;
+    };
+
+export interface SelfCheckOutResult {
+  result: 'checked_out' | 'already_checked_out' | 'not_checked_in' | 'not_approved' | 'invalid' | 'wrong_station';
+  full_name?: string;
+  preferred_name?: string | null;
+  checked_in_at?: string | null;
+  checked_out_at?: string | null;
+}
+
+export interface CheckoutStation {
+  event: { name: string; contact_email: string; timezone: string };
+}
 
 export interface Ticket {
   full_name: string;
@@ -100,6 +136,7 @@ export interface Ticket {
   category: string | null;
   status: Status;
   checked_in_at: string | null;
+  checked_out_at: string | null;
   decline_reason: string | null;
   event: Pick<EventRow, 'name' | 'subtitle' | 'starts_at' | 'ends_at' | 'timezone' | 'venue' | 'venue_address' | 'map_url' | 'contact_email' | 'arrival_note'>;
 }

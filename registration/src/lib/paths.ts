@@ -12,3 +12,20 @@ export const imageUrl = (src: string) => (/^(https?:)?\/\//.test(src) || src.sta
 
 /** Absolute link to a registrant's ticket page. */
 export const ticketLink = (token: string) => `${window.location.origin}${BASE}t/${token}`;
+
+/** Absolute link for the check-out poster at the exit. */
+export const checkoutLink = (code: string) => `${window.location.origin}${BASE}checkout/${code}`;
+
+const TOKEN_RE = /^[A-Za-z0-9_-]{20,100}$/;
+
+/** Ticket QR codes hold https://<domain>/register/t/<token>; also accept a bare token typed in by hand. */
+export function ticketTokenFrom(raw: string): string | null {
+  const s = raw.trim();
+  if (TOKEN_RE.test(s)) return s;
+  try {
+    const m = new URL(s).pathname.match(/\/t\/([A-Za-z0-9_-]{20,100})\/?$/);
+    return m ? m[1] : null;
+  } catch {
+    return null;
+  }
+}

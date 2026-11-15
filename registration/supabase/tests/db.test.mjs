@@ -46,7 +46,8 @@ for (const f of [
   'migrations/20261020000003_registration_functions.sql',
   'migrations/20261111000001_safeguarding_email.sql',
   'migrations/20261112000001_no_capacity_and_reg_kit.sql',
-  'migrations/20261115000001_awards.sql',
+  'migrations/20261115000002_checkout.sql',
+  'migrations/20261115000003_awards.sql',
   'seed.sql',
 ]) {
   await db.exec(mig(f));
@@ -61,7 +62,8 @@ await db.exec('drop function public.search_checkin(uuid, text)');
 await db.exec(mig('migrations/20261020000003_registration_functions.sql'));
 await db.exec(mig('migrations/20261111000001_safeguarding_email.sql'));
 await db.exec(mig('migrations/20261112000001_no_capacity_and_reg_kit.sql'));
-await db.exec(mig('migrations/20261115000001_awards.sql'));
+await db.exec(mig('migrations/20261115000002_checkout.sql'));
+await db.exec(mig('migrations/20261115000003_awards.sql'));
 await db.exec(mig('seed.sql'));
 console.log('re-applied migrations OK');
 
@@ -247,6 +249,67 @@ ok(JSON.stringify(audit.map((a) => a.action)) === JSON.stringify(['register', 'a
 ok(audit[2].actor_email === 'door@x.org' && audit[2].meta.method === 'scan', 'check-in audit records scanner + method');
 const undoAudit = await q(`select 1 from audit_log where action = 'undo_check_in' and registration_id = $1`, [r3.registration_id]);
 ok(undoAudit.length === 1, 'undo check-in is audited');
+
+// ── check-out ──
+await as('authenticated', randoId, async () => {
+  await expectError(() => q(`select public.check_out($1)`, [r5.ticket_token]), /not authorized/, 'non-staff cannot check out');
+});
+await as('anon', null, async () => {
+  await expectError(() => q(`select public.check_out($1)`, [r5.ticket_token]), /permission denied/, 'anon cannot call check_out');
+  await expectError(() => q(`select * from checkout_stations`), /permission denied/, 'anon cannot read the check-out code table');
+});
+await as('authenticated', scannerId, async () => {
+  ok((await q(`select public.check_out($1) r`, [r5.ticket_token]))[0].r.result === 'not_checked_in', 'check-out before check-in → not_checked_in');
+  ok((await q(`select public.check_out($1) r`, [r6.ticket_token]))[0].r.result === 'not_approved', 'declined ticket → not_approved at check-out');
+  ok((await q(`select public.check_out($1) r`, ['x'.repeat(43)]))[0].r.result === 'invalid', 'unknown ticket → invalid at check-out');
+  const first = (await q(`select public.check_in_manual($1) r`, [r5.registration_id]))[0].r;
+  const o = (await q(`select public.check_out($1) r`, [r5.ticket_token]))[0].r;
+  ok(o.result === 'checked_out' && !!o.checked_out_at && o.full_name === 'Person 5', 'scanner checks a guest out');
+  const o2 = (await q(`select public.check_out($1) r`, [r5.ticket_token]))[0].r;
+  ok(o2.result === 'already_checked_out' && o2.checked_out_at === o.checked_out_at, 'second check-out scan → already_checked_out with first time');
+  const s = (await q(`select public.event_stats($1) s`, [eventId]))[0].s;
+  ok(s.checked_out === 1 && s.on_site === s.checked_in - 1, 'event_stats counts checked out and on site', JSON.stringify({ in: s.checked_in, out: s.checked_out, on: s.on_site }));
+  const hit = (await q(`select * from public.search_checkin($1, 'Person 5')`, [eventId]))[0];
+  ok(hit?.checked_out_at != null, 'search_checkin returns checked_out_at');
+  const back = (await q(`select public.check_in($1) r`, [r5.ticket_token]))[0].r;
+  ok(back.result === 'checked_in' && back.returned === true && back.checked_out_at === null && back.checked_in_at === first.checked_in_at,
+    'scanning back in after check-out → checked_in (returned), first check-in time kept');
+  ok((await q(`select public.check_in($1) r`, [r5.ticket_token]))[0].r.result === 'already_checked_in', 'then a repeat scan → already_checked_in');
+  ok((await q(`select public.check_out_manual($1) r`, [r5.registration_id]))[0].r.result === 'checked_out', 'manual check-out');
+  ok((await q(`select public.undo_check_out($1) r`, [r5.registration_id]))[0].r.ok === true, 'undo check-out');
+  ok((await q(`select public.undo_check_out($1) r`, [r5.registration_id]))[0].r.ok === false, 'undo when not checked out → ok:false');
+  await expectError(() => q(`select public.checkout_station($1)`, [eventId]), /not authorized/, 'scanner cannot see the check-out poster code');
+});
+
+const station = await as('authenticated', adminId, async () => (await q(`select public.checkout_station($1) r`, [eventId]))[0].r);
+ok(/^[A-Za-z0-9_-]{43}$/.test(station.code), 'admin gets a 256-bit check-out poster code');
+ok((await as('authenticated', adminId, async () => (await q(`select public.checkout_station($1) r`, [eventId]))[0].r)).code === station.code,
+  'the poster code stays the same until rotated');
+await as('anon', null, async () => {
+  const st = (await q(`select public.get_checkout_station($1) r`, [station.code]))[0].r;
+  ok(st?.event?.name && !JSON.stringify(st).includes(station.code), 'poster page sees the event name');
+  ok((await q(`select public.get_checkout_station('nope') r`))[0].r === null, 'unknown poster code → null');
+  const self = (await q(`select public.self_check_out($1, $2) r`, [r5.ticket_token, station.code]))[0].r;
+  ok(self.result === 'checked_out' && self.full_name === 'Person 5' && !('registration_id' in self) && !('organization' in self),
+    'guest checks themselves out at the poster, and only gets their name back', JSON.stringify(self));
+  ok((await q(`select public.self_check_out($1, $2) r`, [r5.ticket_token, station.code]))[0].r.result === 'already_checked_out', 'second self check-out → already_checked_out');
+  ok((await q(`select public.self_check_out($1, $2) r`, [r3.ticket_token, station.code]))[0].r.result === 'not_checked_in', 'self check-out before check-in → not_checked_in');
+  ok((await q(`select public.self_check_out($1, $2) r`, [r5.ticket_token, 'x'.repeat(43)]))[0].r.result === 'wrong_station', 'self check-out needs the poster code');
+  ok((await q(`select public.self_check_out($1, $2) r`, ['x'.repeat(43), station.code]))[0].r.result === 'invalid', 'self check-out with an unknown ticket → invalid');
+});
+const rotated = await as('authenticated', adminId, async () => (await q(`select public.rotate_checkout_station($1) r`, [eventId]))[0].r);
+ok(rotated.code !== station.code, 'admin can rotate the poster code');
+await as('anon', null, async () => {
+  ok((await q(`select public.self_check_out($1, $2) r`, [r5.ticket_token, station.code]))[0].r.result === 'wrong_station', 'old poster code stops working after rotating');
+});
+const selfAudit = await q(`select meta from audit_log where action = 'check_out' and registration_id = $1 order by id`, [r5.registration_id]);
+ok(selfAudit.map((a) => a.meta.method).join(',') === 'scan,manual,self', 'check-outs are audited with their method', selfAudit.map((a) => a.meta.method).join(','));
+await as('authenticated', scannerId, async () => {
+  await q(`select public.undo_check_in($1)`, [r5.registration_id]);
+});
+ok((await q(`select checked_out_at from registrations where id = $1`, [r5.registration_id]))[0].checked_out_at === null, 'undoing a check-in clears the check-out');
+await expectError(() => q(`update registrations set checked_out_at = now() where id = $1`, [r6.registration_id]),
+  /checkout_requires_checkin/, 'checked_out_at requires a check-in (constraint)');
 
 // ── import ──
 const imp = (await q(`select public.import_registrations($1, $2::jsonb, $3, 'admin@x.org') r`, [eventId, JSON.stringify([
