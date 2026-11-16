@@ -1,7 +1,8 @@
-import { useEffect, useId, useMemo, useState, type FormEvent, type ReactNode } from 'react';
-import { useParams } from 'react-router-dom';
+import { useEffect, useId, useState, type FormEvent, type ReactNode } from 'react';
+import { useParams, useSearchParams } from 'react-router-dom';
 import { PublicShell } from '../components/PublicShell';
 import { NOTE_MAX } from '../lib/constants';
+import { FLOOR_ISLANDS } from '../lib/floorPlan';
 import { supabase } from '../lib/supabase';
 import type { Ballot, BallotCandidate, CastVoteResult } from '../lib/types';
 
@@ -15,24 +16,83 @@ function Message({ title, children, tone = 'navy' }: { title: string; children: 
   );
 }
 
-function Candidate({ c, kind, selected, onSelect }: { c: BallotCandidate; kind: Ballot['award']['kind']; selected: boolean; onSelect: () => void }) {
+function BoothSquare({ c, no, color, selected, onSelect }: { c?: BallotCandidate; no: number; color: string; selected: boolean; onSelect: (id: string) => void }) {
+  if (!c) {
+    return (
+      <span className="grid aspect-square place-items-center rounded-md border border-dashed border-slate-300 text-xs text-slate-300" aria-hidden="true">
+        {no}
+      </span>
+    );
+  }
   return (
-    <label
-      className={`flex cursor-pointer items-start gap-3 rounded-xl border-2 p-3 transition ${
-        selected ? 'border-navy bg-navy-surface' : 'border-slate-200 bg-white hover:border-navy/40'
+    <button
+      type="button"
+      aria-pressed={selected}
+      aria-label={`Booth ${no}: ${c.label}`}
+      onClick={() => onSelect(c.id)}
+      style={selected ? undefined : { borderColor: color, backgroundColor: `${color}26` }}
+      className={`grid aspect-square place-items-center rounded-md border-2 font-display text-base font-extrabold transition sm:text-lg ${
+        selected ? 'scale-105 border-navy bg-navy text-white shadow-lg ring-2 ring-sun' : 'text-navy hover:brightness-95 active:scale-95'
       }`}
     >
-      <input type="radio" name="candidate" value={c.id} checked={selected} onChange={onSelect} className="mt-1 size-5 accent-navy" />
-      {kind === 'peoples_choice' && c.booth_no != null && (
-        <span className="grid size-10 shrink-0 place-items-center rounded-lg bg-sun font-display text-lg font-bold text-navy">{c.booth_no}</span>
-      )}
-      <span className="min-w-0">
-        <span className="block font-semibold text-navy">{c.label}</span>
-        {(c.team || c.track) && (
-          <span className="block text-sm text-slate-600">{[kind === 'mpyi' ? c.team : null, c.track].filter(Boolean).join(' · ')}</span>
+      {no}
+    </button>
+  );
+}
+
+/** People's Choice: the 24 booths drawn as they stand in the hall. Tap a square to pick it. */
+function BoothMap({ candidates, value, onChange }: { candidates: BallotCandidate[]; value: string; onChange: (id: string) => void }) {
+  const byBooth = new Map(candidates.filter((c) => c.booth_no != null).map((c) => [c.booth_no!, c]));
+  const onMap = new Set(FLOOR_ISLANDS.flatMap((i) => i.rows.flatMap((r) => r.booths)));
+  const extras = candidates.filter((c) => c.booth_no == null || !onMap.has(c.booth_no));
+  const selected = candidates.find((c) => c.id === value);
+
+  return (
+    <div className="space-y-4">
+      <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3">
+        <div className="mx-auto mb-3 w-2/3 rounded-md bg-navy py-1.5 text-center text-xs font-bold tracking-widest text-sun uppercase">Stage</div>
+        {FLOOR_ISLANDS.map((island, i) => (
+          <div key={island.name}>
+            {i > 0 && <p className="py-2 text-center text-[10px] font-semibold tracking-widest text-slate-400 uppercase">Alley</p>}
+            <div role="group" aria-label={island.name} className="space-y-1">
+              {island.rows.map((row, j) => (
+                <div key={row.row}>
+                  {j === 1 && <div className="mx-1 mb-1 h-1 rounded-full bg-navy/70" aria-hidden="true" />}
+                  <div className="grid grid-cols-[auto_repeat(6,minmax(0,1fr))] items-center gap-1.5">
+                    <span className="w-4 text-center text-[10px] font-bold text-slate-400">{row.row}</span>
+                    {row.booths.map((no) => (
+                      <BoothSquare key={no} no={no} c={byBooth.get(no)} color={row.color} selected={byBooth.get(no)?.id === value} onSelect={onChange} />
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+        {extras.length > 0 && (
+          <div className="mt-3 border-t border-slate-200 pt-3">
+            <p className="mb-1.5 text-xs font-semibold text-slate-500">More booths</p>
+            <div className="grid grid-cols-6 gap-1.5">
+              {extras.map((c) => (
+                <BoothSquare key={c.id} no={c.booth_no ?? 0} c={c} color="#94a3b8" selected={c.id === value} onSelect={onChange} />
+              ))}
+            </div>
+          </div>
         )}
-      </span>
-    </label>
+      </div>
+
+      <div aria-live="polite" className={`rounded-xl border-2 p-4 ${selected ? 'border-navy bg-navy-surface' : 'border-dashed border-slate-300 text-center text-sm text-slate-500'}`}>
+        {selected ? (
+          <>
+            <p className="text-xs font-semibold tracking-wide text-slate-500 uppercase">Booth {selected.booth_no}</p>
+            <p className="text-lg font-extrabold text-navy">{selected.label}</p>
+            {selected.track && <p className="text-sm text-slate-600">{selected.track}</p>}
+          </>
+        ) : (
+          'Tap a booth on the map to choose it.'
+        )}
+      </div>
+    </div>
   );
 }
 
@@ -84,11 +144,12 @@ function DelegatePicker({ candidates, value, onChange }: { candidates: BallotCan
 
 export default function Vote() {
   const { token = '' } = useParams();
+  const [params] = useSearchParams();
+  const fromCheckout = params.get('from') === 'checkout';
   const [ballot, setBallot] = useState<Ballot | null | undefined>(undefined);
   const [name, setName] = useState('');
   const [choice, setChoice] = useState('');
   const [note, setNote] = useState('');
-  const [search, setSearch] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState<{ choice: string } | null>(null);
@@ -100,15 +161,6 @@ export default function Vote() {
       if (b && b.award.kind !== 'mpyi') setName(b.voter.name ?? '');
     });
   }, [token]);
-
-  const filtered = useMemo(() => {
-    if (!ballot) return [];
-    const term = search.trim().toLowerCase();
-    if (!term) return ballot.candidates;
-    return ballot.candidates.filter((c) =>
-      [c.label, c.team, c.track, c.booth_no?.toString()].some((v) => v?.toLowerCase().includes(term)),
-    );
-  }, [ballot, search]);
 
   if (ballot === undefined) {
     return <PublicShell><p className="py-20 text-center text-slate-500">Loading your ballot…</p></PublicShell>;
@@ -124,6 +176,8 @@ export default function Vote() {
   }
 
   const mpyi = ballot.award.kind === 'mpyi';
+  const askName = !mpyi && !ballot.voter.name;
+  const picked = ballot.candidates.find((c) => c.id === choice);
   const contact = <a className="font-semibold text-navy underline" href={`mailto:${ballot.event.contact_email}`}>{ballot.event.contact_email}</a>;
 
   if (done || ballot.voted_at) {
@@ -158,14 +212,14 @@ export default function Vote() {
       return;
     }
     setBusy(true);
-    // Most Promising: name/team/track come from the roster on the server; the form only sends the pick.
+    // The voter's name, team and track come from their voter row on the server unless the form asks for a name.
     const { data, error: rpcError } = await supabase.rpc('cast_vote', {
       p_token: token,
       p_candidate: choice,
-      p_name: mpyi ? null : name,
+      p_name: askName ? name : null,
       p_team: null,
       p_track: null,
-      p_note: note,
+      p_note: mpyi ? note : null,
     });
     setBusy(false);
     if (rpcError) {
@@ -181,6 +235,12 @@ export default function Vote() {
 
   return (
     <PublicShell>
+      {fromCheckout && (
+        <div role="status" className="mb-4 rounded-2xl border border-emerald-300 bg-emerald-50 p-4 text-center text-emerald-950">
+          <p className="text-lg font-extrabold">You're checked out ✓</p>
+          <p className="text-sm">Thanks for coming! Before you go, tap the booth you liked most.</p>
+        </div>
+      )}
       <article className="card overflow-hidden">
         <div className="bg-navy px-6 py-5 text-white">
           <p className="text-xs font-semibold tracking-widest text-sun uppercase">{ballot.event.name} · Awards</p>
@@ -188,20 +248,17 @@ export default function Vote() {
           <p className="mt-1 text-sm text-white/80">
             {mpyi
               ? 'Vote for the fellow youth innovator you think is the most promising. You can vote once, and not for yourself.'
-              : 'Vote for the booth you think deserves the People\'s Choice award. One vote per person.'}
+              : 'Tap the booth you liked most, then press Vote. One vote per person.'}
           </p>
         </div>
         <div className="h-1 bg-sun" aria-hidden="true" />
 
         <form onSubmit={submit} className="space-y-6 p-6">
-          {!mpyi && (
-            <fieldset className="space-y-4">
-              <legend className="mb-1 text-lg font-bold text-navy">About you</legend>
-              <div>
-                <label htmlFor="v-name" className="label">Your name</label>
-                <input id="v-name" className="input" required maxLength={300} autoComplete="name" value={name} onChange={(e) => setName(e.target.value)} />
-              </div>
-            </fieldset>
+          {askName && (
+            <div>
+              <label htmlFor="v-name" className="label">Your name</label>
+              <input id="v-name" className="input" required maxLength={300} autoComplete="name" value={name} onChange={(e) => setName(e.target.value)} />
+            </div>
           )}
 
           <fieldset>
@@ -209,37 +266,22 @@ export default function Vote() {
             {mpyi ? (
               <DelegatePicker candidates={ballot.candidates} value={choice} onChange={setChoice} />
             ) : (
-              <>
-                {ballot.candidates.length > 8 && (
-                  <input
-                    type="search"
-                    className="input mb-3"
-                    placeholder="Search by booth number or name"
-                    aria-label="Search the ballot"
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                  />
-                )}
-                <div className="grid gap-2 sm:grid-cols-2">
-                  {filtered.map((c) => (
-                    <Candidate key={c.id} c={c} kind={ballot.award.kind} selected={choice === c.id} onSelect={() => setChoice(c.id)} />
-                  ))}
-                </div>
-                {filtered.length === 0 && <p className="text-sm text-slate-500">No match. Try a different search.</p>}
-              </>
+              <BoothMap candidates={ballot.candidates} value={choice} onChange={setChoice} />
             )}
           </fieldset>
 
-          <div>
-            <label htmlFor="v-note" className="label">{mpyi ? 'Why did you pick them?' : 'Why this booth?'} <span className="font-normal text-slate-500">(optional)</span></label>
-            <textarea id="v-note" className="input min-h-24" maxLength={NOTE_MAX} value={note} onChange={(e) => setNote(e.target.value)} />
-            <p className="mt-1 text-right text-xs text-slate-500">{note.length} / {NOTE_MAX}</p>
-          </div>
+          {mpyi && (
+            <div>
+              <label htmlFor="v-note" className="label">Why did you pick them? <span className="font-normal text-slate-500">(optional)</span></label>
+              <textarea id="v-note" className="input min-h-24" maxLength={NOTE_MAX} value={note} onChange={(e) => setNote(e.target.value)} />
+              <p className="mt-1 text-right text-xs text-slate-500">{note.length} / {NOTE_MAX}</p>
+            </div>
+          )}
 
           {error && <p role="alert" className="rounded-xl border border-red-300 bg-red-50 p-3 text-sm text-red-900">{error}</p>}
 
           <button type="submit" className="btn-primary w-full py-3 text-base" disabled={busy}>
-            {busy ? 'Submitting…' : 'Submit my vote'}
+            {busy ? 'Submitting…' : !mpyi && picked ? `Vote for Booth ${picked.booth_no}` : 'Submit my vote'}
           </button>
           <p className="text-center text-xs text-slate-500">Your vote is final once submitted. Questions? Write to {contact}.</p>
         </form>

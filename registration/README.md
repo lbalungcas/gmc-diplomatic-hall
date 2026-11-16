@@ -280,7 +280,7 @@ Two closed ballots with one live dashboard at **Admin → Awards** (`/register/a
 | | Most Promising Young Innovator | People's Choice of Innovation |
 |---|---|---|
 | Who votes | Youth innovators on the roster you import | Approved registrants |
-| Ballot asks for | A dropdown of innovator names (team, innovation, country and gender fill in), an optional note | Name, the booth, an optional note |
+| Ballot asks for | A dropdown of innovator names (team, innovation, country and gender fill in), an optional note | One tap on a booth on the hall map (the name comes from the registration) |
 | Choices | The other innovators on the roster (never yourself) | The 24 booths from `src/data/booths.json` |
 
 Each voter gets a personal link (`/register/vote/<token>`) by email, and each link counts once. Nobody else can vote, because there's no public ballot.
@@ -301,7 +301,7 @@ Each voter gets a personal link (`/register/vote/<token>`) by email, and each li
 6. Watch the leaderboard, turnout and latest votes update live. **Close voting** when done, and ballot links will then say voting is closed.
 7. **Export CSV** saves every vote with voter name, team, track and note. Formula characters are neutralized, so it's safe to open in Excel.
 
-**On check-out**, guests get their People's Choice ballot automatically, as long as People's Choice voting is open at that moment. This applies to self check-out at the exit poster, the scanner in check-out mode, and manual check-out. A guest who checks out on their own phone also sees a **Vote for a booth** button straight away. Each guest gets this email once, and never after they've voted. Anyone who checked out before voting opened can be reached with **Sync approved registrants** and then **Send ballots**.
+**On check-out**, guests get their People's Choice ballot automatically, as long as People's Choice voting is open at that moment. This applies to self check-out at the exit poster, the scanner in check-out mode, and manual check-out. A guest who checks out on their own phone is taken straight to the ballot: the 24 booths drawn as they stand in the hall (layout in `src/lib/floorPlan.ts`, kept in sync with `grid` in `src/data/hallLayout.json`). They tap a booth and press Vote. Run `20261116000001_pc_quick_vote.sql` so the vote is saved under their registered name. Each guest gets this email once, and never after they've voted. Anyone who checked out before voting opened can be reached with **Sync approved registrants** and then **Send ballots**.
 
 Every vote is in the audit log. Ballot emails appear in the email log with type `ballot`, `ballot_reminder` or `ballot_checkout`.
 

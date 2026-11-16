@@ -1,8 +1,8 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import { useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { BallotPrompt } from '../components/BallotPrompt';
 import { PublicShell } from '../components/PublicShell';
-import { guestCheckoutBallot, type CheckoutBallot } from '../lib/checkoutBallot';
+import { checkoutVotePath, guestCheckoutBallot, type CheckoutBallot } from '../lib/checkoutBallot';
 import { formatTime } from '../lib/format';
 import { ticketTokenFrom } from '../lib/paths';
 import { clearCheckoutCode, forgetTicket, rememberCheckoutCode, savedTickets, type SavedTicket } from '../lib/savedTickets';
@@ -14,6 +14,7 @@ type Shown = SelfCheckOutResult | { result: 'network_error' };
 /** Opened by scanning the check-out poster at the exit. */
 export default function Checkout() {
   const { code = '' } = useParams();
+  const navigate = useNavigate();
   const [station, setStation] = useState<CheckoutStation | null | undefined>(undefined);
   const [tickets, setTickets] = useState<SavedTicket[]>(() => savedTickets());
   const [busy, setBusy] = useState<string | null>(null);
@@ -44,7 +45,13 @@ export default function Checkout() {
       setBallot(null);
       if (r.result === 'checked_out' || r.result === 'already_checked_out') {
         clearCheckoutCode();
-        setBallot(await guestCheckoutBallot(token));
+        const b = await guestCheckoutBallot(token);
+        const votePath = checkoutVotePath(b);
+        if (votePath) {
+          navigate(votePath);
+          return;
+        }
+        setBallot(b);
       }
       setShown(r);
     } catch {

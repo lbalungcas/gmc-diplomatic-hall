@@ -106,12 +106,12 @@ const BALLOT_COPY: Record<AwardKind, { title: string; intro: string; ask: string
   mpyi: {
     title: 'Most Promising Young Innovator',
     intro: 'As one of the youth innovators at the Marketplace, you get one vote for the fellow innovator you think is the <strong>Most Promising Young Innovator</strong>.',
-    ask: 'Add your name, team and thematic track, choose the innovator, and tell us why if you like. You can\'t vote for yourself.',
+    ask: 'Pick the innovator from the list of names, check their details, and tell us why if you like. You can\'t vote for yourself.',
   },
   peoples_choice: {
     title: "People's Choice of Innovation",
     intro: "Thank you for visiting the Marketplace! You get one vote for the booth you think deserves the <strong>People's Choice of Innovation</strong> award.",
-    ask: 'It takes less than a minute: your name, the booth, and a short note if you like.',
+    ask: 'It takes less than a minute: tap the booth on the hall map and press Vote.',
   },
 };
 

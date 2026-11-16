@@ -15,6 +15,12 @@ export async function guestCheckoutBallot(ticketToken: string): Promise<Checkout
   }
 }
 
+/** Where to send a guest who just checked out: straight to their ballot while voting is open and they have not voted. */
+export function checkoutVotePath(ballot: CheckoutBallot | null): string | null {
+  if (!ballot?.ballot_token || ballot.outcome === 'already_voted') return null;
+  return `/vote/${ballot.ballot_token}?from=checkout`;
+}
+
 /** After staff check a guest out. Best effort: a failure here must never block the door. */
 export function emailCheckoutBallot(registrationId: string) {
   callFunction('checkout-ballot', { registration_id: registrationId }).catch(() => {});

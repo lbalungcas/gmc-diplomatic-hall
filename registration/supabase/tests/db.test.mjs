@@ -49,6 +49,7 @@ for (const f of [
   'migrations/20261115000002_checkout.sql',
   'migrations/20261115000003_awards.sql',
   'migrations/20261115000004_mpyi_details.sql',
+  'migrations/20261116000001_pc_quick_vote.sql',
   'seed.sql',
 ]) {
   await db.exec(mig(f));
@@ -66,6 +67,7 @@ await db.exec(mig('migrations/20261112000001_no_capacity_and_reg_kit.sql'));
 await db.exec(mig('migrations/20261115000002_checkout.sql'));
 await db.exec(mig('migrations/20261115000003_awards.sql'));
 await db.exec(mig('migrations/20261115000004_mpyi_details.sql'));
+await db.exec(mig('migrations/20261116000001_pc_quick_vote.sql'));
 await db.exec(mig('seed.sql'));
 console.log('re-applied migrations OK');
 
@@ -453,9 +455,13 @@ await as('authenticated', adminId, async () => {
   await q(`update award_candidates set hidden = true where id = $1`, [booth7.id]);
 });
 await expectError(() => vote(pcVoters[0].ballot_token, booth7.id, 'Visitor'), /choose one of the options/, 'hidden candidate rejected');
-await expectError(() => vote(pcVoters[0].ballot_token, booth3.id, '  '), /enter your name/, 'People\'s Choice needs a name');
-const pv = await vote(pcVoters[0].ballot_token, booth3.id, 'Visitor', null, null, null);
-ok(pv.result === 'voted', 'People\'s Choice vote with just a name and booth');
+await q(`update award_voters set name = null where ballot_token = $1`, [pcVoters[2].ballot_token]);
+await expectError(() => vote(pcVoters[2].ballot_token, booth3.id, '  '), /enter your name/, 'People\'s Choice needs a name when the registration has none');
+const [registered] = await q(`select name from award_voters where ballot_token = $1`, [pcVoters[0].ballot_token]);
+const pv = await vote(pcVoters[0].ballot_token, booth3.id, null, null, null, null);
+ok(pv.result === 'voted', 'People\'s Choice vote with just a booth tap');
+ok((await q(`select v.voter_name from award_votes v join award_voters w on w.id = v.voter_id where w.ballot_token = $1`, [pcVoters[0].ballot_token]))[0].voter_name === registered.name && !!registered.name,
+  'People\'s Choice vote uses the registered name', registered.name);
 await vote(pcVoters[1].ballot_token, booth3.id, 'Visitor 2');
 ok((await q(`select voter_team, voter_track from award_votes where candidate_id = $1 limit 1`, [booth3.id]))[0].voter_team === null,
   'People\'s Choice stores no team/track');

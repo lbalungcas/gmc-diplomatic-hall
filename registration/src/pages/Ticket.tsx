@@ -1,10 +1,10 @@
 import { QRCodeSVG } from 'qrcode.react';
 import { useEffect, useState } from 'react';
-import { Link, useLocation, useParams } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { BallotPrompt } from '../components/BallotPrompt';
 import { PublicShell } from '../components/PublicShell';
 import { buildIcs, formatDateTime, formatEventDate } from '../lib/format';
-import { guestCheckoutBallot, type CheckoutBallot } from '../lib/checkoutBallot';
+import { checkoutVotePath, guestCheckoutBallot, type CheckoutBallot } from '../lib/checkoutBallot';
 import { ticketLink } from '../lib/paths';
 import { clearCheckoutCode, pendingCheckoutCode, saveTicket } from '../lib/savedTickets';
 import { supabase } from '../lib/supabase';
@@ -36,6 +36,7 @@ const STATUS_COPY = {
 export default function Ticket() {
   const { token = '' } = useParams();
   const location = useLocation();
+  const navigate = useNavigate();
   const justRegistered = (location.state as { justRegistered?: boolean } | null)?.justRegistered;
   const [ticket, setTicket] = useState<TicketData | null | undefined>(undefined);
   const [checkoutCode, setCheckoutCode] = useState(() => pendingCheckoutCode());
@@ -64,7 +65,10 @@ export default function Ticket() {
       clearCheckoutCode();
       setCheckoutCode(null);
       setTicket((t) => (t ? { ...t, checked_out_at: r.checked_out_at ?? null } : t));
-      setBallot(await guestCheckoutBallot(token));
+      const b = await guestCheckoutBallot(token);
+      const votePath = checkoutVotePath(b);
+      if (votePath) navigate(votePath);
+      else setBallot(b);
     } else if (r.result === 'wrong_station') {
       clearCheckoutCode();
       setCheckoutCode(null);
