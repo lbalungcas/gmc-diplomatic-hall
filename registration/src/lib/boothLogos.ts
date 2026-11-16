@@ -17,6 +17,7 @@ export const BOOTH_LOGOS: Partial<Record<number, string>> = {
   19: '19.png', // YOUNG Hands
   21: '21.png', // Tiger - Empower Chatbot
   23: '23.png', // C4C (Children 4 Change)
+  24: '24.png', // Global Youth-Led Movement on Ending Violence Against Children
 };
 
 export function boothLogoUrl(boothNo: number): string | null {
