@@ -1,5 +1,5 @@
-import { useEffect, useState, type FormEvent } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { BallotPrompt } from '../components/BallotPrompt';
 import { PublicShell } from '../components/PublicShell';
 import { checkoutVotePath, guestCheckoutBallot, type CheckoutBallot } from '../lib/checkoutBallot';
@@ -22,6 +22,7 @@ export default function Checkout() {
   const [ballot, setBallot] = useState<CheckoutBallot | null>(null);
   const [link, setLink] = useState('');
   const [linkError, setLinkError] = useState<string | null>(null);
+  const autoTried = useRef(false);
 
   useEffect(() => {
     supabase.rpc('get_checkout_station', { p_code: code }).then(({ data, error }) => {
@@ -31,6 +32,13 @@ export default function Checkout() {
       if (s) rememberCheckoutCode(code);
     });
   }, [code]);
+
+  // A phone with a single saved ticket is checked out on scan; shared phones still pick whose ticket.
+  useEffect(() => {
+    if (!station || autoTried.current || tickets.length !== 1) return;
+    autoTried.current = true;
+    checkOut(tickets[0].token);
+  }, [station]);
 
   async function checkOut(token: string) {
     setBusy(token);
@@ -90,12 +98,22 @@ export default function Checkout() {
   const tz = station.event.timezone;
 
   if (shown) {
+    const done = shown.result === 'checked_out' || shown.result === 'already_checked_out';
     return (
       <PublicShell>
         <ResultCard r={shown} tz={tz} contact={station.event.contact_email} onBack={() => setShown(null)} />
         {ballot && <BallotPrompt ballot={ballot} />}
+        {done && (
+          <div className="mt-4 text-center">
+            <Link to="/" className="btn-primary w-full justify-center py-3 text-base">Back to registration home</Link>
+          </div>
+        )}
       </PublicShell>
     );
+  }
+
+  if (busy && autoTried.current && tickets.length === 1) {
+    return <PublicShell><p role="status" className="py-20 text-center text-lg font-semibold text-navy">Checking you out…</p></PublicShell>;
   }
 
   return (
@@ -128,7 +146,7 @@ export default function Checkout() {
             <div className="rounded-xl bg-sun-light p-4 text-slate-800">
               <p className="font-bold">Open your ticket first</p>
               <p className="mt-1 text-sm">
-                Open the ticket link from your confirmation email on this phone. Your ticket will show a <strong>Check out now</strong> button.
+                Open the ticket link from your confirmation email on this phone. You'll be <strong>checked out automatically</strong>.
               </p>
             </div>
           )}

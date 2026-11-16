@@ -1,5 +1,5 @@
 import { QRCodeSVG } from 'qrcode.react';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { BallotPrompt } from '../components/BallotPrompt';
 import { PublicShell } from '../components/PublicShell';
@@ -43,6 +43,7 @@ export default function Ticket() {
   const [checkingOut, setCheckingOut] = useState(false);
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
   const [ballot, setBallot] = useState<CheckoutBallot | null>(null);
+  const autoTried = useRef(false);
 
   useEffect(() => {
     supabase.rpc('get_ticket', { p_token: token }).then(({ data, error }) => {
@@ -77,6 +78,13 @@ export default function Ticket() {
       setCheckoutError('We couldn\'t check you out. Please see the registration desk.');
     }
   }
+
+  // Came here from the exit poster: check out without another tap. The button stays as a fallback.
+  useEffect(() => {
+    if (autoTried.current || !checkoutCode || !ticket?.checked_in_at || ticket.checked_out_at) return;
+    autoTried.current = true;
+    checkOut();
+  }, [ticket, checkoutCode]);
 
   if (ticket === undefined) {
     return <PublicShell><p className="py-20 text-center text-slate-500">Loading your ticket…</p></PublicShell>;

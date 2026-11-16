@@ -1,5 +1,5 @@
 import { useEffect, useId, useState, type FormEvent, type ReactNode } from 'react';
-import { useParams, useSearchParams } from 'react-router-dom';
+import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { PublicShell } from '../components/PublicShell';
 import { NOTE_MAX } from '../lib/constants';
 import { FLOOR_ISLANDS } from '../lib/floorPlan';
@@ -190,6 +190,9 @@ export default function Vote() {
           </p>
           <p className="mt-2 text-sm">The winner will be announced at the {ballot.event.name}.</p>
         </Message>
+        <div className="mt-4 text-center">
+          <Link to="/" className="btn-primary w-full justify-center py-3 text-base">Back to registration home</Link>
+        </div>
       </PublicShell>
     );
   }
@@ -254,6 +257,12 @@ export default function Vote() {
         <div className="h-1 bg-sun" aria-hidden="true" />
 
         <form onSubmit={submit} className="space-y-6 p-6">
+          {!mpyi && ballot.voter.name && (
+            <p className="rounded-xl bg-navy-surface px-4 py-3 text-sm text-slate-700">
+              Voting as <strong className="text-navy">{ballot.voter.name}</strong>
+            </p>
+          )}
+
           {askName && (
             <div>
               <label htmlFor="v-name" className="label">Your name</label>
