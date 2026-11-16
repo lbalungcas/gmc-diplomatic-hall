@@ -142,10 +142,40 @@ function DelegatePicker({ candidates, value, onChange }: { candidates: BallotCan
   );
 }
 
+const KIOSK_CLOSE_MS = 4000;
+
+/** Exit-table tab opened by staff: closes itself after the vote so the organizer is back on the scanner. */
+function KioskDone({ title, choice }: { title: string; choice: string | null }) {
+  const [closeFailed, setCloseFailed] = useState(false);
+  function close() {
+    window.close();
+    setTimeout(() => setCloseFailed(true), 300);
+  }
+  useEffect(() => {
+    const t = setTimeout(close, KIOSK_CLOSE_MS);
+    return () => clearTimeout(t);
+  }, []);
+  return (
+    <PublicShell>
+      <Message title={title} tone="ok">
+        {choice && <p>Your People's Choice vote went to <strong>{choice}</strong>.</p>}
+        <p className="mt-2 text-sm">Safe trip home!</p>
+      </Message>
+      <div className="mt-4 text-center">
+        <button type="button" className="btn-primary w-full justify-center py-3 text-base" onClick={close}>Done</button>
+        <p className="mt-2 text-xs text-slate-500">
+          {closeFailed ? 'You can close this tab now.' : 'This tab closes by itself in a few seconds.'}
+        </p>
+      </div>
+    </PublicShell>
+  );
+}
+
 export default function Vote() {
   const { token = '' } = useParams();
   const [params] = useSearchParams();
   const fromCheckout = params.get('from') === 'checkout';
+  const kiosk = params.get('kiosk') === '1';
   const [ballot, setBallot] = useState<Ballot | null | undefined>(undefined);
   const [name, setName] = useState('');
   const [choice, setChoice] = useState('');
@@ -179,6 +209,10 @@ export default function Vote() {
   const askName = !mpyi && !ballot.voter.name;
   const picked = ballot.candidates.find((c) => c.id === choice);
   const contact = <a className="font-semibold text-navy underline" href={`mailto:${ballot.event.contact_email}`}>{ballot.event.contact_email}</a>;
+
+  if ((done || ballot.voted_at) && kiosk) {
+    return <KioskDone title={done ? 'Thank you for voting!' : 'Already voted'} choice={done?.choice ?? ballot.choice} />;
+  }
 
   if (done || ballot.voted_at) {
     return (
@@ -238,7 +272,13 @@ export default function Vote() {
 
   return (
     <PublicShell>
-      {fromCheckout && (
+      {kiosk && (
+        <div role="status" className="mb-4 rounded-2xl border border-emerald-300 bg-emerald-50 p-4 text-center text-emerald-950">
+          <p className="text-lg font-extrabold">Checked out ✓</p>
+          <p className="text-sm">Thanks for coming{ballot.voter.name ? `, ${ballot.voter.name}` : ''}! Tap the booth you liked most, then press Vote.</p>
+        </div>
+      )}
+      {fromCheckout && !kiosk && (
         <div role="status" className="mb-4 rounded-2xl border border-emerald-300 bg-emerald-50 p-4 text-center text-emerald-950">
           <p className="text-lg font-extrabold">You're checked out ✓</p>
           <p className="text-sm">Thanks for coming! Before you go, tap the booth you liked most.</p>

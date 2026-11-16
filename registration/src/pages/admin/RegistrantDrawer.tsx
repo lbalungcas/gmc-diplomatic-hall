@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { KitToggle } from '../../components/KitToggle';
 import { StatusBadge } from '../../components/StatusBadge';
-import { emailCheckoutBallot } from '../../lib/checkoutBallot';
+import { KioskVotePrompt } from '../../components/KioskVotePrompt';
+import { staffCheckoutBallot, type StaffBallot } from '../../lib/checkoutBallot';
 import type { Decision } from '../../lib/decide';
 import { ageLabel, formatDateTime } from '../../lib/format';
 import { answerText, plainText, questions, type FormSchema } from '../../lib/form';
@@ -57,6 +58,7 @@ export function RegistrantDrawer({ id, version, form, onClose, onChanged, onDeci
   const [audit, setAudit] = useState<AuditRow[]>([]);
   const [emails, setEmails] = useState<EmailRow[]>([]);
   const [message, setMessage] = useState<string | null>(null);
+  const [kiosk, setKiosk] = useState<StaffBallot | null | undefined>(undefined);
   const [busy, setBusy] = useState(false);
   const closeRef = useRef<HTMLButtonElement>(null);
 
@@ -85,6 +87,7 @@ export function RegistrantDrawer({ id, version, form, onClose, onChanged, onDeci
   async function act(fn: () => Promise<string>) {
     setBusy(true);
     setMessage(null);
+    setKiosk(undefined);
     try {
       setMessage(await fn());
     } catch (err) {
@@ -121,8 +124,8 @@ export function RegistrantDrawer({ id, version, form, onClose, onChanged, onDeci
     const { data, error } = await supabase.rpc('check_out_manual', { p_id: id });
     if (error) throw error;
     if (data.result === 'checked_out') {
-      emailCheckoutBallot(id);
-      return "Checked out. If People's Choice voting is open, their ballot is on its way by email.";
+      setKiosk(await staffCheckoutBallot(id));
+      return 'Checked out.';
     }
     return data.result === 'already_checked_out' ? 'Already checked out.' : 'Not checked in — nothing to check out.';
   });
@@ -180,6 +183,7 @@ export function RegistrantDrawer({ id, version, form, onClose, onChanged, onDeci
               <button className="btn-ghost" onClick={copyLink}>Copy ticket link</button>
             </div>
             {message && <p role="status" className="rounded-lg bg-navy-surface px-3 py-2 text-sm text-navy">{message}</p>}
+            {kiosk !== undefined && <KioskVotePrompt ballot={kiosk} onDone={() => setKiosk(undefined)} />}
 
             <Section title="Details">
               <dl className="space-y-1.5">

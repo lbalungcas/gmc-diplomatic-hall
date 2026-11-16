@@ -1,9 +1,10 @@
 import { Scanner, type IDetectedBarcode, type IScannerError } from '@yudiel/react-qr-scanner';
 import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
+import { KioskVotePrompt } from '../../components/KioskVotePrompt';
 import { KitToggle } from '../../components/KitToggle';
 import { useAuth } from '../../lib/auth';
-import { emailCheckoutBallot } from '../../lib/checkoutBallot';
+import { staffCheckoutBallot, type StaffBallot } from '../../lib/checkoutBallot';
 import { formatTime } from '../../lib/format';
 import { ticketTokenFrom } from '../../lib/paths';
 import { supabase } from '../../lib/supabase';
@@ -80,6 +81,7 @@ export default function Scan() {
   const [mode, setModeState] = useState<Mode>(readMode);
   const [manual, setManual] = useState('');
   const [lastGuest, setLastGuest] = useState<LastGuest | null>(null);
+  const [kiosk, setKiosk] = useState<StaffBallot | null | undefined>(undefined);
   const hideTimer = useRef<number | undefined>(undefined);
 
   const loadStats = useCallback(async () => {
@@ -100,6 +102,7 @@ export default function Scan() {
     setModeState(m);
     setShown(null);
     setLastGuest(null);
+    setKiosk(undefined);
     try {
       localStorage.setItem(MODE_KEY, m);
     } catch {
@@ -134,6 +137,7 @@ export default function Scan() {
       return;
     }
     setProcessing(true);
+    setKiosk(undefined);
     try {
       if (mode === 'out') {
         const { data, error } = await supabase.rpc('check_out', { p_token: token });
@@ -142,7 +146,7 @@ export default function Scan() {
         show(r);
         if (r.result === 'checked_out') {
           setStats((s) => (s ? { ...s, checked_out: s.checked_out + 1, on_site: s.on_site - 1 } : s));
-          emailCheckoutBallot(r.registration_id);
+          setKiosk(await staffCheckoutBallot(r.registration_id));
         }
         setLastGuest(null);
         return;
@@ -273,6 +277,12 @@ export default function Scan() {
         )}
         {shown && <ResultScreen r={shown} onDismiss={() => setShown(null)} />}
       </div>
+
+      {kiosk !== undefined && (
+        <div className="border-t border-white/10 bg-white/5 p-3" aria-label="People's Choice vote">
+          <KioskVotePrompt ballot={kiosk} dark onDone={() => setKiosk(undefined)} />
+        </div>
+      )}
 
       {lastGuest && (
         <div className="flex items-center gap-3 border-t border-white/10 bg-white/5 px-3 py-2.5" aria-label="Last guest">

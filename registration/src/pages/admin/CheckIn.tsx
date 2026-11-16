@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { KitToggle } from '../../components/KitToggle';
 import { StatusBadge } from '../../components/StatusBadge';
-import { emailCheckoutBallot } from '../../lib/checkoutBallot';
+import { KioskVotePrompt } from '../../components/KioskVotePrompt';
+import { staffCheckoutBallot, type StaffBallot } from '../../lib/checkoutBallot';
 import { formatTime } from '../../lib/format';
 import { supabase } from '../../lib/supabase';
 import type { Status } from '../../lib/types';
@@ -28,6 +29,7 @@ export default function CheckIn() {
   const [hits, setHits] = useState<Hit[]>([]);
   const [searching, setSearching] = useState(false);
   const [message, setMessage] = useState<{ tone: 'ok' | 'warn'; text: string } | null>(null);
+  const [kiosk, setKiosk] = useState<StaffBallot | null | undefined>(undefined);
   const [version, setVersion] = useState(0);
 
   useEffect(() => {
@@ -55,11 +57,12 @@ export default function CheckIn() {
   }
 
   async function checkOut(h: Hit) {
+    setKiosk(undefined);
     const { data, error } = await supabase.rpc('check_out_manual', { p_id: h.id });
     if (error) setMessage({ tone: 'warn', text: error.message });
     else if (data.result === 'checked_out') {
-      emailCheckoutBallot(h.id);
-      setMessage({ tone: 'ok', text: `${h.full_name} checked out. If People's Choice voting is open, their ballot is on its way by email.` });
+      setMessage({ tone: 'ok', text: `${h.full_name} checked out.` });
+      setKiosk(await staffCheckoutBallot(h.id));
     }
     else if (data.result === 'already_checked_out') setMessage({ tone: 'warn', text: `${h.full_name} already checked out at ${formatTime(data.checked_out_at)}.` });
     else setMessage({ tone: 'warn', text: `${h.full_name} isn't checked in, so there's nothing to check out.` });
@@ -93,6 +96,7 @@ export default function CheckIn() {
           {message.text}
         </p>
       )}
+      {kiosk !== undefined && <KioskVotePrompt ballot={kiosk} onDone={() => setKiosk(undefined)} />}
       <ul className="space-y-2">
         {hits.map((h) => (
           <li key={h.id} className="card flex flex-wrap items-center gap-3 p-4">

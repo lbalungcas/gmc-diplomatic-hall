@@ -50,6 +50,7 @@ for (const f of [
   'migrations/20261115000003_awards.sql',
   'migrations/20261115000004_mpyi_details.sql',
   'migrations/20261116000001_pc_quick_vote.sql',
+  'migrations/20261116000002_staff_checkout_ballot.sql',
   'seed.sql',
 ]) {
   await db.exec(mig(f));
@@ -68,6 +69,7 @@ await db.exec(mig('migrations/20261115000002_checkout.sql'));
 await db.exec(mig('migrations/20261115000003_awards.sql'));
 await db.exec(mig('migrations/20261115000004_mpyi_details.sql'));
 await db.exec(mig('migrations/20261116000001_pc_quick_vote.sql'));
+await db.exec(mig('migrations/20261116000002_staff_checkout_ballot.sql'));
 await db.exec(mig('seed.sql'));
 console.log('re-applied migrations OK');
 
@@ -482,6 +484,23 @@ await as('authenticated', adminId, async () => {
 });
 ok((await vote(pcVoters[2].ballot_token, booth3.id, 'Late')).result === 'closed', 'past closes_at counts as closed');
 ok((await q(`select 1 from audit_log where action = 'award_vote'`)).length === 3, 'every vote is audited');
+
+// Exit table: staff check a guest out, then open their People's Choice ballot on the organizer device.
+const kiosk = (sub, id) => as('authenticated', sub, async () => (await q(`select public.staff_checkout_ballot($1) r`, [id]))[0].r);
+await as('authenticated', scannerId, async () => { await q(`select public.check_in_manual($1)`, [r5.registration_id]); });
+ok((await kiosk(scannerId, r5.registration_id)).outcome === 'not_checked_out', 'staff ballot: guest still on site → not_checked_out');
+await as('authenticated', scannerId, async () => { await q(`select public.check_out_manual($1)`, [r5.registration_id]); });
+ok((await kiosk(scannerId, r5.registration_id)).outcome === 'not_open', 'staff ballot: voting closed → not_open');
+await as('authenticated', adminId, async () => {
+  await q(`update awards set is_open = true, closes_at = null where id = $1`, [pc.id]);
+});
+const k1 = await kiosk(scannerId, r5.registration_id);
+ok(k1.outcome === 'ready' && /^[A-Za-z0-9_-]{43}$/.test(k1.ballot_token) && k1.name === 'P5', 'staff ballot: checked-out guest gets a ballot token for the exit-table tab', JSON.stringify(k1));
+ok((await kiosk(scannerId, r5.registration_id)).ballot_token === k1.ballot_token, 'staff ballot: same token every time (one voter row)');
+await expectError(() => kiosk(randoId, r5.registration_id), /not authorized/, 'staff ballot: non-staff refused');
+await expectError(() => as('anon', null, () => q(`select public.staff_checkout_ballot($1)`, [r5.registration_id])), /permission denied/, 'staff ballot: anon refused');
+ok((await vote(k1.ballot_token, booth3.id, null)).result === 'voted', 'staff ballot: guest votes with just a booth tap');
+ok((await kiosk(scannerId, r5.registration_id)).outcome === 'already_voted', 'staff ballot: after voting → already_voted (no token)');
 
 await q(`insert into email_log (award_voter_id, type, template, to_email, status) values ($1, 'ballot', 'ballot_mpyi', 'ben@team.org', 'sent')`, [ben.id]);
 await q(`insert into email_log (award_voter_id, type, template, to_email, status) values ($1, 'ballot_checkout', 'ballot_peoples_choice', 'ben@team.org', 'sent')`, [ben.id]);
