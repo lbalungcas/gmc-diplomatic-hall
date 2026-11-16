@@ -2,6 +2,7 @@ import { useEffect, useId, useState, type FormEvent, type ReactNode } from 'reac
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { PublicShell } from '../components/PublicShell';
 import { NOTE_MAX } from '../lib/constants';
+import { boothLogoUrl } from '../lib/boothLogos';
 import { FLOOR_ISLANDS } from '../lib/floorPlan';
 import { supabase } from '../lib/supabase';
 import type { Ballot, BallotCandidate, CastVoteResult } from '../lib/types';
@@ -17,6 +18,8 @@ function Message({ title, children, tone = 'navy' }: { title: string; children: 
 }
 
 function BoothSquare({ c, no, color, selected, onSelect }: { c?: BallotCandidate; no: number; color: string; selected: boolean; onSelect: (id: string) => void }) {
+  const logo = boothLogoUrl(no);
+
   if (!c) {
     return (
       <span className="grid aspect-square place-items-center rounded-md border border-dashed border-slate-300 text-xs text-slate-300" aria-hidden="true">
@@ -24,18 +27,34 @@ function BoothSquare({ c, no, color, selected, onSelect }: { c?: BallotCandidate
       </span>
     );
   }
+
   return (
     <button
       type="button"
       aria-pressed={selected}
       aria-label={`Booth ${no}: ${c.label}`}
       onClick={() => onSelect(c.id)}
-      style={selected ? undefined : { borderColor: color, backgroundColor: `${color}26` }}
-      className={`grid aspect-square place-items-center rounded-md border-2 font-display text-base font-extrabold transition sm:text-lg ${
-        selected ? 'scale-105 border-navy bg-navy text-white shadow-lg ring-2 ring-sun' : 'text-navy hover:brightness-95 active:scale-95'
-      }`}
+      style={selected ? undefined : { borderColor: color, backgroundColor: logo ? '#fff' : `${color}26` }}
+      className={`relative grid aspect-square place-items-center overflow-hidden rounded-md border-2 transition ${
+        selected
+          ? 'scale-105 border-navy bg-white shadow-lg ring-2 ring-sun'
+          : 'hover:brightness-95 active:scale-95'
+      } ${logo ? 'p-1' : 'font-display text-base font-extrabold text-navy sm:text-lg'}`}
     >
-      {no}
+      {logo ? (
+        <>
+          <img src={logo} alt="" className="max-h-full max-w-full object-contain" draggable={false} />
+          <span
+            className={`absolute top-0.5 left-0.5 rounded px-1 text-[9px] font-bold leading-none sm:text-[10px] ${
+              selected ? 'bg-navy text-white' : 'bg-white/90 text-navy'
+            }`}
+          >
+            {no}
+          </span>
+        </>
+      ) : (
+        no
+      )}
     </button>
   );
 }
@@ -83,11 +102,18 @@ function BoothMap({ candidates, value, onChange }: { candidates: BallotCandidate
 
       <div aria-live="polite" className={`rounded-xl border-2 p-4 ${selected ? 'border-navy bg-navy-surface' : 'border-dashed border-slate-300 text-center text-sm text-slate-500'}`}>
         {selected ? (
-          <>
-            <p className="text-xs font-semibold tracking-wide text-slate-500 uppercase">Booth {selected.booth_no}</p>
-            <p className="text-lg font-extrabold text-navy">{selected.label}</p>
-            {selected.track && <p className="text-sm text-slate-600">{selected.track}</p>}
-          </>
+          <div className="flex items-center gap-3">
+            {selected.booth_no != null && boothLogoUrl(selected.booth_no) && (
+              <div className="grid h-14 w-14 shrink-0 place-items-center rounded-lg border border-slate-200 bg-white p-1">
+                <img src={boothLogoUrl(selected.booth_no)!} alt="" className="max-h-full max-w-full object-contain" />
+              </div>
+            )}
+            <div className="min-w-0">
+              <p className="text-xs font-semibold tracking-wide text-slate-500 uppercase">Booth {selected.booth_no}</p>
+              <p className="text-lg font-extrabold text-navy">{selected.label}</p>
+              {selected.track && <p className="text-sm text-slate-600">{selected.track}</p>}
+            </div>
+          </div>
         ) : (
           'Tap a booth on the map to choose it.'
         )}
