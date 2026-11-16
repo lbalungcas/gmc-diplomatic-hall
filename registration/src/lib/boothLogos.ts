@@ -13,6 +13,7 @@ export const BOOTH_LOGOS: Partial<Record<number, string>> = {
   7: '7.png', // Secure Shield
   9: '9.png', // Gain Line
   10: '10.png', // Safe Scan (CPTSA / Project SAFE)
+  11: '11.png', // Plan International / Global Youth Ambassadors
   12: '12.png', // SAFE Steps
   13: '13.png', // Zero Harm Tracker / Project CONEC
   14: '14.png', // PAUSE
