@@ -1,0 +1,24 @@
+{
+  "_comment": "Tablet kiosk attract slideshow — cycles after 10s of no touch. Order matches the organizer photo drop.",
+  "idleMs": 10000,
+  "slideMs": 5500,
+  "slides": [
+    "/attract/01.jpg",
+    "/attract/02.jpg",
+    "/attract/03.jpg",
+    "/attract/04.jpg",
+    "/attract/05.jpg",
+    "/attract/06.jpg",
+    "/attract/07.jpg",
+    "/attract/08.jpg",
+    "/attract/09.jpg",
+    "/attract/10.jpg",
+    "/attract/11.jpg",
+    "/attract/12.jpg",
+    "/attract/13.jpg",
+    "/attract/14.jpg",
+    "/attract/15.jpg",
+    "/attract/16.jpg",
+    "/attract/17.jpg"
+  ]
+}

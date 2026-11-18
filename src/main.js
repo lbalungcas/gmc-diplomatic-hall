@@ -31,6 +31,7 @@ import { createVenueSignage } from './modules/venueSignage.js';
 import { createLightPool } from './modules/lightPool.js';
 import { mergeStaticByMaterial } from './modules/staticMerge.js';
 import { createWayfinding } from './modules/wayfinding.js';
+import { createAttractSlideshow } from './modules/attractSlideshow.js';
 
 // --- State Variables ---
 let scene, camera, renderer, clock;
@@ -81,6 +82,7 @@ const remotePlayers = new Map(); // id -> { model, targetPos, targetYaw, walkTim
 let avatarTemplate = null;
 let presence = null;
 let presenceOfflineToastShown = false;
+let attractSlideshow = null;
 
 // Booth TVs: every booth (and organizer stand) has a wall-mounted TV looping a muted video.
 // Sound only plays in the pop-up you get by clicking / tapping the TV (or pressing E while aiming at it).
@@ -456,6 +458,7 @@ function isBlockerVisible() {
 function showBlocker(mode) {
   const blocker = $('blocker');
   if (!blocker) return;
+  if (attractSlideshow) attractSlideshow.stop();
   blocker.dataset.mode = mode;
   const badge = $('blocker-badge');
   const title = $('blocker-title');
@@ -528,6 +531,9 @@ function enterHall() {
   }
 
   requestLock();
+  // Tablet kiosks: after 10s with no touch, loop the event photo slideshow.
+  if (attractSlideshow) attractSlideshow.start();
+  else if (isTouchDevice) setupAttractSlideshow();
 }
 
 // --- Loading progress ---
@@ -2969,6 +2975,7 @@ function openModal(id) {
   el.classList.remove('hidden');
   el.setAttribute('aria-hidden', 'false');
   $('proximity-prompt').classList.add('hidden');
+  if (attractSlideshow) attractSlideshow.bump();
   const closeBtn = el.querySelector('.modal-close-btn');
   if (closeBtn && !isTouchDevice) closeBtn.focus({ preventScroll: true });
 }
@@ -2998,7 +3005,19 @@ function closeModal(id) {
     document.body.classList.remove('modal-open');
     if (document.activeElement && typeof document.activeElement.blur === 'function') document.activeElement.blur();
     requestLock();
+    if (attractSlideshow) attractSlideshow.bump();
   }
+}
+
+function setupAttractSlideshow() {
+  if (attractSlideshow || !isTouchDevice) return;
+  attractSlideshow = createAttractSlideshow({
+    isTouchDevice: () => isTouchDevice,
+    hasStarted: () => hasStarted,
+    isBlocked: () => isBlockerVisible() || openModals.size > 0,
+    $,
+  });
+  attractSlideshow.start();
 }
 
 function closeAllModals() {
