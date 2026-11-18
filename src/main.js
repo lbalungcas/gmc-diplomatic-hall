@@ -71,8 +71,9 @@ let teleportSettleTimer = 0;
 // Dynamic 3D Policy & Commitment Wall
 let policyBoardMesh = null, policyCanvas = null, policyCtx = null, policyTexture = null;
 
-// YouTube Keynote State
-let currentVideoId = 'vYIYIVmOo3Q';
+// YouTube Keynote State — default loop on the stage LED wall
+const DEFAULT_STAGE_VIDEO_ID = 'GzV1XPdFJCk';
+let currentVideoId = DEFAULT_STAGE_VIDEO_ID;
 let hasUserInteracted = false;
 
 // Multiplayer Presence & Avatars
@@ -1484,21 +1485,21 @@ function createHallMascots() {
 
 // --- Helper to extract YouTube Video ID ---
 export function extractYouTubeId(src) {
-  if (!src) return 'vYIYIVmOo3Q';
+  if (!src) return DEFAULT_STAGE_VIDEO_ID;
   const raw = String(src).trim();
   if (/^[\w-]{11}$/.test(raw)) return raw;
   try {
     const url = new URL(raw, 'https://www.youtube.com');
     if (url.hostname.includes('youtu.be')) {
       const id = url.pathname.split('/').filter(Boolean)[0];
-      return id && /^[\w-]{11}$/.test(id) ? id : 'vYIYIVmOo3Q';
+      return id && /^[\w-]{11}$/.test(id) ? id : DEFAULT_STAGE_VIDEO_ID;
     }
     const v = url.searchParams.get('v');
     if (v && /^[\w-]{11}$/.test(v)) return v;
     const embed = url.pathname.match(/\/(?:embed|shorts|live)\/([\w-]{11})/);
-    return embed ? embed[1] : 'vYIYIVmOo3Q';
+    return embed ? embed[1] : DEFAULT_STAGE_VIDEO_ID;
   } catch {
-    return 'vYIYIVmOo3Q';
+    return DEFAULT_STAGE_VIDEO_ID;
   }
 }
 
@@ -3872,7 +3873,7 @@ function setupHUD() {
     const url = customYtInput.value.trim();
     if (!url) return;
     const nextId = extractYouTubeId(url);
-    if (nextId === 'vYIYIVmOo3Q' && !/vYIYIVmOo3Q/.test(url)) {
+    if (nextId === DEFAULT_STAGE_VIDEO_ID && !url.includes(DEFAULT_STAGE_VIDEO_ID)) {
       showToast('That does not look like a valid YouTube link.', { icon: '⚠️', type: 'danger' });
       return;
     }
