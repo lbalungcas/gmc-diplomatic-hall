@@ -100,7 +100,7 @@ function sanitizePledge(raw, fallbackName) {
 }
 
 let screenState = {
-  src: 'https://www.youtube.com/watch?v=vYIYIVmOo3Q',
+  src: 'https://www.youtube.com/watch?v=GzV1XPdFJCk',
   playing: true,
   mediaTime: 0,
   updatedAt: Date.now(),
