@@ -222,7 +222,7 @@
         <div class="modal-header-info">
           <h2 id="modal-booth-title">Youth Clean Energy Hub</h2>
           <div class="header-pills">
-            <span class="category-pill" id="modal-booth-category">Innovation</span>
+            <span class="category-pill" id="modal-booth-category">Team · Track</span>
             <span class="category-pill gold-pill hidden" id="modal-quiz-pill">🏅 Quiz passed</span>
           </div>
         </div>
@@ -231,8 +231,8 @@
         </button>
       </div>
 
-      <!-- Navigation Tabs -->
-      <div class="modal-tabs" role="tablist">
+      <!-- Project Media + Quiz tabs hidden until content is ready -->
+      <div class="modal-tabs hidden" role="tablist" aria-hidden="true">
         <button class="tab-btn active" data-tab="tab-overview" role="tab">Overview</button>
         <button class="tab-btn" data-tab="tab-media" role="tab">Project Media</button>
         <button class="tab-btn" data-tab="tab-quiz" role="tab">Quiz <span class="tab-dot" id="quiz-tab-dot" aria-hidden="true"></span></button>
@@ -241,28 +241,35 @@
       <!-- Tab Contents -->
       <div class="tab-content" id="tab-overview">
         <div class="placeholder-note hidden" id="modal-placeholder-note">
-          🛠️ This exhibitor is still setting up. Full project details, media and team contacts are coming soon.
+          🛠️ This exhibitor is still setting up. More project details are coming soon.
         </div>
-        <div class="overview-box">
-          <h3>Project Summary</h3>
-          <p id="modal-overview-text">Loading booth details...</p>
+        <div class="overview-meta" id="modal-overview-meta">
+          <div class="overview-meta-row">
+            <span class="overview-meta-label">Team</span>
+            <span class="overview-meta-value" id="modal-booth-team">—</span>
+          </div>
+          <div class="overview-meta-row">
+            <span class="overview-meta-label">Track</span>
+            <span class="overview-meta-value" id="modal-booth-track">—</span>
+          </div>
         </div>
-        <div class="stats-grid" id="modal-stats-grid"></div>
-        <div class="links-box" id="modal-links-box"></div>
-        <div class="socials-box" id="modal-socials-box"></div>
+        <p id="modal-overview-text" class="hidden" aria-hidden="true"></p>
+        <div class="stats-grid hidden" id="modal-stats-grid" aria-hidden="true"></div>
+        <div class="links-box hidden" id="modal-links-box" aria-hidden="true"></div>
+        <div class="socials-box hidden" id="modal-socials-box" aria-hidden="true"></div>
         <div class="booth-comments" id="booth-comments">
-          <h3 class="booth-comments-title">Visitor notes</h3>
+          <h3 class="booth-comments-title">Visitor notes <span class="booth-comments-optional">(optional)</span></h3>
           <div class="booth-comments-list" id="booth-comments-list"></div>
           <form class="booth-comment-form" id="booth-comment-form">
             <label class="sr-only" for="booth-comment-input">Leave a short note</label>
-            <input id="booth-comment-input" type="text" maxlength="200" placeholder="Leave a short note for the team…" autocomplete="off" />
+            <input id="booth-comment-input" type="text" maxlength="200" placeholder="Leave a short note for the team (optional)…" autocomplete="off" />
             <button type="submit" class="secondary-btn btn-xs" id="booth-comment-submit">Post</button>
           </form>
           <p class="booth-comment-hint" id="booth-comment-hint"></p>
         </div>
       </div>
 
-      <div class="tab-content hidden" id="tab-media">
+      <div class="tab-content hidden" id="tab-media" aria-hidden="true">
         <div class="media-container">
           <div class="media-video-wrapper tv-wrapper" id="modal-tv-wrapper">
             <span class="tv-badge">📺 BOOTH TV</span>
@@ -279,7 +286,7 @@
         </div>
       </div>
 
-      <div class="tab-content hidden" id="tab-quiz">
+      <div class="tab-content hidden" id="tab-quiz" aria-hidden="true">
         <div class="quiz-container" id="quiz-container">
           <div class="quiz-header">
             <h3 id="quiz-title">Booth Challenge</h3>
@@ -561,6 +568,21 @@
         <span class="esc-hint desktop-only">Press <strong>Esc</strong> to return to walking</span>
         <button class="secondary-btn" data-close="stage-modal">Close Theater View</button>
       </div>
+    </div>
+  </div>
+
+  <!-- Booth easel poster zoom (click / tap the standee to see it closely) -->
+  <div id="poster-zoom-modal" class="modal-overlay poster-zoom-overlay hidden" role="dialog" aria-modal="true" aria-labelledby="poster-zoom-title">
+    <div class="poster-zoom-card">
+      <button class="modal-close-btn" data-close="poster-zoom-modal" title="Close (Esc)" aria-label="Close">✕</button>
+      <div class="poster-zoom-header">
+        <span class="modal-booth-badge" id="poster-zoom-id">01</span>
+        <h2 id="poster-zoom-title">Team poster</h2>
+      </div>
+      <div class="poster-zoom-frame">
+        <img id="poster-zoom-img" src="" alt="Booth poster" />
+      </div>
+      <p class="poster-zoom-hint desktop-only">Press <strong>Esc</strong> or click outside to close</p>
     </div>
   </div>
 

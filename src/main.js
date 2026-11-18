@@ -88,9 +88,11 @@ let presenceOfflineToastShown = false;
 // anything without one falls back to this branded placeholder loop.
 const DEFAULT_SCREEN_VIDEO = '/videos/booth_tv_loop.mp4';
 const TV_AIM_DISTANCE = 7.0;
+const POSTER_AIM_DISTANCE = 3.8;   // easel posters are read up close
 const tvScreens = [];              // screen meshes (raycast targets)
 const sharedVideos = new Map();    // src -> <video>
 let aimedTV = null;                // userData of the TV the crosshair is on
+let aimedPoster = null;            // { boothId } when the crosshair is on an easel poster
 
 // Organizer booths & mascots (Pre-Function Foyer)
 const organizerBooths = new Map(); // id -> { org, group }
@@ -1418,13 +1420,43 @@ function pickTV(ndcX = 0, ndcY = 0, maxDist = TV_AIM_DISTANCE) {
   return hits.length ? hits[0].object.userData : null;
 }
 
+/** Which booth easel poster (if any) is under the given NDC point, within reach. */
+function pickPoster(ndcX = 0, ndcY = 0, maxDist = POSTER_AIM_DISTANCE) {
+  const meshes = boothGrid && boothGrid.posterMeshes;
+  if (!meshes || !meshes.length) return null;
+  _ndc.set(ndcX, ndcY);
+  _raycaster.setFromCamera(_ndc, camera);
+  _raycaster.far = maxDist;
+  const hits = _raycaster.intersectObjects(meshes, false);
+  if (!hits.length) return null;
+  const boothId = hits[0].object.userData && hits[0].object.userData.boothId;
+  return boothId ? { boothId } : null;
+}
+
 function openTV(tv) {
   if (!tv) return;
+  // Project Media tab is hidden for now — open the booth overview instead.
   if (tv.boothId) {
-    openBoothModal(tv.boothId, { tab: 'tab-media', playWithSound: true });
+    openBoothModal(tv.boothId, { tab: 'tab-overview' });
   } else if (tv.orgId) {
     openOrganizerModal(tv.orgId, { playWithSound: true });
   }
+}
+
+/** Full-size zoom of the team's easel poster / standee. */
+function openPosterZoom(boothId) {
+  if (!boothId) return;
+  const boothInfo = boothsData.find((b) => b.id === boothId) || {};
+  const boothMeta = BOOTH_POSITIONS[boothId] || {};
+  const poster = postersData[String(boothId)];
+  const title = boothInfo.name || boothMeta.title || `Booth ${pad2(boothId)}`;
+  $('poster-zoom-id').textContent = pad2(boothId);
+  $('poster-zoom-title').textContent = title;
+  const img = $('poster-zoom-img');
+  img.src = poster ? poster.lg : `/textures/booth_${pad2(boothId)}_screen.png`;
+  img.alt = `${title} poster`;
+  openModal('poster-zoom-modal');
+  emitAnalytics('poster_zoom', { boothId });
 }
 
 // --- Organizer booths (TdH · KNH · VEWU) in the Pre-Function Foyer ---
@@ -2243,11 +2275,16 @@ function setupControls() {
     mouseDeltaY += e.movementY;
   });
 
-  // While the cursor is locked, a left click on a TV opens its pop-up (with sound).
+  // While the cursor is locked, a left click on a poster zooms it, or on a TV opens the booth.
   document.addEventListener('mousedown', (e) => {
     if (!isPointerLocked || e.button !== 0 || openModals.size > 0 || player.isSitting) return;
-    // Re-raycast instead of reading the cached `aimedTV`: that cache refreshes at 20 Hz, and a
-    // click landing between refreshes while the player turns would open the wrong TV.
+    // Re-raycast instead of reading the cached aim: that cache refreshes at 20 Hz, and a
+    // click landing between refreshes while the player turns would open the wrong target.
+    const poster = pickPoster(0, 0) || aimedPoster;
+    if (poster) {
+      openPosterZoom(poster.boothId);
+      return;
+    }
     const tv = pickTV(0, 0) || aimedTV;
     if (tv) openTV(tv);
   });
@@ -2436,15 +2473,20 @@ function setupMobileControls() {
         const t = e.changedTouches[i];
         if (t.identifier === lookTouchId) {
           lookTouchId = null;
-          // A short, still touch on the 3D view is a tap: open the TV under the finger, if any.
+          // A short, still touch on the 3D view is a tap: zoom a poster or open a TV under the finger.
           if (e.type === 'touchend' && lookTouchStart && openModals.size === 0 && !isBlockerVisible() && !player.isSitting) {
             const moved = Math.hypot(t.clientX - lookTouchStart.x, t.clientY - lookTouchStart.y);
             const held = performance.now() - lookTouchStart.t;
             if (moved < 12 && held < 350) {
               const ndcX = (t.clientX / window.innerWidth) * 2 - 1;
               const ndcY = -(t.clientY / window.innerHeight) * 2 + 1;
-              const tv = pickTV(ndcX, ndcY, TV_AIM_DISTANCE + 1.5);
-              if (tv) openTV(tv);
+              const poster = pickPoster(ndcX, ndcY, POSTER_AIM_DISTANCE + 1.2);
+              if (poster) {
+                openPosterZoom(poster.boothId);
+              } else {
+                const tv = pickTV(ndcX, ndcY, TV_AIM_DISTANCE + 1.5);
+                if (tv) openTV(tv);
+              }
             }
           }
           lookTouchStart = null;
@@ -2808,24 +2850,43 @@ function checkProximity(force = false) {
     }
   }
 
-  // TVs: a click / tap on the screen opens the video pop-up with sound. E keeps opening the
-  // booth itself (silently), so aiming at the TV only adds a hint — unless nothing else is in
-  // reach, in which case the TV becomes the target.
+  // Easel posters: click / tap zooms the standee. E on the booth still opens the exhibit card.
+  aimedPoster = (!player.isSitting && openModals.size === 0) ? pickPoster(0, 0) : null;
+  if (aimedPoster) {
+    const posterVerb = isTouchDevice ? 'tap' : 'click';
+    const boothInfo = boothsData.find((b) => b.id === aimedPoster.boothId) || {};
+    const boothMeta = BOOTH_POSITIONS[aimedPoster.boothId] || {};
+    const posterTitle = boothInfo.name || boothMeta.title || `Booth ${pad2(aimedPoster.boothId)}`;
+    if (!activeTarget) {
+      activeTarget = {
+        type: 'poster', key: `poster-${aimedPoster.boothId}`, poster: aimedPoster,
+        title: `${posterTitle} • Poster`,
+        sub: isTouchDevice ? 'Tap the standee to zoom in' : 'Click or press E to zoom in',
+      };
+    } else if (activeTarget.type === 'booth' && activeTarget.id === aimedPoster.boothId) {
+      activeTarget.key += '+poster';
+      activeTarget.sub = `${activeTarget.sub} · ${posterVerb} standee to zoom`;
+      activeTarget.posterHint = true;
+      activeTarget.poster = aimedPoster;
+    }
+  }
+
+  // TVs: Project Media is hidden for now, so a TV click opens the booth overview instead.
   aimedTV = (!player.isSitting && openModals.size === 0) ? pickTV(0, 0) : null;
   if (aimedTV) {
     const tvVerb = isTouchDevice ? 'tap' : 'click';
     if (!activeTarget) {
       activeTarget = {
         type: 'tv', key: `tv-${aimedTV.key}`, tv: aimedTV,
-        title: `${aimedTV.label} • Booth TV`,
-        sub: isTouchDevice ? 'Tap the TV to watch with sound' : 'Click or press E to watch with sound',
+        title: `${aimedTV.label} • Booth`,
+        sub: isTouchDevice ? 'Tap the TV to open the booth' : 'Click or press E to open the booth',
       };
     } else if (
       (activeTarget.type === 'booth' && activeTarget.id === aimedTV.boothId) ||
       (activeTarget.type === 'hotspot' && activeTarget.orgId && activeTarget.orgId === aimedTV.orgId)
     ) {
       activeTarget.key += '+tv';
-      activeTarget.sub = `${activeTarget.sub} · ${tvVerb} TV for sound`;
+      activeTarget.sub = `${activeTarget.sub} · ${tvVerb} TV to open`;
       activeTarget.tvHint = true;
     }
   }
@@ -2835,7 +2896,13 @@ function checkProximity(force = false) {
     if (activeTarget.key !== previousKey || promptEl.classList.contains('hidden')) {
       promptTitle.textContent = activeTarget.title;
       promptSub.textContent = activeTarget.sub;
-      promptKey.textContent = isTouchDevice ? 'TAP' : activeTarget.type === 'tv' ? '📺' : 'E';
+      promptKey.textContent = isTouchDevice
+        ? 'TAP'
+        : activeTarget.type === 'tv'
+          ? '📺'
+          : activeTarget.type === 'poster'
+            ? '🔍'
+            : 'E';
       promptEl.classList.remove('hidden');
       promptEl.classList.toggle('is-tv', activeTarget.type === 'tv');
       crosshair.classList.add('active');
@@ -2870,7 +2937,9 @@ function handleInteract() {
     return;
   }
 
-  if (activeTarget.type === 'tv') {
+  if (activeTarget.type === 'poster') {
+    openPosterZoom(activeTarget.poster.boothId);
+  } else if (activeTarget.type === 'tv') {
     openTV(activeTarget.tv);
   } else if (activeTarget.type === 'mascot') {
     openMascotModal(activeTarget.mascot);
@@ -3275,7 +3344,7 @@ function activateTab(tabId) {
   }
 }
 
-function openBoothModal(boothId, { tab = 'tab-overview', playWithSound = false } = {}) {
+function openBoothModal(boothId, { tab: _tab = 'tab-overview', playWithSound: _playWithSound = false } = {}) {
   const firstVisit = !visitedBooths.has(boothId);
   visitedBooths.add(boothId);
   saveSet('gmc_visited_booths', visitedBooths);
@@ -3288,41 +3357,27 @@ function openBoothModal(boothId, { tab = 'tab-overview', playWithSound = false }
   const boothInfo = boothsData.find(b => b.id === boothId) || {};
   const boothMeta = BOOTH_POSITIONS[boothId] || {};
 
+  const teamName = boothInfo.organization || boothInfo.name || boothMeta.title || '—';
+  const trackName = boothInfo.theme || boothMeta.category || '—';
+
   $('modal-booth-id').textContent = pad2(boothId);
   $('modal-booth-title').textContent = boothInfo.name || boothMeta.title;
-  $('modal-booth-category').textContent = [boothInfo.organization && boothInfo.organization !== boothInfo.name ? boothInfo.organization : null, boothInfo.theme || boothMeta.category].filter(Boolean).join(' · ');
-  $('modal-overview-text').textContent = boothInfo.overview && !boothInfo.placeholder
-    ? boothInfo.overview
-    : "This youth-led satellite innovation team delivers scalable solutions tackling systemic environmental and social challenges. Full project details will appear here once the exhibitor publishes them.";
+  $('modal-booth-category').textContent = [teamName !== '—' ? teamName : null, trackName !== '—' ? trackName : null].filter(Boolean).join(' · ');
+  const teamEl = $('modal-booth-team');
+  const trackEl = $('modal-booth-track');
+  if (teamEl) teamEl.textContent = teamName;
+  if (trackEl) trackEl.textContent = trackName;
+  // Summary / media / quiz are hidden for now — keep the nodes empty so they stay inert.
+  const overviewText = $('modal-overview-text');
+  if (overviewText) overviewText.textContent = '';
   $('modal-placeholder-note').classList.toggle('hidden', !boothInfo.placeholder);
-  $('modal-quiz-pill').classList.toggle('hidden', !quizPassed.has(boothId));
-  $('quiz-tab-dot').classList.toggle('on', !quizPassed.has(boothId) && !!(boothInfo.quiz && boothInfo.quiz.questions && boothInfo.quiz.questions.length));
+  const quizPill = $('modal-quiz-pill');
+  if (quizPill) quizPill.classList.add('hidden');
+  const quizDot = $('quiz-tab-dot');
+  if (quizDot) quizDot.classList.remove('on');
 
-  // The team's poster (the one on the booth easel) at full size, where there is one.
-  const screenImg = $('modal-screen-img');
-  const poster = postersData[String(boothId)];
-  screenImg.src = poster ? poster.lg : `/textures/booth_${pad2(boothId)}_screen.png`;
-  screenImg.alt = poster ? `${boothInfo.name || boothMeta.title} poster` : `${boothInfo.name || boothMeta.title} display terminal`;
-  $('modal-media-screen').classList.toggle('is-poster', !!poster);
-  $('modal-media-label').textContent = poster ? 'Team poster' : 'Presentation terminal';
-  $('modal-media-id').textContent = pad2(boothId);
-
-  const videoWrapper = $('modal-video-wrapper');
-  $('modal-video-mount').innerHTML = '';
-  videoWrapper.classList.add('hidden');
-  stopPopupVideo($('modal-tv-video'));
-
-  renderStats(boothInfo.stats);
-  renderLinksAndSocials(boothInfo);
-  renderQuiz(boothInfo.quiz, boothId);
   refreshBoothEngagementUI(boothId);
-  activateTab(tab);
-
-  if (playWithSound) {
-    const tvVideo = $('modal-tv-video');
-    loadPopupVideo(tvVideo, boothScreenVideoSrc(boothId), { play: true, poster: `/textures/booth_${pad2(boothId)}_screen.png` });
-    emitAnalytics('intro_play', { boothId });
-  }
+  activateTab('tab-overview');
 
   $('modal-next-booth-btn').classList.toggle('hidden', nearestUnvisitedBooth() === null);
 
@@ -4417,6 +4472,8 @@ window.__diplomaticGame = {
   openOrganizerModal,
   openTV,
   pickTV,
+  pickPoster,
+  openPosterZoom,
   checkCollision,
   checkProximity,
   setWaypoint,

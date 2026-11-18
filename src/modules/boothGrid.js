@@ -597,6 +597,7 @@ export function createBoothGrid(scene, layout, booths, boothsData, art = {}, {
   const disposables = [panelGeo, posterGeo];
   const walls = [];
   const easels = [];
+  const posterMeshes = [];      // easel poster planes — raycast targets for click-to-zoom
   const lit = new Map();        // booth id -> { mat, level } for the booth-light fade
   const spotPool = createSpotPoolTexture(layout);
   disposables.push(spotPool);
@@ -671,7 +672,10 @@ export function createBoothGrid(scene, layout, booths, boothsData, art = {}, {
     const poster = new THREE.Mesh(posterGeo, posterMat);
     poster.position.set(0, ea.boardH / 2, 0.004);
     poster.name = `Booth_${pad2(booth.id)}_Poster`;
+    poster.userData.boothId = booth.id;
+    poster.userData.kind = 'booth-poster';
     ledge.add(poster);
+    posterMeshes.push(poster);
     easels.push({ mat: posterMat, small: posterMat.map, url: entry ? entry.lg : null, sharp: null, x: booth.easelX, z: booth.easelZ });
 
     // --- Optional wall TV (off: booth videos open in the booth pop-up).
@@ -753,6 +757,8 @@ export function createBoothGrid(scene, layout, booths, boothsData, art = {}, {
     group,
     update,
     animate,
+    /** Easel poster meshes for click / tap raycasts (userData.boothId). */
+    get posterMeshes() { return posterMeshes; },
     /** Redraws a booth's number signs after its stamp is collected (or the passport is reset). */
     setVisited: (id) => signs.refresh(id),
     get focus() { return focus; },
