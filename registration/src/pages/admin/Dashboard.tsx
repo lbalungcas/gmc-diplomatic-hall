@@ -6,12 +6,14 @@ import { decide, describeSummary, type Decision } from '../../lib/decide';
 import { formatDateTime } from '../../lib/format';
 import { plainText, questionFor, questions, resolveForm, type FormSchema } from '../../lib/form';
 import { describeSafeguarding, sendSafeguarding } from '../../lib/safeguarding';
+import { describeThankYou, type ThankYouSummary } from '../../lib/thankYou';
 import { supabase } from '../../lib/supabase';
 import type { EventRow, EventStats, Registration, Status } from '../../lib/types';
 import { useEvent } from '../../lib/useEvent';
 import { DeclineDialog } from './DeclineDialog';
 import { ImportDialog } from './ImportDialog';
 import { RegistrantDrawer } from './RegistrantDrawer';
+import { ThankYouDialog } from './ThankYouDialog';
 
 const PAGE_SIZE = 50;
 type SortKey = 'created_at' | 'full_name' | 'organization' | 'category' | 'status' | 'checked_in_at' | 'checked_out_at' | 'kit_received_at';
@@ -88,6 +90,8 @@ export default function Dashboard() {
   const [declineFor, setDeclineFor] = useState<string[] | null>(null);
   const [showImport, setShowImport] = useState(false);
   const [showCategories, setShowCategories] = useState(false);
+  /** Open thank-you dialog: everyone (`all`) or a fixed copy of the selection. */
+  const [thankYou, setThankYou] = useState<'all' | string[] | null>(null);
 
   // Debounce the search box.
   useEffect(() => {
@@ -257,6 +261,13 @@ export default function Dashboard() {
     setSelected(new Set());
   }
 
+  function thankYouSent(summary: ThankYouSummary) {
+    setThankYou(null);
+    setSelected(new Set());
+    setNotice({ tone: summary.failed ? 'error' : 'ok', text: describeThankYou(summary) });
+    refresh();
+  }
+
   async function exportCsv() {
     if (!event) return;
     setBusy('Preparing export…');
@@ -333,6 +344,10 @@ export default function Dashboard() {
             <button className="btn-ghost" onClick={() => { setFilters(EMPTY_FILTERS); setSearchInput(''); setPage(0); }}>Clear</button>
           )}
           <div className="ml-auto flex gap-2">
+            <button className="btn-sun" onClick={() => setThankYou('all')} disabled={!!busy}
+              title="Preview and send the post-event thank-you email to everyone registered">
+              Send thank-you email
+            </button>
             <button className="btn-primary" onClick={sendSafeguardingToAll} disabled={!!busy}
               title="Email the Child Safeguarding and Code of Conduct form to every confirmed participant who hasn't received it">
               Send safeguarding form
@@ -356,6 +371,7 @@ export default function Dashboard() {
           <button className="btn bg-red-500 text-white hover:bg-red-600" disabled={!!busy} onClick={() => setDeclineFor(selectedIds)}>Decline…</button>
           <button className="btn bg-sky-500 text-white hover:bg-sky-600" disabled={!!busy} onClick={() => runDecision(selectedIds, 'waitlisted')}>Waitlist</button>
           <button className="btn-sun" disabled={!!busy} onClick={() => sendSafeguardingToSelected(selectedIds)}>Send safeguarding form</button>
+          <button className="btn-sun" disabled={!!busy} onClick={() => setThankYou([...selectedIds])}>Send thank-you</button>
           <button className="btn text-white/80 hover:text-white" onClick={() => setSelected(new Set())}>Clear selection</button>
         </div>
       )}
@@ -451,6 +467,10 @@ export default function Dashboard() {
             runDecision(ids, 'declined', reason);
           }}
         />
+      )}
+      {thankYou && (
+        <ThankYouDialog eventId={event.id} onlyIds={thankYou === 'all' ? undefined : thankYou}
+          onClose={() => { setThankYou(null); refresh(); }} onSent={thankYouSent} />
       )}
       {showImport && <ImportDialog eventId={event.id} form={form} onClose={() => setShowImport(false)} onImported={refresh} />}
     </div>

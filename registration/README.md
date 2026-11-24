@@ -38,6 +38,7 @@ Scanner ─────── rpc check_in(token) ────────▶ at
 - **Atomic check-in:** if two phones scan the same code at the same moment, the second one gets **Already checked in**.
 - **Capacity** counts *approved* registrants, and is optional: leave it empty in Settings for no limit. Approving past capacity asks the admin to confirm, and the override is recorded in the audit log. When **auto-waitlist** is on and the event is full, new sign-ups go straight to the waitlist.
 - **Reg kit:** door staff tick **Kit given** after a check-in (scanner, manual check-in, or the registrant drawer). The dashboard shows a Reg kit column, filter and count; the CSV export has **Received Reg Kit?** and **Reg kit given at**.
+- **Thank-you email (after the event):** Dashboard → **Send thank-you email** previews both versions (people who checked in get "Thank you for being with us", everyone else "Thank you for registering"), sends you a test copy, then emails every approved, pending and waitlisted registrant. Declined and cancelled registrations are left out, and each address gets it once, so pressing Send again only retries failures. It links the Digital Marketplace (`/game/`), invites partnership enquiries to violenceendswithus@gmail.com and credits VEWU, KNH and TdH NL. Also available for a selection and per registrant in the drawer. Function: `send-thank-you`; migration `20261124000001_thank_you_email.sql`.
 - **Audit log:** every registration, approve, decline, waitlist, check-in, undo, resend, import and export is recorded. The registrant drawer shows that history together with the email delivery log.
 
 ## The registration form
@@ -82,7 +83,7 @@ public/form/                               the six "Marketplace spaces" option i
 supabase/
   migrations/                              schema → RLS → database functions (all re-runnable)
   seed.sql                                 the 17 Nov event
-  functions/register | decide | resend-email | import-registrations | send-safeguarding
+  functions/register | decide | resend-email | import-registrations | send-safeguarding | send-thank-you
   functions/_shared/form.ts                the form engine + DEFAULT_FORM (shared with the browser)
   functions/_shared/                       email.ts (provider wrapper), templates.ts, qr.ts, ics.ts, validate.ts
   tests/db.test.mjs                        69 RLS/RPC checks against an in-memory Postgres (PGlite)

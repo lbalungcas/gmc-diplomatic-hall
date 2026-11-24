@@ -32,6 +32,9 @@ verify_jwt = false
 [functions.send-safeguarding]
 verify_jwt = false
 
+[functions.send-thank-you]
+verify_jwt = false
+
 [functions.send-ballots]
 verify_jwt = false
 

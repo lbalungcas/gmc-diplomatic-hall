@@ -63,13 +63,14 @@ export interface RegistrationRow {
   category: string | null;
   decline_reason: string | null;
   anonymized_at: string | null;
+  checked_in_at: string | null;
 }
 
 export async function loadRegistrations(ids: string[]): Promise<RegistrationRow[]> {
   if (ids.length === 0) return [];
   const { data, error } = await db
     .from('registrations')
-    .select('id, event_id, ticket_token, status, full_name, preferred_name, email, organization, category, decline_reason, anonymized_at')
+    .select('id, event_id, ticket_token, status, full_name, preferred_name, email, organization, category, decline_reason, anonymized_at, checked_in_at')
     .in('id', ids);
   if (error) throw error;
   return data as RegistrationRow[];

@@ -51,6 +51,7 @@ for (const f of [
   'migrations/20261115000004_mpyi_details.sql',
   'migrations/20261116000001_pc_quick_vote.sql',
   'migrations/20261116000002_staff_checkout_ballot.sql',
+  'migrations/20261124000001_thank_you_email.sql',
   'seed.sql',
 ]) {
   await db.exec(mig(f));
@@ -70,6 +71,7 @@ await db.exec(mig('migrations/20261115000003_awards.sql'));
 await db.exec(mig('migrations/20261115000004_mpyi_details.sql'));
 await db.exec(mig('migrations/20261116000001_pc_quick_vote.sql'));
 await db.exec(mig('migrations/20261116000002_staff_checkout_ballot.sql'));
+await db.exec(mig('migrations/20261124000001_thank_you_email.sql'));
 await db.exec(mig('seed.sql'));
 console.log('re-applied migrations OK');
 
@@ -346,6 +348,8 @@ await q(`insert into email_log (registration_id, type, template, to_email, statu
 ok((await q(`select 1 from email_log where registration_id = $1 and template = 'safeguarding'`, [r1.registration_id])).length === 1, 'email_log accepts the safeguarding email');
 await expectError(() => q(`insert into email_log (registration_id, type, template, status) values ($1, 'bogus', 'bogus', 'sent')`, [r1.registration_id]),
   /email_log_type_check|email_log_template_check/, 'email_log still rejects unknown email types');
+await q(`insert into email_log (registration_id, type, template, to_email, status) values ($1, 'thank_you', 'thank_you', 'P@X.org', 'sent')`, [r1.registration_id]);
+ok((await q(`select 1 from email_log where template = 'thank_you' and status = 'sent' and lower(to_email) = 'p@x.org'`)).length === 1, 'email_log accepts the thank-you email');
 
 // ── no capacity limit ──
 await q(`update events set capacity = 1, auto_waitlist = true where id = $1`, [eventId]);

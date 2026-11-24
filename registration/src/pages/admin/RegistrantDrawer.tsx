@@ -41,6 +41,7 @@ const ACTION_LABELS: Record<string, string> = {
   undo_check_out: 'Check-out undone',
   resend_email: 'Email resent',
   safeguarding_email: 'Safeguarding form emailed',
+  thank_you_email: 'Thank-you email sent',
   guardian_consent: 'Guardian consent recorded',
   kit_received: 'Reg kit given',
   kit_undo: 'Reg kit unmarked',
@@ -113,6 +114,15 @@ export function RegistrantDrawer({ id, version, form, onClose, onChanged, onDeci
     return 'Safeguarding form sent.';
   });
 
+  const sendThankYou = () => act(async () => {
+    const res = await callFunction<{ outcomes: { outcome: string }[] }>('send-thank-you', { ids: [id], force: true });
+    const outcome = res.outcomes[0]?.outcome;
+    if (outcome === 'failed') throw new Error('The thank-you email failed — see the email log below.');
+    if (outcome === 'skipped') return 'Email logged but not sent (email provider not configured).';
+    if (outcome === 'not_eligible') return 'Declined and cancelled registrations are not sent the thank-you.';
+    return 'Thank-you email sent.';
+  });
+
   const checkIn = () => act(async () => {
     const { data, error } = await supabase.rpc('check_in_manual', { p_id: id });
     if (error) throw error;
@@ -171,6 +181,9 @@ export function RegistrantDrawer({ id, version, form, onClose, onChanged, onDeci
             <div className="flex flex-wrap gap-2">
               <button className="btn-ghost" disabled={busy || reg.status === 'cancelled'} onClick={resend}>Resend {reg.status} email</button>
               {reg.status === 'approved' && <button className="btn-ghost" disabled={busy} onClick={sendSafeguardingForm}>Send safeguarding form</button>}
+              {['approved', 'pending', 'waitlisted'].includes(reg.status) && (
+                <button className="btn-ghost" disabled={busy} onClick={() => { if (window.confirm(`Send the thank-you email to ${reg.email}?`)) sendThankYou(); }}>Send thank-you</button>
+              )}
               {reg.status === 'approved' && !reg.checked_in_at && <button className="btn-primary" disabled={busy} onClick={checkIn}>Check in now</button>}
               {reg.checked_in_at && (
                 <KitToggle key={reg.kit_received_at ?? 'none'} id={reg.id} kitReceivedAt={reg.kit_received_at}
@@ -264,7 +277,7 @@ export function RegistrantDrawer({ id, version, form, onClose, onChanged, onDeci
                   <li key={e.id} className="flex gap-3">
                     <span className="w-28 shrink-0 text-slate-500">{formatDateTime(e.sent_at)}</span>
                     <span>
-                      <strong className="capitalize">{e.template === 'safeguarding' ? 'Safeguarding form' : e.template}</strong>
+                      <strong className="capitalize">{e.template === 'safeguarding' ? 'Safeguarding form' : e.template === 'thank_you' ? 'Thank-you' : e.template}</strong>
                       {e.type === 'resend' && <span className="text-slate-500"> (resent)</span>}{' '}
                       <span className={e.status === 'sent' ? 'text-emerald-700' : e.status === 'failed' ? 'font-semibold text-red-700' : 'text-amber-700'}>
                         {e.status}
