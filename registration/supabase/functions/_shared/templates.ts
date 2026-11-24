@@ -1,6 +1,8 @@
 // Transactional email templates. Table layout + inline styles so they render in Gmail,
 // Outlook (Word engine) and iOS Mail. Every template also has a plain-text twin.
-import { APP_URL, DIGITAL_MARKETPLACE_URL, ORGANIZERS, PARTNERSHIP_EMAIL, SAFEGUARDING_FORM_URL } from './constants.ts';
+import {
+  APP_URL, DIGITAL_MARKETPLACE_URL, ORGANIZERS, PARTNERSHIP_EMAIL, SAFEGUARDING_FORM_URL, THEMATIC_AREAS, VEWU_SOCIALS,
+} from './constants.ts';
 import type { EventRow, RegistrationRow } from './db.ts';
 
 export type TemplateName = 'pending' | 'approved' | 'declined' | 'waitlisted' | 'safeguarding';
@@ -160,8 +162,9 @@ export type ThankYouVariant = 'attended' | 'registered';
 
 /**
  * The post-event thank-you. Thanks the person, invites them to the Digital Marketplace (the 3D hall
- * with every booth from the 17th), offers an introduction to any team, and credits the organizers
- * with their logo lock-up and links.
+ * with every booth from the 17th), offers an introduction to any team, credits the organizers with
+ * their logo lock-up and links, shows the GMC logo (this was a GMC satellite event) and VEWU's
+ * social channels. The wording is the organizers' own.
  */
 export function renderThankYouEmail(name: string | null, event: EventRow, variant: ThankYouVariant): RenderedEmail {
   const first = (name ?? '').trim().split(/\s+/)[0] || 'there';
@@ -172,31 +175,38 @@ export function renderThankYouEmail(name: string | null, event: EventRow, varian
   const opening = variant === 'attended'
     ? {
       title: 'Thank you for being with us',
-      html: [
-        `On 17 November, the Diplomatic Hall was filled with young people who have spent months, and some of them years, building ways to keep children safe. Thank you for coming to listen to them, ask them questions and take their ideas seriously.`,
-        `That matters more than you might think. For many of the youth innovators, it was the first time they presented their work to policymakers, partners and peers from around the world. Whether you stopped at one booth or all twenty-four, cast a vote, or had a conversation that stayed with you, you were part of what made the day work.`,
+      paras: [
+        `On 17 November 2026, the Marriott Hotel Manila was filled with young people who have spent months, and some of them years, building ways to keep children safe. Thank you for coming to listen to them, motivate and empower them, and build the networks that sustain their youth-led work in ending violence against children.`,
+        `This engagement really matters to them. For many of the youth innovators, it was the first ever moment for them to pitch and present their implemented solutions to policymakers, partner organizations and various peers from around the world.`,
+        `Whether you stopped at one booth or all twenty-four, cast a vote, or had a conversation that stayed with you, you were part of what made the day work.`,
       ],
+      marketplace: 'Revisit the booths, or see the others',
     }
     : {
       title: 'Thank you for registering',
-      html: [
-        `Thank you for registering for the Youth Innovations Marketplace on 17 November. We're sorry we didn't get to welcome you in person, but your interest means a great deal to the young people behind these innovations.`,
+      paras: [
+        `Thank you for registering for the Youth Innovations Marketplace on 17 November 2026. We're sorry we didn't get to welcome you in person, but your interest means a great deal to the young people behind these innovations.`,
         `The good news is that the Marketplace isn't over. Everything the youth innovators shared on the day is still there for you to explore.`,
       ],
+      marketplace: 'Visit the Marketplace online',
     };
 
+  const marketplaceIntro = `All 24 youth-led booths from 17 November 2026 are now available in the Digital Youth Innovations Marketplace. Walk the hall in 3D, see each team's poster, and learn how young people contribute to different thematic areas, such as:`;
+  const themesHtml = `<ul style="margin:0 0 14px;padding-left:22px">` +
+    THEMATIC_AREAS.map((t) => `<li style="margin:0 0 4px">${esc(t)}</li>`).join('') + `</ul>`;
   const marketplaceHtml =
-    h2(variant === 'attended' ? 'Revisit the booths, or see the ones you missed' : 'Visit the Marketplace online') +
-    p(`All 24 youth-led booths from the 17th are in the <strong>Digital Marketplace</strong>. Walk the hall in 3D, read each team's poster, and learn how young people are tackling online child sexual exploitation and abuse, child labour, corporal punishment, and child, early and forced marriage.`) +
+    h2(opening.marketplace) +
+    p(esc(marketplaceIntro).replace('Digital Youth Innovations Marketplace', '<strong>Digital Youth Innovations Marketplace</strong>')) +
+    themesHtml +
     button(DIGITAL_MARKETPLACE_URL, 'Visit the Digital Marketplace') +
     p(`It works on a phone, tablet or computer, and there's nothing to install.`, `;color:${MUTED};font-size:13px`);
 
   const partnerHtml =
     `<table role="presentation" cellpadding="0" cellspacing="0" style="margin:24px 0 8px;border-collapse:collapse;width:100%;background:#fff8dc;border-left:4px solid ${YELLOW}">` +
     `<tr><td style="padding:16px 18px;font-size:15px;color:${BODY};line-height:1.6">` +
-    `<strong style="color:${NAVY};font-size:16px">Interested in a specific innovation?</strong><br>` +
-    `If one of the teams caught your eye, whether for funding, piloting, mentoring, research or simply a conversation, we'd love to connect you. ` +
-    `Write to us at ${mail} with the booth name or number, and we'll put you in touch with the team to explore partnerships and collaborations.` +
+    `<strong style="color:${NAVY};font-size:16px">Interested in supporting the youth innovators?</strong><br>` +
+    `If some of the teams caught your eye, whether for funding, piloting, mentoring, research or simply a conversation, we'd love to connect you with the youth innovators!` +
+    `<br><br>Write to us at ${mail} with the booth name or number, and we'll put you in touch with the team to explore partnerships and collaborations with our youth advocates.` +
     `</td></tr></table>`;
 
   const orgRows = ORGANIZERS.map((o) =>
@@ -204,41 +214,47 @@ export function renderThankYouEmail(name: string | null, event: EventRow, varian
     `<strong style="color:${NAVY}">${esc(o.name)}</strong><br>${esc(o.blurb)}<br>` +
     `<a href="${esc(o.url)}" style="color:${NAVY}">${esc(o.url.replace(/^https?:\/\//, '').replace(/\/$/, ''))}</a>` +
     `</td></tr>`).join('');
+  const socialPills = VEWU_SOCIALS.map((s) =>
+    `<td style="padding:4px"><a href="${esc(s.url)}" style="display:inline-block;background:${NAVY};color:#ffffff;text-decoration:none;font-weight:bold;font-size:13px;padding:8px 14px;border-radius:999px">${esc(s.name)}</a></td>`).join('');
   const recognitionHtml =
-    h2('With gratitude') +
-    p(`The Youth Innovations Marketplace was co-organized by <strong>Violence Ends With Us</strong>, <strong>Kindernothilfe</strong> and <strong>Terre des Hommes Netherlands</strong>, with support from German Cooperation and the European Union, as a satellite event of the 2nd Global Ministerial Conference on Ending Violence Against Children.`) +
-    `<table role="presentation" cellpadding="0" cellspacing="0" style="margin:18px 0;width:100%"><tr><td align="center">` +
+    p(`<strong style="color:${NAVY}">With a grateful heart for children and youth,</strong>`, ';margin-top:26px') +
+    p(`The Youth Innovations Marketplace was co-organized by <strong>Violence Ends With Us</strong>, <strong>Kindernothilfe</strong> and <strong>Terre des Hommes Netherlands</strong>, with support from German Cooperation and the European Union, as a satellite event of the <strong>2nd Global Ministerial Conference on Ending Violence Against Children</strong>.`) +
+    `<table role="presentation" cellpadding="0" cellspacing="0" style="margin:18px 0 6px;width:100%"><tr><td align="center">` +
     `<img src="${APP_URL}/brand/partners.png" alt="Organized by Violence Ends With Us, Kindernothilfe and Terre des Hommes Netherlands. Supported by German Cooperation and co-funded by the European Union." width="440" style="display:block;border:0;width:100%;max-width:440px;height:auto">` +
+    `</td></tr>` +
+    `<tr><td align="center" style="padding:18px 0 6px;color:${MUTED};font-size:12px;letter-spacing:0.5px;text-transform:uppercase">A satellite event of</td></tr>` +
+    `<tr><td align="center">` +
+    `<img src="${APP_URL}/brand/gmc.png" alt="2nd Global Ministerial Conference on Ending Violence Against Children" width="420" style="display:block;border:0;width:100%;max-width:420px;height:auto">` +
     `</td></tr></table>` +
-    `<table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 0 8px;border-collapse:collapse;width:100%">${orgRows}</table>`;
-
-  const closingHtml =
-    p(`Above all, thank you to the youth innovators themselves, for their courage, their creativity and their insistence that a world without violence against children is possible.`, ';margin-top:22px') +
-    p(`With warm thanks,<br><strong style="color:${NAVY}">The Youth Innovations Marketplace team</strong><br>` +
-      `<span style="color:${MUTED};font-size:13px">Violence Ends With Us &middot; Kindernothilfe &middot; Terre des Hommes Netherlands</span>`, ';margin-bottom:0');
+    `<table role="presentation" cellpadding="0" cellspacing="0" style="margin:16px 0 8px;border-collapse:collapse;width:100%">${orgRows}</table>` +
+    `<table role="presentation" cellpadding="0" cellspacing="0" style="margin:22px 0 0;width:100%;background:#f0f4fa;border-radius:10px">` +
+    `<tr><td align="center" style="padding:16px 12px 6px;color:${NAVY};font-size:15px;font-weight:bold">Follow Violence Ends With Us</td></tr>` +
+    `<tr><td align="center" style="padding:0 12px 4px;color:${BODY};font-size:13px">Stay connected with the youth advocates and see what they do next.</td></tr>` +
+    `<tr><td align="center" style="padding:6px 8px 14px"><table role="presentation" cellpadding="0" cellspacing="0"><tr>${socialPills}</tr></table></td></tr>` +
+    `</table>`;
 
   const html = layout(event,
     variant === 'attended'
-      ? 'Thank you for joining us on 17 November. All 24 booths are still open online.'
-      : 'Thank you for registering. All 24 youth booths are open online.',
+      ? 'Thank you for joining us on 17 November. All 24 booths are now in the Digital Youth Innovations Marketplace.'
+      : 'Thank you for registering. All 24 youth booths are now online.',
     `<h1 style="margin:0 0 16px;color:${NAVY};font-size:22px;line-height:1.3">${esc(opening.title)}</h1>` +
     p(`Hi ${esc(first)},`) +
-    opening.html.map((s) => p(esc(s))).join('') +
-    marketplaceHtml + partnerHtml + recognitionHtml + closingHtml);
+    opening.paras.map((s) => p(esc(s))).join('') +
+    marketplaceHtml + partnerHtml + recognitionHtml);
 
   const text = [
     `Hi ${first},`,
-    ...opening.html,
-    variant === 'attended' ? 'REVISIT THE BOOTHS, OR SEE THE ONES YOU MISSED' : 'VISIT THE MARKETPLACE ONLINE',
-    `All 24 youth-led booths from the 17th are in the Digital Marketplace. Walk the hall in 3D, read each team's poster, and learn how young people are tackling online child sexual exploitation and abuse, child labour, corporal punishment, and child, early and forced marriage.`,
+    ...opening.paras,
+    opening.marketplace.toUpperCase(),
+    marketplaceIntro + '\n' + THEMATIC_AREAS.map((t) => `- ${t}`).join('\n'),
     `Visit the Digital Marketplace: ${DIGITAL_MARKETPLACE_URL}`,
-    'INTERESTED IN A SPECIFIC INNOVATION?',
-    `If one of the teams caught your eye, whether for funding, piloting, mentoring, research or simply a conversation, we'd love to connect you. Write to us at ${PARTNERSHIP_EMAIL} with the booth name or number, and we'll put you in touch with the team to explore partnerships and collaborations.`,
-    'WITH GRATITUDE',
+    'INTERESTED IN SUPPORTING THE YOUTH INNOVATORS?',
+    `If some of the teams caught your eye, whether for funding, piloting, mentoring, research or simply a conversation, we'd love to connect you with the youth innovators!`,
+    `Write to us at ${PARTNERSHIP_EMAIL} with the booth name or number, and we'll put you in touch with the team to explore partnerships and collaborations with our youth advocates.`,
+    'With a grateful heart for children and youth,',
     `The Youth Innovations Marketplace was co-organized by Violence Ends With Us, Kindernothilfe and Terre des Hommes Netherlands, with support from German Cooperation and the European Union, as a satellite event of the 2nd Global Ministerial Conference on Ending Violence Against Children.`,
-    ORGANIZERS.map((o) => `- ${o.name}: ${o.url}`).join('\n'),
-    `Above all, thank you to the youth innovators themselves, for their courage, their creativity and their insistence that a world without violence against children is possible.`,
-    `With warm thanks,\nThe Youth Innovations Marketplace team\nViolence Ends With Us · Kindernothilfe · Terre des Hommes Netherlands`,
+    ORGANIZERS.map((o) => `${o.name}\n${o.blurb}\n${o.url}`).join('\n\n'),
+    `FOLLOW VIOLENCE ENDS WITH US\n` + VEWU_SOCIALS.map((s) => `${s.name}: ${s.url}`).join('\n'),
   ].join('\n\n') + textFooter(event);
 
   return {

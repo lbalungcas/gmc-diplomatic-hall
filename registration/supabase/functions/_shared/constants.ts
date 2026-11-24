@@ -36,6 +36,24 @@ export const ORGANIZERS = [
   },
 ] as const;
 
+/** Violence Ends With Us' social channels (from violenceendswithus.com), linked in the thank-you email. */
+export const VEWU_SOCIALS = [
+  { name: 'Facebook', url: 'https://www.facebook.com/violenceendswithus/' },
+  { name: 'Instagram', url: 'https://www.instagram.com/violenceendswithus/' },
+  { name: 'LinkedIn', url: 'https://www.linkedin.com/company/violence-ends-with-us' },
+  { name: 'YouTube', url: 'https://www.youtube.com/@ViolenceEndsWithUs' },
+] as const;
+
+/** The thematic areas the 24 youth booths covered, as listed in the thank-you email. */
+export const THEMATIC_AREAS = [
+  'Child Exploitation and Labour',
+  'Child, Early, and Forced Marriage',
+  'Corporal Punishment',
+  'Climate Change & Child Rights',
+  'Adolescent Sexual and Reproductive Health',
+  'Online Child Sexual Exploitation and Abuse',
+] as const;
+
 /** The conference's Child Safeguarding and Code of Conduct Google Form, required for every attendee. */
 export const SAFEGUARDING_FORM_URL = Deno.env.get('SAFEGUARDING_FORM_URL') ??
   'https://docs.google.com/forms/d/e/1FAIpQLScDynJbLTLSNyJ6u_remlMxpKeLsSBpBZR-sauwv2ll-w1how/viewform';
