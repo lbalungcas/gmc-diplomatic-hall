@@ -3877,6 +3877,16 @@ function teleportPlayer(x, y, z, yaw) {
 
 // --- HUD Setup & Click Handlers ---
 function setupHUD() {
+  // The stage stream (LED wall) must never talk over a pitch or another pop-up video: re-check its
+  // volume the instant one of those starts, pauses, ends or is unloaded. updateStageVolume() is 0
+  // while any of them is playing with sound.
+  for (const id of ['modal-pitch-video', 'modal-tv-video', 'org-tv-video']) {
+    const v = $(id);
+    if (!v) continue;
+    for (const ev of ['play', 'playing', 'pause', 'ended', 'emptied', 'volumechange']) {
+      v.addEventListener(ev, () => updateStageVolume());
+    }
+  }
   document.querySelectorAll('[data-close]').forEach(btn => {
     btn.addEventListener('click', () => closeModal(btn.getAttribute('data-close')));
   });
@@ -4362,6 +4372,7 @@ function animate() {
       if (composer && quality.usePost) composer.render(); else renderer.render(scene, camera);
     }
     lastFrameMs = 0;
+    updateStageVolume();
     if (perfHud) perfHud.update();
     return;
   }
