@@ -174,6 +174,14 @@ export function createElephant({ theme = {} } = {}) {
   // Animated parts stay separate; the rest (toenails, belly, tail, scarf...) is merged later.
   body.userData.keepSeparate = true;
   for (const leg of legs) leg.mesh.userData.keepSeparate = true;
+  // The head moves as one piece, with the ears and trunk swinging on their own pivots: merge the
+  // head's fixed parts (skull, band, bow, eyes, cheeks, tusks) by material, and the trunk on its
+  // pivot, then keep all of it out of the root-level merge in createMascots.
+  for (const e of ears) e.pivot.traverse((o) => { o.userData.keepSeparate = true; });
+  trunkPivot.traverse((o) => { o.userData.keepSeparate = true; });
+  mergeStaticByMaterial(head);
+  trunkPivot.traverse((o) => { o.userData.keepSeparate = false; });
+  mergeStaticByMaterial(trunkPivot);
   head.traverse((o) => { o.userData.keepSeparate = true; });
 
   return {

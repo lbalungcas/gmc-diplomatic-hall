@@ -856,8 +856,15 @@ function updateZoneCulling() {
     if (/^Standee_/.test(o.name)) o.visible = hallSeen;
   }
   for (const { group } of organizerBooths.values()) group.visible = eastSeen;
-  const lighthouse = scene.getObjectByName('Mascot_Lighthouse');
-  if (lighthouse) lighthouse.visible = eastSeen;
+  // Mascots by where they stand right now (Tutu can roam): east of the curved wall they belong
+  // to the lobby, otherwise to the hall and foyer. The nameplate follows its mascot.
+  if (mascots) {
+    for (const m of mascots.list) {
+      const seen = m.pos.x > 31.6 ? eastSeen : hallSeen;
+      m.built.root.visible = seen;
+      m.plate.visible = seen;
+    }
+  }
 }
 
 function updateZoneEnvironment() {
@@ -4307,6 +4314,7 @@ function drawMinimap(force = false) {
 }
 
 function onWindowResize() {
+  coveredFrameNeeded = true;   // resizing clears the canvas, even under a pop-up
   applyResponsiveFov();
   renderer.setSize(window.innerWidth, window.innerHeight);
   if (cssRenderer) cssRenderer.setSize(window.innerWidth, window.innerHeight);
@@ -4319,6 +4327,8 @@ function onWindowResize() {
 const _lookDir = new THREE.Vector3();
 let lastPresenceHeartbeat = 0;
 let lastFrameMs = 0;
+/** Set when the canvas must be redrawn once even though the hall is covered (e.g. after a resize clears it). */
+let coveredFrameNeeded = true;
 
 let posterTick = 0;
 function animate() {
@@ -4329,11 +4339,33 @@ function animate() {
   // Wall-clock frame time, separate from the clamped simulation delta below: the governor has
   // to see a 300 ms stall as 300 ms, not as the 100 ms the physics step is allowed to assume.
   const nowMs = performance.now();
-  const frameMs = lastFrameMs ? nowMs - lastFrameMs : 16.7;
+  const resumed = !lastFrameMs;
+  const frameMs = resumed ? 16.7 : nowMs - lastFrameMs;
   lastFrameMs = nowMs;
 
   const delta = Math.min(clock.getDelta(), 0.1);
   const t = clock.getElapsedTime();
+
+  // Keep the presence server's stale-timeout happy even while standing still.
+  if (presence && t - lastPresenceHeartbeat > 5) {
+    lastPresenceHeartbeat = t;
+    presence.sendMove(player.pos.x, player.pos.y, player.pos.z, player.yaw);
+  }
+
+  // A pop-up or the tablet photo loop covers the hall: the visitor can't move and only sees a
+  // blurred still behind it, so stop drawing it. The canvas keeps showing the last frame, and
+  // the GPU is left to the pitch video. One frame is still drawn when something clears the
+  // canvas (a resize). The frame-time governor is not fed while paused.
+  if (openModals.size > 0 || (attractSlideshow && attractSlideshow.active)) {
+    if (coveredFrameNeeded) {
+      coveredFrameNeeded = false;
+      if (composer && quality.usePost) composer.render(); else renderer.render(scene, camera);
+    }
+    lastFrameMs = 0;
+    if (perfHud) perfHud.update();
+    return;
+  }
+  coveredFrameNeeded = true;
 
   updatePlayer(delta);
   updateRemoteAvatars(delta);
@@ -4350,12 +4382,6 @@ function animate() {
   }
   checkProximity();
   drawMinimap();
-
-  // Keep the presence server's stale-timeout happy even while standing still.
-  if (presence && t - lastPresenceHeartbeat > 5) {
-    lastPresenceHeartbeat = t;
-    presence.sendMove(player.pos.x, player.pos.y, player.pos.z, player.yaw);
-  }
 
   // Animate holographic markers & labels. A booth's marker/label is only shown to players
   // standing roughly in front of that booth's bay, so the two booths round the back of a
@@ -4430,13 +4456,14 @@ function animate() {
   }
 
   if (perfHud) perfHud.update();
-  quality.sample(frameMs, nowMs);
+  if (!resumed) quality.sample(frameMs, nowMs);
 }
 
 // Global debug & test hooks
 window.__diplomaticGame = {
   player,
   get camera() { return camera; },
+  get renderer() { return renderer; },
   get scene() { return scene; },
   get cssScene() { return cssScene; },
   get cssRenderer() { return cssRenderer; },

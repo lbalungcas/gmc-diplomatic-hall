@@ -23,6 +23,7 @@
  * west edge and d = distance from the spine toward the aisle.
  */
 import * as THREE from 'three';
+import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 
 const NAVY = '#1B3461';
 const ORANGE = '#DD9366';
@@ -537,10 +538,58 @@ function createBoothSigns(layout, booths, accentOf, isVisited, { lowPower, aniso
 }
 
 /**
- * Keeps a small version of every print on the GPU and swaps in the sharp one for the few a
- * visitor is close enough to read. `items` carry { mat, small, url, x, z }; the `max` nearest
- * within `near` metres are held sharp, and one is released only once it is both out of range
- * and over the budget, so walking along a row does not thrash.
+ * Every booth's prints in one texture: a grid of `cols` cells of `cw` x `ch` px, so the 24
+ * backwalls (or posters) seen from across the hall cost one draw call instead of 24. Cells are
+ * drawn as their images arrive; the upload is batched rather than repeated per image.
+ */
+function createAtlas(count, cols, cw, ch, anisotropy) {
+  const rows = Math.ceil(count / cols);
+  const canvas = document.createElement('canvas');
+  canvas.width = cols * cw;
+  canvas.height = rows * ch;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#eef0f3';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  const tex = makeTexture(canvas, anisotropy);
+  let pending = null;
+  const inset = 2;   // texels kept clear of the neighbouring cell, for the mip chain
+  return {
+    tex,
+    /** UV rectangle of cell `i`: [u0, u1, vBottom, vTop]. */
+    rect(i) {
+      const px = (i % cols) * cw, py = Math.floor(i / cols) * ch;
+      return [(px + inset) / canvas.width, (px + cw - inset) / canvas.width,
+        1 - (py + ch - inset) / canvas.height, 1 - (py + inset) / canvas.height];
+    },
+    draw(i, src) {
+      if (!src) return;
+      ctx.drawImage(src, (i % cols) * cw, Math.floor(i / cols) * ch, cw, ch);
+      if (pending) return;
+      pending = setTimeout(() => { pending = null; tex.needsUpdate = true; }, 150);
+    },
+    dispose() { clearTimeout(pending); tex.dispose(); },
+  };
+}
+
+/**
+ * A w x h quad placed by `matrix`, its UVs mapped into atlas cell `rect`. With `uv1` the quad
+ * also carries plain 0..1 UVs in a second channel (for the shared spot-pool light map).
+ */
+function atlasQuad(w, h, matrix, rect, uv1 = false) {
+  const geo = new THREE.PlaneGeometry(w, h);
+  geo.applyMatrix4(matrix);
+  const uv = geo.attributes.uv;
+  if (uv1) geo.setAttribute('uv1', uv.clone());
+  const [u0, u1, vb, vt] = rect;
+  for (let k = 0; k < uv.count; k++) uv.setXY(k, u0 + uv.getX(k) * (u1 - u0), vb + uv.getY(k) * (vt - vb));
+  return geo;
+}
+
+/**
+ * Sharp prints near the visitor. Each item is a booth's own print mesh, hidden until its sharp
+ * texture has loaded and then shown just in front of the atlas copy. The `max` nearest within
+ * `near` metres are held, and one is released only once it is both out of range and over the
+ * budget, so walking along a row does not thrash. `items` carry { mesh, mat, url, x, z }.
  */
 function createSharpener(items, { near, max, anisotropy }) {
   return function update(px, pz) {
@@ -548,13 +597,20 @@ function createSharpener(items, { near, max, anisotropy }) {
     const wanted = items.filter((e) => e.dist < near).sort((a, b) => a.dist - b.dist).slice(0, max);
     for (const e of wanted) {
       if (e.sharp) continue;
-      const tex = loadTexture(e.url, anisotropy, () => { if (e.sharp === tex) e.mat.map = tex; });
+      const tex = loadTexture(e.url, anisotropy, () => {
+        if (e.sharp !== tex) return;
+        e.mat.map = tex;
+        e.mat.needsUpdate = true;
+        e.mesh.visible = true;
+      });
       e.sharp = tex;
     }
     const held = items.filter((e) => e.sharp).sort((a, b) => a.dist - b.dist);
     held.forEach((e, i) => {
       if (i >= max && e.dist > near) {
-        e.mat.map = e.small;
+        e.mesh.visible = false;
+        e.mat.map = null;
+        e.mat.needsUpdate = true;
         e.sharp.dispose();
         e.sharp = null;
       }
@@ -572,8 +628,11 @@ function createSharpener(items, { near, max, anisotropy }) {
  *    `setVisited(id)` when that changes.
  *  - `attachTV` is only used if the layout turns booth TVs back on (`grid.tv.enabled`).
  *
- * Returns `update(px, pz)` for the slow per-position work (which prints to hold sharp, which
- * booth the visitor is standing at) and `animate(dt)` for the per-frame fade of the booth lights.
+ * Draw calls: all 24 backwalls are one mesh on one atlas texture, and so are all 24 posters. The
+ * few booths a visitor is close to also get their own mesh with the sharp print, which carries
+ * that booth's lights. Returns `update(px, pz)` for the slow per-position work (which prints to
+ * hold sharp, which booth the visitor is standing at) and `animate(dt)` for the per-frame fade
+ * of the booth lights.
  */
 export function createBoothGrid(scene, layout, booths, boothsData, art = {}, {
   attachTV, lowPower = false, anisotropy = 4, isVisited = () => false,
@@ -589,24 +648,40 @@ export function createBoothGrid(scene, layout, booths, boothsData, art = {}, {
 
   const panelW = g.u1 - g.u0;
   const panelH = g.y1 - g.y0;
-  const W = lowPower ? 320 : 640;
+  const W = lowPower ? 320 : 640;            // a placeholder backwall's own canvas
   const H = Math.round(W * panelH / panelW);
   const aniso = lowPower ? 2 : anisotropy;
+  const posterW = ea.boardW - 0.012, posterH = ea.boardH - 0.012;
   const panelGeo = new THREE.PlaneGeometry(panelW, panelH);
-  const posterGeo = new THREE.PlaneGeometry(ea.boardW - 0.012, ea.boardH - 0.012);
+  const posterGeo = new THREE.PlaneGeometry(posterW, posterH);
   const disposables = [panelGeo, posterGeo];
   const walls = [];
   const easels = [];
   const lit = new Map();        // booth id -> { mat, level } for the booth-light fade
   const spotPool = createSpotPoolTexture(layout);
-  disposables.push(spotPool);
+  // The atlas mesh reads the same light map through its second UV channel.
+  const spotPoolAtlas = spotPool.clone();
+  spotPoolAtlas.channel = 1;
+  spotPoolAtlas.needsUpdate = true;
+  disposables.push(spotPool, spotPoolAtlas);
   // Logos for a placeholder backwall, fetched only if one is ever drawn.
   let logoImages = null;
   const loadLogos = () => logoImages || (logoImages = Promise.all([
     loadImage('/venue/logos.webp'), loadImage('/landing/assets/web/logo-navbar.png'),
   ]).then(([logos, yim]) => ({ logos, yim })));
 
-  for (const booth of Object.values(booths)) {
+  const list = Object.values(booths).sort((a, b) => a.id - b.id);
+  const wallCell = lowPower ? [256, 312] : [340, 415];
+  const posterCell = lowPower ? [180, 256] : [240, 342];
+  const wallAtlas = createAtlas(list.length, 6, wallCell[0], wallCell[1], aniso);
+  const posterAtlas = createAtlas(list.length, 6, posterCell[0], posterCell[1], aniso);
+  disposables.push(wallAtlas, posterAtlas);
+  const wallQuads = [];
+  const posterQuads = [];
+  const tmp = new THREE.Object3D();
+  const sharpMat = (extra = {}) => new THREE.MeshStandardMaterial({ roughness: 0.82, metalness: 0, ...extra });
+
+  list.forEach((booth, i) => {
     const info = boothsData.find((b) => b.id === booth.id) || {};
     const own = Array.isArray(info.panelArt) ? info.panelArt[0] : null;
     const print = backwalls[String(booth.id)];
@@ -614,42 +689,39 @@ export function createBoothGrid(scene, layout, booths, boothsData, art = {}, {
     const yaw = f > 0 ? 0 : Math.PI;            // plane normal +z, turned to face the aisle
     const west = booth.cx - G.booth / 2;
 
-    // --- Backwall print: the client's art (small until the visitor is close), lit by the
-    // shared spot-pool light map.
-    let map;
-    let sharpUrl = null;
-    if (own) {
-      map = loadTexture(own, aniso);
-    } else if (print) {
-      map = loadTexture(print.sm, aniso);
-      sharpUrl = print.lg;
+    // --- Backwall: its cell in the atlas (the small print, the team's own art, or a drawn
+    // placeholder), and its own mesh for the sharp print when the visitor is close.
+    if (own || print) {
+      loadImage(own || print.sm).then((img) => wallAtlas.draw(i, img));
     } else {
       const canvas = document.createElement('canvas');
       canvas.width = W;
       canvas.height = H;
       const ctx = canvas.getContext('2d');
       drawBackWall(ctx, W, H, booth, info);
-      map = makeTexture(canvas, aniso);
-      const placeholder = map;
+      wallAtlas.draw(i, canvas);
       loadLogos().then((imgs) => {
         if (!imgs.logos && !imgs.yim) return;
         drawBackWall(ctx, W, H, booth, info, imgs);
-        placeholder.needsUpdate = true;
+        wallAtlas.draw(i, canvas);
       });
     }
-    disposables.push(map);
-    const wallMat = new THREE.MeshStandardMaterial({
-      map, roughness: 0.82, metalness: 0, lightMap: spotPool, lightMapIntensity: LIGHT_IDLE,
-    });
+    tmp.position.set(west + (g.u0 + g.u1) / 2, g.y0 + panelH / 2, booth.spineZ + f * g.offset);
+    tmp.rotation.set(0, yaw, 0);
+    tmp.updateMatrix();
+    wallQuads.push(atlasQuad(panelW, panelH, tmp.matrix, wallAtlas.rect(i), true));
+
+    const wallMat = sharpMat({ lightMap: spotPool, lightMapIntensity: LIGHT_IDLE });
     const wall = new THREE.Mesh(panelGeo, wallMat);
-    wall.position.set(west + (g.u0 + g.u1) / 2, g.y0 + panelH / 2, booth.spineZ + f * g.offset);
+    wall.position.set(tmp.position.x, tmp.position.y, booth.spineZ + f * (g.offset + 0.002));
     wall.rotation.y = yaw;
     wall.receiveShadow = true;
+    wall.visible = false;
     wall.name = `Booth_${pad2(booth.id)}_BackWall`;
     group.add(wall);
     // Ranked by where a visitor stands to look at this wall, not by the wall itself: the booth
     // backing onto it across the spine is just as near, and faces the other way.
-    walls.push({ mat: wallMat, small: map, url: sharpUrl, sharp: null, x: booth.ax, z: booth.az });
+    walls.push({ mesh: wall, mat: wallMat, url: own || (print && print.lg) || null, sharp: null, x: booth.ax, z: booth.az });
     lit.set(booth.id, { mat: wallMat, level: LIGHT_IDLE });
 
     // --- Poster on the easel: same placement as the baked board in scripts/venue_set.py easel().
@@ -663,16 +735,22 @@ export function createBoothGrid(scene, layout, booths, boothsData, art = {}, {
     group.add(stand);
 
     const entry = posters[String(booth.id)];
-    const posterMat = new THREE.MeshStandardMaterial({ roughness: 0.55, metalness: 0 });
-    posterMat.map = entry
-      ? loadTexture(entry.sm, aniso)
-      : makeTexture(drawPosterPlaceholder(booth, info, 300, 425), aniso);
-    disposables.push(posterMat.map);
+    if (entry) loadImage(entry.sm).then((img) => posterAtlas.draw(i, img));
+    else posterAtlas.draw(i, drawPosterPlaceholder(booth, info, 300, 425));
+    const at = new THREE.Object3D();
+    at.position.set(0, ea.boardH / 2, 0.004);
+    ledge.add(at);
+    stand.updateMatrixWorld(true);
+    posterQuads.push(atlasQuad(posterW, posterH, at.matrixWorld, posterAtlas.rect(i)));
+    ledge.remove(at);
+
+    const posterMat = sharpMat({ roughness: 0.55 });
     const poster = new THREE.Mesh(posterGeo, posterMat);
-    poster.position.set(0, ea.boardH / 2, 0.004);
+    poster.position.set(0, ea.boardH / 2, 0.006);
+    poster.visible = false;
     poster.name = `Booth_${pad2(booth.id)}_Poster`;
     ledge.add(poster);
-    easels.push({ mat: posterMat, small: posterMat.map, url: entry ? entry.lg : null, sharp: null, x: booth.easelX, z: booth.easelZ });
+    easels.push({ mesh: poster, mat: posterMat, url: entry ? entry.lg : null, sharp: null, x: booth.easelX, z: booth.easelZ });
 
     // --- Optional wall TV (off: booth videos open in the booth pop-up).
     if (G.tv && G.tv.enabled && attachTV) {
@@ -683,7 +761,22 @@ export function createBoothGrid(scene, layout, booths, boothsData, art = {}, {
       group.add(mount);
       attachTV(mount, new THREE.Vector3(0, 0, 0.012), booth, { w: tvW, h: tvW * 9 / 16 });
     }
-  }
+  });
+
+  // The two atlas meshes: every backwall, and every poster, in one draw call each.
+  const wallsGeo = mergeGeometries(wallQuads, false);
+  const postersGeo = mergeGeometries(posterQuads, false);
+  wallQuads.concat(posterQuads).forEach((q) => q.dispose());
+  disposables.push(wallsGeo, postersGeo);
+  const wallsAtlasMesh = new THREE.Mesh(wallsGeo, new THREE.MeshStandardMaterial({
+    map: wallAtlas.tex, roughness: 0.82, metalness: 0, lightMap: spotPoolAtlas, lightMapIntensity: LIGHT_IDLE,
+  }));
+  wallsAtlasMesh.name = 'BoothBackwalls_Atlas';
+  wallsAtlasMesh.receiveShadow = true;
+  group.add(wallsAtlasMesh);
+  const postersAtlasMesh = new THREE.Mesh(postersGeo, new THREE.MeshStandardMaterial({ map: posterAtlas.tex, roughness: 0.55, metalness: 0 }));
+  postersAtlasMesh.name = 'BoothPosters_Atlas';
+  group.add(postersAtlasMesh);
 
   // Booth-number fascias and runner discs, in the team's accent colour.
   const accentOf = (id) => (backwalls[String(id)] && backwalls[String(id)].accent) || booths[id].color;
@@ -720,7 +813,7 @@ export function createBoothGrid(scene, layout, booths, boothsData, art = {}, {
   }
 
   // Backwalls read from across the aisle, so they sharpen from further out than the posters do.
-  // A tablet holds two sharp backwalls and no sharp posters (the booth pop-up shows the poster).
+  // A tablet holds two sharp backwalls and no sharp posters.
   const sharpenWalls = createSharpener(walls, { near: lowPower ? 4.5 : 6.5, max: lowPower ? 2 : WALL_SHARP_MAX, anisotropy: aniso });
   const sharpenPosters = lowPower ? null : createSharpener(easels, { near: POSTER_NEAR, max: POSTER_SHARP_MAX, anisotropy: aniso });
 
@@ -759,7 +852,9 @@ export function createBoothGrid(scene, layout, booths, boothsData, art = {}, {
     dispose: () => {
       disposables.forEach((t) => t.dispose());
       signs.dispose();
-      [...walls, ...easels].forEach((e) => e.sharp && e.sharp.dispose());
+      [...walls, ...easels].forEach((e) => { if (e.sharp) e.sharp.dispose(); e.mat.dispose(); });
+      wallsAtlasMesh.material.dispose();
+      postersAtlasMesh.material.dispose();
     },
   };
 }

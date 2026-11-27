@@ -150,12 +150,28 @@ await check('booth proximity prompt', `
   return { ok: !!t && t.type === 'booth' && t.id === 1, detail: t ? t.type + ' ' + (t.id ?? t.key) : 'none' };`);
 
 // Every booth has a poster on its easel, from posters.json.
+// Every easel's poster is drawn into one atlas mesh (one draw call for all 24).
 await check('easel posters on all 24 booths', `
-  const meshes = [];
-  ${G}.scene.traverse(o => { if (/^Booth_\\d\\d_Poster$/.test(o.name)) meshes.push(o); });
-  for (let i = 0; i < 40 && meshes.some(m => !m.material.map || !m.material.map.image); i++) await new Promise(r => setTimeout(r, 250));
-  const loaded = meshes.filter(m => m.material.map && m.material.map.image && m.material.map.image.width > 0);
-  return { ok: meshes.length === 24 && loaded.length === 24, detail: meshes.length + ' posters, ' + loaded.length + ' with an image' };`);
+  const atlasCells = (mesh) => {
+    const c = mesh.material.map.image;
+    const ctx = c.getContext('2d');
+    const cols = 6, rows = 4, cw = c.width / cols, ch = c.height / rows;
+    let painted = 0;
+    for (let i = 0; i < 24; i++) {
+      const x = (i % cols) * cw, y = Math.floor(i / cols) * ch;
+      const d = ctx.getImageData(Math.floor(x + cw * 0.3), Math.floor(y + ch * 0.3), Math.floor(cw * 0.4), Math.floor(ch * 0.4)).data;
+      let differs = 0;
+      for (let k = 0; k < d.length; k += 4) if (Math.abs(d[k] - 0xee) + Math.abs(d[k + 1] - 0xf0) + Math.abs(d[k + 2] - 0xf3) > 24) differs++;
+      if (differs > d.length / 4 * 0.05) painted++;
+    }
+    return painted;
+  };
+  let mesh = null;
+  ${G}.scene.traverse(o => { if (o.name === 'BoothPosters_Atlas') mesh = o; });
+  let painted = 0;
+  for (let i = 0; i < 40 && mesh && (painted = atlasCells(mesh)) < 24; i++) await new Promise(r => setTimeout(r, 250));
+  const quads = mesh ? mesh.geometry.attributes.position.count / 4 : 0;
+  return { ok: quads === 24 && painted === 24, detail: quads + ' posters in 1 draw call, ' + painted + ' atlas cells painted' };`);
 
 // Walking up to an easel swaps in the sharp poster.
 await check('sharp poster loads near an easel', `
@@ -164,20 +180,37 @@ await check('sharp poster loads near an easel', `
   ${G}.boothGrid.update(b.easelX, b.easelZ + b.facing * 1.2);
   let mesh = null;
   ${G}.scene.traverse(o => { if (o.name === 'Booth_01_Poster') mesh = o; });
-  for (let i = 0; i < 40 && !(mesh.material.map.image && mesh.material.map.image.width > 1000); i++) await new Promise(r => setTimeout(r, 250));
-  const w = mesh.material.map.image ? mesh.material.map.image.width : 0;
+  const sharpW = () => (mesh.visible && mesh.material.map && mesh.material.map.image) ? mesh.material.map.image.width : 0;
+  for (let i = 0; i < 40 && !(sharpW() > 1000); i++) await new Promise(r => setTimeout(r, 250));
+  const w = sharpW();
   return { ok: w > 1000, detail: 'poster texture ' + w + ' px wide' };`);
 
 // Every backwall carries the client's print, at the size it is drawn for (2.0 x 2.44 m).
 await check('backwall prints on all 24 booths', `
-  const meshes = [];
-  ${G}.scene.traverse(o => { if (/^Booth_\\d\\d_BackWall$/.test(o.name)) meshes.push(o); });
-  for (let i = 0; i < 40 && meshes.some(m => !m.material.map || !m.material.map.image); i++) await new Promise(r => setTimeout(r, 250));
-  const loaded = meshes.filter(m => m.material.map && m.material.map.image && m.material.map.image.width > 0);
-  const p = meshes[0] ? meshes[0].geometry.parameters : {};
+  const atlasCells = (mesh) => {
+    const c = mesh.material.map.image;
+    const ctx = c.getContext('2d');
+    const cols = 6, rows = 4, cw = c.width / cols, ch = c.height / rows;
+    let painted = 0;
+    for (let i = 0; i < 24; i++) {
+      const x = (i % cols) * cw, y = Math.floor(i / cols) * ch;
+      const d = ctx.getImageData(Math.floor(x + cw * 0.3), Math.floor(y + ch * 0.3), Math.floor(cw * 0.4), Math.floor(ch * 0.4)).data;
+      let differs = 0;
+      for (let k = 0; k < d.length; k += 4) if (Math.abs(d[k] - 0xee) + Math.abs(d[k + 1] - 0xf0) + Math.abs(d[k + 2] - 0xf3) > 24) differs++;
+      if (differs > d.length / 4 * 0.05) painted++;
+    }
+    return painted;
+  };
+  let atlas = null;
+  const own = [];
+  ${G}.scene.traverse(o => { if (o.name === 'BoothBackwalls_Atlas') atlas = o; if (/^Booth_\\d\\d_BackWall$/.test(o.name)) own.push(o); });
+  let painted = 0;
+  for (let i = 0; i < 40 && atlas && (painted = atlasCells(atlas)) < 24; i++) await new Promise(r => setTimeout(r, 250));
+  const quads = atlas ? atlas.geometry.attributes.position.count / 4 : 0;
+  const p = own[0] ? own[0].geometry.parameters : {};
   const sized = Math.abs(p.width - 2.0) < 0.01 && Math.abs(p.height - 2.44) < 0.01;
-  return { ok: meshes.length === 24 && loaded.length === 24 && sized,
-           detail: meshes.length + ' walls, ' + loaded.length + ' with a print, ' + (p.width || 0).toFixed(2) + ' x ' + (p.height || 0).toFixed(2) + ' m' };`);
+  return { ok: quads === 24 && painted === 24 && own.length === 24 && sized,
+           detail: quads + ' walls in 1 draw call, ' + painted + ' cells painted, ' + own.length + ' sharp-copy meshes, ' + (p.width || 0).toFixed(2) + ' x ' + (p.height || 0).toFixed(2) + ' m' };`);
 
 // Standing at a booth swaps in its sharp backwall and brings its lights up.
 await check('sharp backwall + booth lights at a booth', `
@@ -186,8 +219,9 @@ await check('sharp backwall + booth lights at a booth', `
   ${G}.boothGrid.update(b.ax, b.az);
   let mesh = null;
   ${G}.scene.traverse(o => { if (o.name === 'Booth_09_BackWall') mesh = o; });
-  for (let i = 0; i < 40 && !(mesh.material.map.image && mesh.material.map.image.width > 700); i++) await new Promise(r => setTimeout(r, 250));
-  const w = mesh.material.map.image ? mesh.material.map.image.width : 0;
+  const sharpW = () => (mesh.visible && mesh.material.map && mesh.material.map.image) ? mesh.material.map.image.width : 0;
+  for (let i = 0; i < 40 && !(sharpW() > 700); i++) await new Promise(r => setTimeout(r, 250));
+  const w = sharpW();
   const idle = mesh.material.lightMapIntensity;
   for (let i = 0; i < 40; i++) ${G}.boothGrid.animate(0.1);
   const lit = mesh.material.lightMapIntensity;
