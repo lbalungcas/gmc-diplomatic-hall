@@ -240,6 +240,17 @@
 
       <!-- Tab Contents -->
       <div class="tab-content" id="tab-overview">
+        <!-- The team's live pitch from 17 November; plays with sound as the booth opens (main.js). -->
+        <section class="pitch-hero hidden" id="modal-pitch" aria-label="Team pitch video">
+          <div class="media-video-wrapper pitch-wrapper">
+            <span class="tv-badge pitch-badge">🎤 TEAM PITCH</span>
+            <video id="modal-pitch-video" controls playsinline preload="none" aria-label="Team pitch video"></video>
+          </div>
+          <p class="pitch-caption">
+            <span id="modal-pitch-team">Team</span> pitching live at the Youth Innovations Marketplace, 17 November 2026
+            <span class="pitch-duration" id="modal-pitch-duration"></span>
+          </p>
+        </section>
         <div class="placeholder-note hidden" id="modal-placeholder-note">
           🛠️ This exhibitor is still setting up. Full project details, media and team contacts are coming soon.
         </div>

@@ -20,6 +20,7 @@ import hallLayout from './data/hallLayout.json';
 import postersData from './data/posters.json';
 import backwallsData from './data/backwalls.json';
 import organizerArt from './data/organizerArt.json';
+import pitchesData from './data/pitches.json';
 import { createPresence, getVisitorInfo, colorFromId } from './modules/presence.js';
 import { track } from './modules/analytics.js';
 import { buildOrganizerBooth, organizerObstacles, TV_W, TV_H } from './modules/organizers.js';
@@ -2782,7 +2783,9 @@ function checkProximity(force = false) {
       activeTarget = {
         type: 'booth', key: `booth-${id}`, id,
         title: name,
-        sub: visited ? `${actionVerb()} revisit${quizPassed.has(id) ? ' exhibit' : ' & take the quiz'}` : `${actionVerb()} inspect & collect stamp`,
+        sub: visited
+          ? `${actionVerb()} ${pitchesData[String(id)] ? 'watch the pitch' : 'revisit'}${quizPassed.has(id) ? '' : ' & take the quiz'}`
+          : `${actionVerb()} ${pitchesData[String(id)] ? 'watch the pitch' : 'inspect'} & collect stamp`,
       };
     }
   }
@@ -2995,6 +2998,7 @@ function closeModal(id) {
     const mount = $('modal-video-mount');
     if (mount) mount.innerHTML = '';
     stopPopupVideo($('modal-tv-video'));
+    stopPopupVideo($('modal-pitch-video'));
     currentBoothId = null;
   }
   if (id === 'org-modal') {
@@ -3182,9 +3186,32 @@ function loadPopupVideo(video, src, { play = false, poster = '' } = {}) {
 }
 
 function isPopupVideoPlaying() {
-  const a = $('modal-tv-video');
-  const b = $('org-tv-video');
-  return (a && !a.paused && !a.muted) || (b && !b.paused && !b.muted);
+  return ['modal-tv-video', 'org-tv-video', 'modal-pitch-video'].some((id) => {
+    const v = $(id);
+    return v && !v.paused && !v.muted;
+  });
+}
+
+/**
+ * The team's pitch, recorded live on 17 November (src/data/pitches.json). Shown at the top of the
+ * booth pop-up; with `play` it starts at once with sound — opening the booth (E, a tap or a click)
+ * is the gesture browsers require. Plays once, no loop.
+ */
+function showBoothPitch(boothId, boothName, { play = false } = {}) {
+  const pitch = pitchesData[String(boothId)];
+  const section = $('modal-pitch');
+  const video = $('modal-pitch-video');
+  section.classList.toggle('hidden', !pitch);
+  if (!pitch) {
+    stopPopupVideo(video);
+    return false;
+  }
+  $('modal-pitch-team').textContent = boothName;
+  const d = Math.round(pitch.duration || 0);
+  $('modal-pitch-duration').textContent = d ? `${Math.floor(d / 60)}:${String(d % 60).padStart(2, '0')}` : '';
+  loadPopupVideo(video, pitch.src, { play, poster: pitch.poster });
+  video.loop = false;
+  return true;
 }
 
 function renderStats(stats, grid = $('modal-stats-grid')) {
@@ -3273,6 +3300,10 @@ function activateTab(tabId) {
     b.setAttribute('aria-selected', String(on));
   });
   document.querySelectorAll('.tab-content').forEach(c => c.classList.toggle('hidden', c.id !== tabId));
+  if (tabId !== 'tab-overview') {
+    const pitch = $('modal-pitch-video');
+    if (pitch && !pitch.paused) pitch.pause();
+  }
 
   // Lazy-load media only when the media tab is shown.
   if (tabId === 'tab-media' && currentBoothId) {
@@ -3313,7 +3344,14 @@ function openBoothModal(boothId, { tab = 'tab-overview', playWithSound = false }
   $('modal-overview-text').textContent = boothInfo.overview && !boothInfo.placeholder
     ? boothInfo.overview
     : "This youth-led satellite innovation team delivers scalable solutions tackling systemic environmental and social challenges. Full project details will appear here once the exhibitor publishes them.";
-  $('modal-placeholder-note').classList.toggle('hidden', !boothInfo.placeholder);
+  const boothName = boothInfo.name || boothMeta.title;
+  // From the booth itself (not from its TV, which plays the TV loop instead) the pitch starts at once.
+  const hasPitch = showBoothPitch(boothId, boothName, { play: tab === 'tab-overview' });
+  if (hasPitch && tab === 'tab-overview') emitAnalytics('intro_play', { boothId });
+  // The "still setting up" note and stand-in summary only make sense for a booth with nothing to show.
+  const placeholderOnly = !!boothInfo.placeholder || !boothInfo.overview;
+  $('modal-placeholder-note').classList.toggle('hidden', !placeholderOnly || hasPitch);
+  $('modal-overview-text').parentElement.classList.toggle('hidden', placeholderOnly && hasPitch);
   $('modal-quiz-pill').classList.toggle('hidden', !quizPassed.has(boothId));
   $('quiz-tab-dot').classList.toggle('on', !quizPassed.has(boothId) && !!(boothInfo.quiz && boothInfo.quiz.questions && boothInfo.quiz.questions.length));
 

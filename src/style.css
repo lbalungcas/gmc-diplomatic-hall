@@ -1396,6 +1396,27 @@ body.touch-device #proximity-prompt:active { transform: translateX(-50%) scale(0
   pointer-events: none;
 }
 
+/* ---------- Team pitch (top of the booth pop-up) ---------- */
+.pitch-hero { margin-bottom: 16px; }
+.pitch-hero.hidden { display: none; }
+.pitch-wrapper {
+  margin-bottom: 8px;
+  border-color: rgba(251, 191, 36, 0.45);
+  box-shadow: 0 0 0 1px rgba(251, 191, 36, 0.15), 0 14px 34px rgba(0, 0, 0, 0.4);
+}
+.pitch-badge {
+  border-color: rgba(251, 191, 36, 0.55);
+  color: #fcd34d;
+}
+.pitch-caption {
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+.pitch-caption #modal-pitch-team { color: #e2e8f0; font-weight: 700; }
+.pitch-duration { white-space: nowrap; opacity: 0.8; }
+.pitch-duration:not(:empty)::before { content: ' · '; }
+
 .media-video-wrapper iframe {
   position: absolute;
   inset: 0;

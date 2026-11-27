@@ -266,6 +266,33 @@ await check('booth modal shows the team poster', `
   ${settle}
   return { ok: r.ok && /posters/.test(img.src), detail: img.src.replace(location.origin, '') + ' HTTP ' + r.status };`);
 
+// Opening a booth plays the team's pitch from 17 November (src/data/pitches.json); closing stops it.
+await check('booth pitch video plays on open, stops on close', `
+  ${G}.openBoothModal(5);
+  const v = document.getElementById('modal-pitch-video');
+  for (let i = 0; i < 40 && (v.paused || v.readyState < 2); i++) await new Promise(r => setTimeout(r, 250));
+  const shown = !document.getElementById('modal-pitch').classList.contains('hidden');
+  const src = (v.getAttribute('src') || '');
+  const playing = !v.paused && v.readyState >= 2;
+  const placeholderHidden = document.getElementById('modal-placeholder-note').classList.contains('hidden');
+  document.querySelectorAll('[data-close="booth-modal"]').forEach(b => b.click());
+  ${settle}
+  const stopped = v.paused && !v.getAttribute('src');
+  return { ok: shown && src.endsWith('pitches/booth-05.mp4') && playing && stopped && placeholderHidden,
+           detail: src + ' playing=' + playing + (v.muted ? ' (muted fallback)' : ' with sound') + ' stoppedOnClose=' + stopped };`);
+
+// Every booth has its pitch file and poster on the server.
+await check('all 24 pitch videos are served', `
+  const res = await fetch('/src/data/pitches.json').then(r => r.json()).catch(() => null);
+  const ids = Array.from({ length: 24 }, (_, i) => String(i + 1));
+  const heads = await Promise.all(ids.map(async (id) => {
+    const r = await fetch('/videos/pitches/booth-' + id.padStart(2, '0') + '.mp4', { method: 'HEAD' });
+    const p = await fetch('/videos/pitches/booth-' + id.padStart(2, '0') + '.jpg', { method: 'HEAD' });
+    return r.ok && (r.headers.get('content-type') || '').includes('video/mp4') && p.ok;
+  }));
+  const okCount = heads.filter(Boolean).length;
+  return { ok: okCount === 24, detail: okCount + '/24 videos + posters' };`);
+
 await check('chair sit and stand', `
   const c0 = ${G}.CHAIR_LOCATIONS[0];
   ${G}.teleportPlayer(c0.x, 1.45, c0.z - 0.35, 0);
