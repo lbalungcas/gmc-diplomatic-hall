@@ -1415,6 +1415,37 @@ body.touch-device #proximity-prompt:active { transform: translateX(-50%) scale(0
 }
 .pitch-caption #modal-pitch-team { color: #e2e8f0; font-weight: 700; }
 .pitch-duration { white-space: nowrap; opacity: 0.8; }
+
+/* Two pitch videos: the team's own 60-second pitch, and the one recorded live at the booth. */
+.pitch-switch {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 10px;
+  padding: 4px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+}
+.pitch-switch.hidden { display: none; }
+.pitch-switch-btn {
+  flex: 1 1 0;
+  min-height: 40px;            /* comfortable tap target on tablets */
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--text-muted);
+  font: 700 13px var(--font-display);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.pitch-switch-btn:hover { color: #e2e8f0; background: rgba(255, 255, 255, 0.05); }
+.pitch-switch-btn[aria-pressed="true"] { background: rgba(251, 191, 36, 0.16); color: #fcd34d; box-shadow: inset 0 0 0 1px rgba(251, 191, 36, 0.45); }
+.pitch-switch-btn:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+/* After the pitch video ends, point at the live one. */
+.pitch-switch-btn.nudge { animation: pitch-nudge 1.2s ease-in-out 3; }
+@keyframes pitch-nudge { 50% { background: rgba(0, 212, 255, 0.18); color: #e0f7ff; } }
+@media (prefers-reduced-motion: reduce) { .pitch-switch-btn.nudge { animation: none; box-shadow: inset 0 0 0 1px rgba(0, 212, 255, 0.6); } }
 .pitch-duration:not(:empty)::before { content: ' · '; }
 
 .media-video-wrapper iframe {

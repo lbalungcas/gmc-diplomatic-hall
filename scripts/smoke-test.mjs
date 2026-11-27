@@ -300,9 +300,9 @@ await check('booth modal shows the team poster', `
   ${settle}
   return { ok: r.ok && /posters/.test(img.src), detail: img.src.replace(location.origin, '') + ' HTTP ' + r.status };`);
 
-// Opening a booth plays the team's pitch from 17 November (src/data/pitches.json); closing stops it.
+// Opening a booth plays its pitch (booth 7 has only the live one, src/data/pitches.json); closing stops it.
 await check('booth pitch video plays on open, stops on close', `
-  ${G}.openBoothModal(5);
+  ${G}.openBoothModal(7);
   const v = document.getElementById('modal-pitch-video');
   for (let i = 0; i < 40 && (v.paused || v.readyState < 2); i++) await new Promise(r => setTimeout(r, 250));
   const shown = !document.getElementById('modal-pitch').classList.contains('hidden');
@@ -312,7 +312,7 @@ await check('booth pitch video plays on open, stops on close', `
   document.querySelectorAll('[data-close="booth-modal"]').forEach(b => b.click());
   ${settle}
   const stopped = v.paused && !v.getAttribute('src');
-  return { ok: shown && src.endsWith('pitches/booth-05.mp4') && playing && stopped && placeholderHidden,
+  return { ok: shown && src.endsWith('pitches/booth-07.mp4') && playing && stopped && placeholderHidden,
            detail: src + ' playing=' + playing + (v.muted ? ' (muted fallback)' : ' with sound') + ' stoppedOnClose=' + stopped };`);
 
 // Every booth has its pitch file and poster on the server.
@@ -326,6 +326,38 @@ await check('all 24 pitch videos are served', `
   }));
   const okCount = heads.filter(Boolean).length;
   return { ok: okCount === 24, detail: okCount + '/24 videos + posters' };`);
+
+// Teams that sent their own pitch video: it plays first, with a switch to the live recording.
+await check('pitch video first, switch to the live pitch', `
+  ${G}.openBoothModal(18);
+  const v = document.getElementById('modal-pitch-video');
+  const sw = document.getElementById('modal-pitch-switch');
+  const first = v.getAttribute('src') || '';
+  const switchShown = !sw.classList.contains('hidden');
+  sw.querySelector('[data-pitch="live"]').click();
+  for (let i = 0; i < 40 && (v.paused || v.readyState < 2); i++) await new Promise(r => setTimeout(r, 250));
+  const second = v.getAttribute('src') || '';
+  const livePressed = sw.querySelector('[data-pitch="live"]').getAttribute('aria-pressed') === 'true';
+  document.querySelectorAll('[data-close="booth-modal"]').forEach(b => b.click());
+  ${settle}
+  ${G}.openBoothModal(7);
+  const noSwitch = sw.classList.contains('hidden') && (v.getAttribute('src') || '').endsWith('pitches/booth-07.mp4');
+  document.querySelectorAll('[data-close="booth-modal"]').forEach(b => b.click());
+  ${settle}
+  return { ok: switchShown && first.endsWith('short/booth-18.mp4') && second.endsWith('pitches/booth-18.mp4') && livePressed && noSwitch,
+           detail: 'opens ' + first.replace(location.origin, '') + ', switch -> ' + second.replace(location.origin, '') + ', booth 7 (live only) no switch=' + noSwitch };`);
+
+await check('every team pitch video is served', `
+  const manifest = await fetch('/src/data/pitches.json').then(r => r.json());
+  const ids = Object.keys(manifest).filter(k => manifest[k].short).map(Number);
+  const ok = await Promise.all(ids.map(async (n) => {
+    const id = String(n).padStart(2, '0');
+    const r = await fetch('/videos/pitches/short/booth-' + id + '.mp4', { method: 'HEAD' });
+    const p = await fetch('/videos/pitches/short/booth-' + id + '.jpg', { method: 'HEAD' });
+    return r.ok && (r.headers.get('content-type') || '').includes('video/mp4') && p.ok;
+  }));
+  const n = ok.filter(Boolean).length;
+  return { ok: ids.length >= 19 && n === ids.length, detail: n + '/' + ids.length + ' videos + posters' };`);
 
 await check('chair sit and stand', `
   const c0 = ${G}.CHAIR_LOCATIONS[0];

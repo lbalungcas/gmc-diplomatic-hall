@@ -3006,6 +3006,7 @@ function closeModal(id) {
     if (mount) mount.innerHTML = '';
     stopPopupVideo($('modal-tv-video'));
     stopPopupVideo($('modal-pitch-video'));
+    pitchShown = null;
     currentBoothId = null;
   }
   if (id === 'org-modal') {
@@ -3200,24 +3201,50 @@ function isPopupVideoPlaying() {
 }
 
 /**
- * The team's pitch, recorded live on 17 November (src/data/pitches.json). Shown at the top of the
- * booth pop-up; with `play` it starts at once with sound — opening the booth (E, a tap or a click)
- * is the gesture browsers require. Plays once, no loop.
+ * The booth's pitch videos (src/data/pitches.json): the one recorded live at the booth on
+ * 17 November, and, for teams that sent one, their own 60-second pitch (`short`), which plays
+ * first with a switch to the live one. With `play` the video starts at once with sound — opening
+ * the booth (E, a tap or a click) is the gesture browsers require. Each plays once, no loop.
  */
+const PITCH_MODES = {
+  short: { badge: '🎬 PITCH VIDEO', what: () => "— the team's pitch video" },
+  live: { badge: '🎤 LIVE PITCH', what: () => 'pitching live at the Youth Innovations Marketplace, 17 November 2026' },
+};
+let pitchShown = null;   // { pitch, mode } for the open booth
+
+function setPitchMode(mode, { play = false } = {}) {
+  if (!pitchShown) return;
+  const { pitch } = pitchShown;
+  const clip = mode === 'short' ? pitch.short : pitch;
+  if (!clip) return;
+  pitchShown.mode = mode;
+  const video = $('modal-pitch-video');
+  $('modal-pitch-badge').textContent = pitch.short ? PITCH_MODES[mode].badge : '🎤 TEAM PITCH';
+  $('modal-pitch-what').textContent = PITCH_MODES[mode].what(pitch);
+  const d = Math.round(clip.duration || 0);
+  $('modal-pitch-duration').textContent = d ? `${Math.floor(d / 60)}:${String(d % 60).padStart(2, '0')}` : '';
+  document.querySelectorAll('#modal-pitch-switch .pitch-switch-btn').forEach((btn) => {
+    btn.setAttribute('aria-pressed', String(btn.dataset.pitch === mode));
+    btn.classList.remove('nudge');
+  });
+  loadPopupVideo(video, clip.src, { play, poster: clip.poster });
+  video.loop = false;
+}
+
 function showBoothPitch(boothId, boothName, { play = false } = {}) {
   const pitch = pitchesData[String(boothId)];
   const section = $('modal-pitch');
   const video = $('modal-pitch-video');
   section.classList.toggle('hidden', !pitch);
   if (!pitch) {
+    pitchShown = null;
     stopPopupVideo(video);
     return false;
   }
   $('modal-pitch-team').textContent = boothName;
-  const d = Math.round(pitch.duration || 0);
-  $('modal-pitch-duration').textContent = d ? `${Math.floor(d / 60)}:${String(d % 60).padStart(2, '0')}` : '';
-  loadPopupVideo(video, pitch.src, { play, poster: pitch.poster });
-  video.loop = false;
+  $('modal-pitch-switch').classList.toggle('hidden', !pitch.short);
+  pitchShown = { pitch, mode: null };
+  setPitchMode(pitch.short ? 'short' : 'live', { play });
   return true;
 }
 
@@ -3877,6 +3904,21 @@ function teleportPlayer(x, y, z, yaw) {
 
 // --- HUD Setup & Click Handlers ---
 function setupHUD() {
+  // Pitch switch: the team's pitch video / live at the Marketplace (the click is the gesture for sound).
+  document.querySelectorAll('#modal-pitch-switch .pitch-switch-btn').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      if (!pitchShown || pitchShown.mode === btn.dataset.pitch) return;
+      setPitchMode(btn.dataset.pitch, { play: true });
+      if (currentBoothId) emitAnalytics('intro_play', { boothId: currentBoothId });
+    });
+  });
+  // When the pitch video ends, point at the live one.
+  $('modal-pitch-video').addEventListener('ended', () => {
+    if (pitchShown && pitchShown.mode === 'short') {
+      const live = document.querySelector('#modal-pitch-switch .pitch-switch-btn[data-pitch="live"]');
+      if (live) live.classList.add('nudge');
+    }
+  });
   // The stage stream (LED wall) must never talk over a pitch or another pop-up video: re-check its
   // volume the instant one of those starts, pauses, ends or is unloaded. updateStageVolume() is 0
   // while any of them is playing with sound.

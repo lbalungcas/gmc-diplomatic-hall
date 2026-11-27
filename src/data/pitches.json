@@ -3,37 +3,73 @@
     "src": "/videos/pitches/booth-01.mp4",
     "poster": "/videos/pitches/booth-01.jpg",
     "duration": 146.1,
-    "recorded": "2026-11-17"
+    "recorded": "2026-11-17",
+    "short": {
+      "src": "/videos/pitches/short/booth-01.mp4",
+      "poster": "/videos/pitches/short/booth-01.jpg",
+      "duration": 47.5,
+      "source": "d-kawach.mp4"
+    }
   },
   "2": {
     "src": "/videos/pitches/booth-02.mp4",
     "poster": "/videos/pitches/booth-02.jpg",
     "duration": 94.1,
-    "recorded": "2026-11-17"
+    "recorded": "2026-11-17",
+    "short": {
+      "src": "/videos/pitches/short/booth-02.mp4",
+      "poster": "/videos/pitches/short/booth-02.jpg",
+      "duration": 62.8,
+      "source": "Voice 4 Change_Video.mov"
+    }
   },
   "3": {
     "src": "/videos/pitches/booth-03.mp4",
     "poster": "/videos/pitches/booth-03.jpg",
-    "duration": 298.0,
-    "recorded": "2026-11-17"
+    "duration": 298.1,
+    "recorded": "2026-11-17",
+    "short": {
+      "src": "/videos/pitches/short/booth-03.mp4",
+      "poster": "/videos/pitches/short/booth-03.jpg",
+      "duration": 89.5,
+      "source": "Project STEP and Project RESPOND.mp4"
+    }
   },
   "4": {
     "src": "/videos/pitches/booth-04.mp4",
     "poster": "/videos/pitches/booth-04.jpg",
     "duration": 117.1,
-    "recorded": "2026-11-17"
+    "recorded": "2026-11-17",
+    "short": {
+      "src": "/videos/pitches/short/booth-04.mp4",
+      "poster": "/videos/pitches/short/booth-04.jpg",
+      "duration": 60.8,
+      "source": "ScreenSafe Stories Pitch.mov"
+    }
   },
   "5": {
     "src": "/videos/pitches/booth-05.mp4",
     "poster": "/videos/pitches/booth-05.jpg",
-    "duration": 223.0,
-    "recorded": "2026-11-17"
+    "duration": 223.1,
+    "recorded": "2026-11-17",
+    "short": {
+      "src": "/videos/pitches/short/booth-05.mp4",
+      "poster": "/videos/pitches/short/booth-05.jpg",
+      "duration": 90.7,
+      "source": "her life her choice.mp4"
+    }
   },
   "6": {
     "src": "/videos/pitches/booth-06.mp4",
     "poster": "/videos/pitches/booth-06.jpg",
     "duration": 171.1,
-    "recorded": "2026-11-17"
+    "recorded": "2026-11-17",
+    "short": {
+      "src": "/videos/pitches/short/booth-06.mp4",
+      "poster": "/videos/pitches/short/booth-06.jpg",
+      "duration": 60.3,
+      "source": "Eco-scouts_60sPitching.mp4"
+    }
   },
   "7": {
     "src": "/videos/pitches/booth-07.mp4",
@@ -45,25 +81,49 @@
     "src": "/videos/pitches/booth-08.mp4",
     "poster": "/videos/pitches/booth-08.jpg",
     "duration": 273.1,
-    "recorded": "2026-11-17"
+    "recorded": "2026-11-17",
+    "short": {
+      "src": "/videos/pitches/short/booth-08.mp4",
+      "poster": "/videos/pitches/short/booth-08.jpg",
+      "duration": 563.6,
+      "source": "for booth 8.mp4"
+    }
   },
   "9": {
     "src": "/videos/pitches/booth-09.mp4",
     "poster": "/videos/pitches/booth-09.jpg",
     "duration": 180.0,
-    "recorded": "2026-11-17"
+    "recorded": "2026-11-17",
+    "short": {
+      "src": "/videos/pitches/short/booth-09.mp4",
+      "poster": "/videos/pitches/short/booth-09.jpg",
+      "duration": 60.6,
+      "source": "Gain Line_Speech video.mp4"
+    }
   },
   "10": {
     "src": "/videos/pitches/booth-10.mp4",
     "poster": "/videos/pitches/booth-10.jpg",
-    "duration": 153.0,
-    "recorded": "2026-11-17"
+    "duration": 153.1,
+    "recorded": "2026-11-17",
+    "short": {
+      "src": "/videos/pitches/short/booth-10.mp4",
+      "poster": "/videos/pitches/short/booth-10.jpg",
+      "duration": 71.5,
+      "source": "Safe Scan Video.mp4"
+    }
   },
   "11": {
     "src": "/videos/pitches/booth-11.mp4",
     "poster": "/videos/pitches/booth-11.jpg",
-    "duration": 139.0,
-    "recorded": "2026-11-17"
+    "duration": 139.1,
+    "recorded": "2026-11-17",
+    "short": {
+      "src": "/videos/pitches/short/booth-11.mp4",
+      "poster": "/videos/pitches/short/booth-11.jpg",
+      "duration": 59.1,
+      "source": "Child Voice 60s Pitching.mp4"
+    }
   },
   "12": {
     "src": "/videos/pitches/booth-12.mp4",
@@ -81,43 +141,85 @@
     "src": "/videos/pitches/booth-14.mp4",
     "poster": "/videos/pitches/booth-14.jpg",
     "duration": 118.1,
-    "recorded": "2026-11-17"
+    "recorded": "2026-11-17",
+    "short": {
+      "src": "/videos/pitches/short/booth-14.mp4",
+      "poster": "/videos/pitches/short/booth-14.jpg",
+      "duration": 60.1,
+      "source": "PAUSE_60sPitching.mp4"
+    }
   },
   "15": {
     "src": "/videos/pitches/booth-15.mp4",
     "poster": "/videos/pitches/booth-15.jpg",
     "duration": 146.0,
-    "recorded": "2026-11-17"
+    "recorded": "2026-11-17",
+    "short": {
+      "src": "/videos/pitches/short/booth-15.mp4",
+      "poster": "/videos/pitches/short/booth-15.jpg",
+      "duration": 94.5,
+      "source": "balmanch.mp4"
+    }
   },
   "16": {
     "src": "/videos/pitches/booth-16.mp4",
     "poster": "/videos/pitches/booth-16.jpg",
     "duration": 274.0,
-    "recorded": "2026-11-17"
+    "recorded": "2026-11-17",
+    "short": {
+      "src": "/videos/pitches/short/booth-16.mp4",
+      "poster": "/videos/pitches/short/booth-16.jpg",
+      "duration": 101.8,
+      "source": "Safe Together Booth Video.mp4"
+    }
   },
   "17": {
     "src": "/videos/pitches/booth-17.mp4",
     "poster": "/videos/pitches/booth-17.jpg",
     "duration": 214.1,
-    "recorded": "2026-11-17"
+    "recorded": "2026-11-17",
+    "short": {
+      "src": "/videos/pitches/short/booth-17.mp4",
+      "poster": "/videos/pitches/short/booth-17.jpg",
+      "duration": 61.5,
+      "source": "hands off hearts on.mov"
+    }
   },
   "18": {
     "src": "/videos/pitches/booth-18.mp4",
     "poster": "/videos/pitches/booth-18.jpg",
     "duration": 242.1,
-    "recorded": "2026-11-17"
+    "recorded": "2026-11-17",
+    "short": {
+      "src": "/videos/pitches/short/booth-18.mp4",
+      "poster": "/videos/pitches/short/booth-18.jpg",
+      "duration": 59.1,
+      "source": "RedAnts_60sPitching.mp4"
+    }
   },
   "19": {
     "src": "/videos/pitches/booth-19.mp4",
     "poster": "/videos/pitches/booth-19.jpg",
     "duration": 320.1,
-    "recorded": "2026-11-17"
+    "recorded": "2026-11-17",
+    "short": {
+      "src": "/videos/pitches/short/booth-19.mp4",
+      "poster": "/videos/pitches/short/booth-19.jpg",
+      "duration": 59.4,
+      "source": "YOUNGHands_60sPitching .mov"
+    }
   },
   "20": {
     "src": "/videos/pitches/booth-20.mp4",
     "poster": "/videos/pitches/booth-20.jpg",
     "duration": 275.1,
-    "recorded": "2026-11-17"
+    "recorded": "2026-11-17",
+    "short": {
+      "src": "/videos/pitches/short/booth-20.mp4",
+      "poster": "/videos/pitches/short/booth-20.jpg",
+      "duration": 60.4,
+      "source": "child fund.mp4"
+    }
   },
   "21": {
     "src": "/videos/pitches/booth-21.mp4",
@@ -129,18 +231,30 @@
     "src": "/videos/pitches/booth-22.mp4",
     "poster": "/videos/pitches/booth-22.jpg",
     "duration": 291.1,
-    "recorded": "2026-11-17"
+    "recorded": "2026-11-17",
+    "short": {
+      "src": "/videos/pitches/short/booth-22.mp4",
+      "poster": "/videos/pitches/short/booth-22.jpg",
+      "duration": 50.4,
+      "source": "simba.mp4"
+    }
   },
   "23": {
     "src": "/videos/pitches/booth-23.mp4",
     "poster": "/videos/pitches/booth-23.jpg",
-    "duration": 161.0,
+    "duration": 161.1,
     "recorded": "2026-11-17"
   },
   "24": {
     "src": "/videos/pitches/booth-24.mp4",
     "poster": "/videos/pitches/booth-24.jpg",
     "duration": 368.1,
-    "recorded": "2026-11-17"
+    "recorded": "2026-11-17",
+    "short": {
+      "src": "/videos/pitches/short/booth-24.mp4",
+      "poster": "/videos/pitches/short/booth-24.jpg",
+      "duration": 67.8,
+      "source": "for booth 24.mov"
+    }
   }
 }

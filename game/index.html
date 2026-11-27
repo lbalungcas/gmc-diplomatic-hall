@@ -242,12 +242,17 @@
       <div class="tab-content" id="tab-overview">
         <!-- The team's live pitch from 17 November; plays with sound as the booth opens (main.js). -->
         <section class="pitch-hero hidden" id="modal-pitch" aria-label="Team pitch video">
+          <!-- Teams that sent their own (about 60-second) pitch video get both; it plays first (main.js showBoothPitch). -->
+          <div class="pitch-switch hidden" id="modal-pitch-switch" role="group" aria-label="Choose a pitch video">
+            <button type="button" class="pitch-switch-btn" data-pitch="short" aria-pressed="true">🎬 Pitch video</button>
+            <button type="button" class="pitch-switch-btn" data-pitch="live" aria-pressed="false">🎤 Live at the Marketplace</button>
+          </div>
           <div class="media-video-wrapper pitch-wrapper">
-            <span class="tv-badge pitch-badge">🎤 TEAM PITCH</span>
+            <span class="tv-badge pitch-badge" id="modal-pitch-badge">🎤 TEAM PITCH</span>
             <video id="modal-pitch-video" controls playsinline preload="none" aria-label="Team pitch video"></video>
           </div>
           <p class="pitch-caption">
-            <span id="modal-pitch-team">Team</span> pitching live at the Youth Innovations Marketplace, 17 November 2026
+            <span id="modal-pitch-team">Team</span> <span id="modal-pitch-what">pitching live at the Youth Innovations Marketplace, 17 November 2026</span>
             <span class="pitch-duration" id="modal-pitch-duration"></span>
           </p>
         </section>
