@@ -231,8 +231,8 @@
         </button>
       </div>
 
-      <!-- Navigation Tabs -->
-      <div class="modal-tabs" role="tablist">
+      <!-- Navigation Tabs: hidden for now (Project Media and Quiz are switched off; the pitch is on Overview). -->
+      <div class="modal-tabs hidden" role="tablist">
         <button class="tab-btn active" data-tab="tab-overview" role="tab">Overview</button>
         <button class="tab-btn" data-tab="tab-media" role="tab">Project Media</button>
         <button class="tab-btn" data-tab="tab-quiz" role="tab">Quiz <span class="tab-dot" id="quiz-tab-dot" aria-hidden="true"></span></button>
@@ -384,7 +384,7 @@
         </div>
         <div class="guide-card">
           <h4>🌟 Digital Passport</h4>
-          <p>Visit all 24 exhibits and pass their quizzes to complete your passport. Tap a booth on the radar to track it.</p>
+          <p>Visit all 24 exhibits to complete your passport. Tap a booth on the radar to track it.</p>
         </div>
       </div>
       <div class="modal-footer">
@@ -448,7 +448,7 @@
           <h2>Marketplace Expo Passport</h2>
           <div class="header-pills">
             <span class="category-pill" id="passport-progress-pill">0 of 20 Visited</span>
-            <span class="category-pill gold-pill" id="passport-quiz-pill">0 Quizzes passed</span>
+            <span class="category-pill gold-pill hidden" id="passport-quiz-pill">0 Quizzes passed</span>
           </div>
         </div>
         <button id="passport-next-btn" class="secondary-btn accent-btn btn-xs">🎯 Nearest unvisited</button>
@@ -457,7 +457,7 @@
       <div class="passport-progress-bar">
         <div class="passport-fill" id="passport-bar-fill" style="width: 0%"></div>
       </div>
-      <p class="passport-legend">Tap any booth to track it on the radar · ⭐ Visited · 🏅 Quiz passed</p>
+      <p class="passport-legend">Tap any booth to track it on the radar · ⭐ Visited</p>
 
       <div class="passport-grid" id="passport-grid"></div>
 

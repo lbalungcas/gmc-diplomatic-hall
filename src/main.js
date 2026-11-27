@@ -1428,7 +1428,7 @@ function pickTV(ndcX = 0, ndcY = 0, maxDist = TV_AIM_DISTANCE) {
 function openTV(tv) {
   if (!tv) return;
   if (tv.boothId) {
-    openBoothModal(tv.boothId, { tab: 'tab-media', playWithSound: true });
+    openBoothModal(tv.boothId);
   } else if (tv.orgId) {
     openOrganizerModal(tv.orgId, { playWithSound: true });
   }
@@ -2784,7 +2784,7 @@ function checkProximity(force = false) {
         type: 'booth', key: `booth-${id}`, id,
         title: name,
         sub: visited
-          ? `${actionVerb()} ${pitchesData[String(id)] ? 'watch the pitch' : 'revisit'}${quizPassed.has(id) ? '' : ' & take the quiz'}`
+          ? `${actionVerb()} ${pitchesData[String(id)] ? 'watch the pitch again' : 'revisit'}`
           : `${actionVerb()} ${pitchesData[String(id)] ? 'watch the pitch' : 'inspect'} & collect stamp`,
       };
     }
@@ -3326,6 +3326,10 @@ function activateTab(tabId) {
 }
 
 function openBoothModal(boothId, { tab = 'tab-overview', playWithSound = false } = {}) {
+  // Project Media and Quiz are switched off for now (the tab bar is hidden in game/index.html), so a
+  // booth always opens on Overview with its pitch, and the quiz badges stay hidden.
+  tab = 'tab-overview';
+  playWithSound = false;
   const firstVisit = !visitedBooths.has(boothId);
   visitedBooths.add(boothId);
   saveSet('gmc_visited_booths', visitedBooths);
@@ -3352,7 +3356,7 @@ function openBoothModal(boothId, { tab = 'tab-overview', playWithSound = false }
   const placeholderOnly = !!boothInfo.placeholder || !boothInfo.overview;
   $('modal-placeholder-note').classList.toggle('hidden', !placeholderOnly || hasPitch);
   $('modal-overview-text').parentElement.classList.toggle('hidden', placeholderOnly && hasPitch);
-  $('modal-quiz-pill').classList.toggle('hidden', !quizPassed.has(boothId));
+  $('modal-quiz-pill').classList.add('hidden');
   $('quiz-tab-dot').classList.toggle('on', !quizPassed.has(boothId) && !!(boothInfo.quiz && boothInfo.quiz.questions && boothInfo.quiz.questions.length));
 
   // The team's poster (the one on the booth easel) at full size, where there is one.
